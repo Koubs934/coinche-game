@@ -1,0 +1,17 @@
+# ── Dependencies ───────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Build output (Vercel builds this itself — don't commit) ───────────────────
+frontend/dist/
+frontend/.vite/
+
+# ── Env files with real values ────────────────────────────────────────────────
+# *.example files ARE committed (they are templates).
+# Everything else holds real keys/URLs and must stay local.
+.env
+.env.local
+.env.*.local
+
+# ── OS / editor noise ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

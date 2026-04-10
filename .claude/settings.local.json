@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ':*)",
+      "Bash(node -e \"require\\('./src/server'\\)\")",
+      "Bash(kill %1)",
+      "Bash(npm install:*)",
+      "Bash(npx vite:*)",
+      "Bash(npm run:*)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":3001\")",
+      "Bash(findstr LISTENING)",
+      "Bash(taskkill:*)",
+      "Bash(cmd:*)",
+      "Bash(powershell:*)",
+      "Bash(curl:*)",
+      "Bash(node:*)",
+      "Bash(ipconfig)",
+      "Bash(findstr /i \"IPv4\")"
+    ]
+  }
+}
