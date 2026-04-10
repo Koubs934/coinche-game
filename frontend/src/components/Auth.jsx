@@ -38,7 +38,7 @@ export default function Auth() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1 className="auth-title">♦ Coinche ♣</h1>
+        <h1 className="auth-title">♦ Belote ♣</h1>
         <h2>{mode === 'signin' ? t.signIn : t.signUp}</h2>
 
         <form onSubmit={handleSubmit} className="auth-form">

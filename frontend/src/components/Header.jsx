@@ -8,7 +8,7 @@ export default function Header({ roomCode, scores, targetScore }) {
   return (
     <header className="app-header">
       <div className="header-left">
-        <span className="app-logo">♦ Coinche</span>
+        <span className="app-logo">♦ Belote</span>
         {roomCode && <span className="room-code">{roomCode}</span>}
       </div>
 

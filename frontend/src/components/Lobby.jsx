@@ -159,7 +159,7 @@ export default function Lobby({ socket, roomState, myPosition }) {
   return (
     <div className="lobby lobby-home">
       <div className="lobby-card">
-        <h1 className="lobby-title">♦ Coinche ♣</h1>
+        <h1 className="lobby-title">♦ Belote ♣</h1>
         <p className="lobby-welcome">👋 {username}</p>
         <button className="btn-primary btn-large" onClick={createRoom}>{t.createRoom}</button>
         <button className="btn-secondary btn-large" onClick={() => setView('join')}>{t.joinRoom}</button>

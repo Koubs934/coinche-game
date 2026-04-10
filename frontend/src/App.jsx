@@ -83,7 +83,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="splash">
-        <div className="splash-logo">♦ Coinche ♣</div>
+        <div className="splash-logo">♦ Belote ♣</div>
       </div>
     );
   }
