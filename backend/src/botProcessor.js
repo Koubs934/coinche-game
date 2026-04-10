@@ -22,7 +22,7 @@ function isBotTurn(room) {
 function scheduleBotTurns(code, broadcastFn) {
   setTimeout(() => {
     const room = rm.getRoom(code);
-    if (!room || !isBotTurn(room)) return;
+    if (!room || room.paused || !isBotTurn(room)) return;
     _execute(room, broadcastFn);
   }, BOT_DELAY_MS);
 }
@@ -52,7 +52,7 @@ function _execute(room, broadcastFn) {
     const player = room.players.find(p => p.position === pos);
     const action = getBotCardAction(g, pos);
 
-    const result = rm.playCard(code, player.userId, action.card, false);
+    const result = rm.playCard(code, player.userId, action.card);
 
     if (!result.error) {
       broadcastFn(result.room);

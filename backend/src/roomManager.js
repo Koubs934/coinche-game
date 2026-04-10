@@ -316,7 +316,7 @@ function _startPlaying(room) {
 
 // ─── Card play ─────────────────────────────────────────────────────────────
 
-function playCard(code, userId, card, declareBelote) {
+function playCard(code, userId, card) {
   const room = rooms.get(code);
   if (!room || !room.game || room.game.phase !== 'PLAYING') return { error: 'Not in playing phase' };
 
@@ -331,21 +331,6 @@ function playCard(code, userId, card, declareBelote) {
   const valid = getValidCards(hand, room.game.currentTrick, room.game.trumpSuit, position);
   if (!valid.some(c => c.suit === card.suit && c.value === card.value)) {
     return { error: 'That card cannot be played right now' };
-  }
-
-  // Belote / Rebelote tracking (validate before removing card)
-  const trump = room.game.trumpSuit;
-  const bi = room.game.beloteInfo;
-  if (declareBelote && card.suit === trump && (card.value === 'K' || card.value === 'Q')) {
-    const other = card.value === 'K' ? 'Q' : 'K';
-    if (bi.playerIndex === null) {
-      // First announcement: verify other card is still in hand
-      if (hand.some(c => c.suit === trump && c.value === other)) {
-        bi.playerIndex = position;
-      }
-    } else if (bi.playerIndex === position && !bi.complete) {
-      bi.complete = true;
-    }
   }
 
   // Remove from hand and add to trick
@@ -374,10 +359,29 @@ function _completeTrick(room) {
   }
 }
 
+// Auto-detect Belote/Rebelote: player who played both K and Q of trump in the same hand.
+function _detectBelote(tricks, trumpSuit) {
+  const trumpPlayed = {}; // playerIndex -> Set of trump values played
+  for (const trick of tricks) {
+    for (const { card, playerIndex } of trick.cards) {
+      if (card.suit === trumpSuit) {
+        if (!trumpPlayed[playerIndex]) trumpPlayed[playerIndex] = new Set();
+        trumpPlayed[playerIndex].add(card.value);
+      }
+    }
+  }
+  for (const [idx, values] of Object.entries(trumpPlayed)) {
+    if (values.has('K') && values.has('Q')) return parseInt(idx, 10);
+  }
+  return null;
+}
+
 function _finishRound(room) {
   const g = room.game;
 
-  const beloteTeam = g.beloteInfo.complete ? g.beloteInfo.playerIndex % 2 : null;
+  const belotePlayerIndex = _detectBelote(g.tricks, g.trumpSuit);
+  g.beloteInfo = { playerIndex: belotePlayerIndex, complete: belotePlayerIndex !== null };
+  const beloteTeam = belotePlayerIndex !== null ? belotePlayerIndex % 2 : null;
 
   const { scores, contractMade, trickPoints } = calculateRoundScore({
     tricks: g.tricks,

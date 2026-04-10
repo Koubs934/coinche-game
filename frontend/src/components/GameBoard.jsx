@@ -139,8 +139,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const { t } = useLang();
 
   // ── State ──────────────────────────────────────────────────────────────────
-  const [beloteChecked, setBeloteChecked] = useState(false);
-  const [sortActive,    setSortActive]    = useState(false);
+  const [sortActive, setSortActive] = useState(false);
   const [showLastTrick, setShowLastTrick] = useState(false);
   // trickOverlay = { cards, winnerPos, animate } | null
   const [trickOverlay, setTrickOverlay]   = useState(null);
@@ -226,19 +225,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
     if (!trumpSuit) prevTrumpRef.current = null;
   }, [trumpSuit]);
 
-  // ── Belote eligibility ─────────────────────────────────────────────────────
-  const canDeclareBelote = (() => {
-    if (!isMyCardTurn || !trumpSuit || beloteInfo?.complete) return false;
-    if (beloteInfo?.playerIndex !== null && beloteInfo?.playerIndex !== myPosition) return false;
-    const hasK = myHand.some(c => c.suit === trumpSuit && c.value === 'K');
-    const hasQ = myHand.some(c => c.suit === trumpSuit && c.value === 'Q');
-    return beloteInfo?.playerIndex === myPosition ? (hasK || hasQ) : (hasK && hasQ);
-  })();
-
   // ── Handlers ──────────────────────────────────────────────────────────────
   function playCard(card) {
-    socket.emit('playCard', { code: roomCode, card, declareBelote: beloteChecked });
-    setBeloteChecked(false);
+    socket.emit('playCard', { code: roomCode, card });
   }
 
   // ── Round summary (early exit) ─────────────────────────────────────────────
@@ -364,10 +353,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
                 </div>
               )}
 
-              {beloteInfo?.complete && (
-                <div className="belote-announced">{t.belote}/{t.rebelote}!</div>
-              )}
-
               {/* Last trick button */}
               {tricks?.length > 0 && (
                 <button className="btn-last-trick" onClick={() => setShowLastTrick(true)}>
@@ -391,18 +376,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           <div className="your-turn-banner">{t.yourTurn} ●</div>
         )}
 
-        {/* Toolbar row: belote checkbox + sort toggle */}
+        {/* Toolbar row: sort toggle */}
         <div className="hand-toolbar">
-          {canDeclareBelote && (
-            <label className="belote-checkbox">
-              <input
-                type="checkbox"
-                checked={beloteChecked}
-                onChange={e => setBeloteChecked(e.target.checked)}
-              />
-              {beloteInfo?.playerIndex === myPosition ? t.rebelote : t.belote}
-            </label>
-          )}
           <button
             className={`btn-sort${sortActive ? ' sort-on' : ''}`}
             onClick={() => setSortActive(v => !v)}
