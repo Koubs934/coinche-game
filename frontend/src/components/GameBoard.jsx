@@ -25,17 +25,30 @@ function computeLivePoints(tricks, trump) {
 // ─── Hand sorting ──────────────────────────────────────────────────────────
 const TRUMP_ORDER     = ['J', '9', 'A', '10', 'K', 'Q', '8', '7'];
 const NON_TRUMP_ORDER = ['A', '10', 'K', 'Q', 'J', '9', '8', '7'];
-const SUIT_ORDER      = ['S', 'H', 'D', 'C'];
+const SUIT_COLOR      = { S: 'B', C: 'B', H: 'R', D: 'R' };
+
+// Build non-trump suit order that alternates colors (R,B,R or B,R,B).
+// With no trump, returns the one perfect 4-suit alternating sequence S,H,C,D (B,R,B,R).
+function buildNonTrumpOrder(trump) {
+  if (!trump) return ['S', 'H', 'C', 'D']; // B R B R — perfect alternation
+  const all = ['S', 'H', 'D', 'C'];
+  const others = all.filter(s => s !== trump);
+  const trumpColor = SUIT_COLOR[trump];
+  const diff = others.filter(s => SUIT_COLOR[s] !== trumpColor); // 2 suits
+  const same = others.filter(s => SUIT_COLOR[s] === trumpColor); // 1 suit
+  // Sandwich: diff[0], same[0], diff[1] → always alternates (R,B,R or B,R,B)
+  return [diff[0], same[0], diff[1]];
+}
 
 function sortHand(hand, trump) {
   if (!hand?.length) return hand || [];
-  const others = SUIT_ORDER.filter(s => s !== trump);
+  const nonTrumpOrder = buildNonTrumpOrder(trump);
   return [...hand].sort((a, b) => {
     const aT = a.suit === trump, bT = b.suit === trump;
     if (aT && !bT) return -1;
     if (!aT && bT) return  1;
-    if (aT)  return TRUMP_ORDER.indexOf(a.value)     - TRUMP_ORDER.indexOf(b.value);
-    const sd = others.indexOf(a.suit) - others.indexOf(b.suit);
+    if (aT)  return TRUMP_ORDER.indexOf(a.value) - TRUMP_ORDER.indexOf(b.value);
+    const sd = nonTrumpOrder.indexOf(a.suit) - nonTrumpOrder.indexOf(b.suit);
     return sd !== 0 ? sd : NON_TRUMP_ORDER.indexOf(a.value) - NON_TRUMP_ORDER.indexOf(b.value);
   });
 }

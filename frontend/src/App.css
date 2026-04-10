@@ -869,3 +869,98 @@ a      { color: var(--accent); }
   .card { font-size: 0.95em; }
   .bid-values { grid-template-columns: repeat(5, 1fr); }
 }
+
+/* ─── Landscape phone ────────────────────────────────────────────────────── */
+/*
+ * Strategy: CSS Grid on game-board + display:contents on board-middle.
+ *
+ * display:contents dissolves board-middle so its children (board-left,
+ * board-center, board-right) become direct grid items of game-board.
+ * board-top is hidden — the partner seat is spatially irrelevant in landscape.
+ *
+ * Grid:
+ *   cols:  40px | 1fr | 40px
+ *   rows:  auto (score strip) | 1fr (action) | auto (hand)
+ *
+ * board-center fills the entire 1fr action row — no chrome above it except
+ * the 22px score strip. Content inside board-center is already
+ * justify-content:center so bid panel / trick display is vertically centered.
+ *
+ * max-height:500px covers every phone landscape; tablets are always taller.
+ */
+@media (max-height: 500px) {
+  :root {
+    --card-w: 36px;
+    --card-h: 44px;   /* smaller cards → thinner hand strip */
+  }
+
+  /* ── Header ── */
+  .app-header {
+    min-height: 32px;
+    padding: 3px 8px;
+    flex-wrap: nowrap;
+  }
+  .header-user  { display: none; }
+  .score-target { display: none; }
+
+  /* ── Grid layout — the core of the landscape-first approach ── */
+  .game-board {
+    display: grid;
+    grid-template-areas:
+      "scores scores scores"
+      "left   center right "
+      "hand   hand   hand  ";
+    grid-template-rows: auto 1fr auto;
+    grid-template-columns: 40px 1fr 40px;
+    gap: 2px;
+    padding: 2px;
+  }
+
+  .score-bars   { grid-area: scores; }
+  .board-top    { display: none; }        /* partner seat hidden — no value in landscape */
+  .board-middle { display: contents; }    /* dissolve: children become direct grid items */
+  .board-left   { grid-area: left;   display: flex; align-items: center; justify-content: center; width: auto; }
+  .board-center { grid-area: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 4px; }
+  .board-right  { grid-area: right;  display: flex; align-items: center; justify-content: center; width: auto; }
+  .board-hand   { grid-area: hand; }
+
+  /* ── Score strip ── */
+  .total-score-bar { padding: 2px 8px; font-size: 0.78em; }
+  .live-score-bar  { display: none; }
+
+  /* ── Side seats ── */
+  .player-name { max-width: 38px; font-size: 0.65em; }
+  .card-back.card-small { width: 12px; height: 18px; }
+  .player-left  .face-down-cards,
+  .player-right .face-down-cards { gap: 1px; }
+
+  /* ── Trick display ── */
+  .trick-display { gap: 2px; }
+
+  /* ── Bidding: 10 values in one row across ~510px center width ── */
+  .bid-values { grid-template-columns: repeat(10, 1fr); gap: 2px; }
+  .bid-val-btn    { min-height: 28px; padding: 3px 1px; font-size: 0.78em; }
+  .suit-btn       { width: 34px; height: 34px; font-size: 1.1em; }
+  .btn-coinche,
+  .btn-surcoinche { padding: 5px 12px; margin: 2px 0; }
+  .bid-action-row .btn-primary,
+  .bid-action-row .btn-secondary { padding: 5px 10px; }
+  .bidding-area { gap: 3px; }
+
+  /* ── Hand: thin strip, single unwrapped row ── */
+  .board-hand {
+    padding: 2px 4px max(2px, env(safe-area-inset-bottom));
+  }
+  .your-turn-banner { display: none; }
+  .my-hand {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    justify-content: center;
+    gap: 2px;
+    padding: 0;
+  }
+  .hand-toolbar   { padding: 1px 2px; gap: 4px; }
+  .btn-sort       { padding: 2px 8px; min-height: 24px; }
+  .btn-last-trick { padding: 3px 8px; min-height: 24px; }
+}
