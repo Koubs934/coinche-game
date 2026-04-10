@@ -12,10 +12,11 @@ export default function BiddingPanel({ socket, roomCode, game, myPosition, myTea
   const isMyTurn = game.biddingTurn === myPosition;
   const currentBid = game.currentBid;
   const myBidTeam = currentBid ? myTeam === currentBid.team : false;
-  const canCoinche = currentBid && !currentBid.coinched && myTeam !== currentBid.team;
-  const canSurcoinche = currentBid?.coinched && !currentBid?.surcoinched && myTeam === currentBid.team;
+  const canCoinche = isMyTurn && currentBid && !currentBid.coinched && myTeam !== currentBid.team;
+  const canSurcoinche = isMyTurn && currentBid?.coinched && !currentBid?.surcoinched && myTeam === currentBid.team;
 
   function isValidBid(value) {
+    if (currentBid?.coinched) return false; // no new bids after coinche
     if (!currentBid) return value === 'capot' || value >= 80;
     if (currentBid.value === 'capot') return false;
     return value === 'capot' || value > currentBid.value;

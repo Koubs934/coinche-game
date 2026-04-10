@@ -130,6 +130,73 @@ console.log('\n=== Card Play Rules ===\n');
   assert(valid.length === 2, 'R5: no trump no suit — all cards valid', cardIds(valid));
 }
 
+// Scenario R6: trump is led — player must overtrump if possible
+// Trump (H) is led with 9H. Player has JH (higher) and QH (lower). Must play JH only.
+{
+  const trumpSuit = 'H';
+  const trick = [
+    play(card('9', 'H'), 0), // player 0 leads 9H (TRUMP_RANK=7)
+    play(card('7', 'H'), 1), // player 1 plays 7H (lower)
+    // player 2 to play — trump led, must overtrump
+  ];
+  const hand = [
+    card('J', 'H'), // TRUMP_RANK 8 — higher than 9H
+    card('Q', 'H'), // TRUMP_RANK 3 — lower than 9H
+    card('A', 'D'), // non-trump
+  ];
+  const valid = getValidCards(hand, trick, trumpSuit, 2);
+  assert(valid.length === 1, 'R6: trump led — must overtrump, only JH valid', cardIds(valid));
+  assert(valid[0].value === 'J' && valid[0].suit === 'H', 'R6: JH is the only legal card');
+}
+
+// Scenario R7: trump is led — cannot overtrump, any trump allowed
+// Trump led with JH (highest). Player has Q and 8 of trump — both lower. Any trump legal, no non-trump.
+{
+  const trumpSuit = 'H';
+  const trick = [
+    play(card('J', 'H'), 0), // player 0 leads JH (TRUMP_RANK=8, highest)
+  ];
+  const hand = [
+    card('Q', 'H'), // TRUMP_RANK 3 — lower
+    card('8', 'H'), // TRUMP_RANK 2 — lower
+    card('A', 'D'), // non-trump
+  ];
+  const valid = getValidCards(hand, trick, trumpSuit, 2);
+  assert(valid.length === 2, 'R7: trump led, cannot overtrump — any trump (not non-trump)', cardIds(valid));
+  assert(valid.every(c => c.suit === 'H'), 'R7: only trumps allowed');
+}
+
+// Scenario R8: non-trump led + no suit + trump in trick + partner winning the trump
+// Player 1 cut with 9H. Player 2's partner (player 0) played the winning AH later.
+// No exception for partner winning when trump is already in trick — must overtrump or play any trump.
+{
+  const trumpSuit = 'H';
+  const trick = [
+    play(card('A', 'S'), 3), // player 3 leads AS (non-trump)
+    play(card('9', 'H'), 1), // player 1 cuts with 9H (TRUMP_RANK=7)
+    play(card('A', 'H'), 0), // player 0 (partner of 2) plays AH (TRUMP_RANK=6 — lower than 9H!)
+    // player 2 to play — partner (0) is NOT currently winning (9H beats AH in trump rank)
+  ];
+  // Actually let's use a case where partner IS winning the trump to test the rule.
+  // Player 0 (partner) plays JH (TRUMP_RANK=8, highest trump). Player 2 has QH and non-trump.
+  const trick2 = [
+    play(card('A', 'S'), 3), // player 3 leads AS
+    play(card('9', 'H'), 1), // player 1 cuts with 9H
+    play(card('J', 'H'), 0), // player 0 (partner) overtrumps with JH — now winning
+    // player 2 to play — partner (0) IS currently winning, BUT trump is in trick
+  ];
+  const hand = [
+    card('Q', 'H'), // TRUMP_RANK 3 — lower than JH
+    card('8', 'H'), // TRUMP_RANK 2 — lower than JH
+    card('A', 'D'), // non-trump
+  ];
+  const valid = getValidCards(hand, trick2, trumpSuit, 2);
+  // Trump is already in trick — partner-maître exception does NOT apply.
+  // Cannot overtrump (no trump higher than JH). Must play any trump.
+  assert(valid.length === 2, 'R8: trump in trick + partner winning — still must play trump', cardIds(valid));
+  assert(valid.every(c => c.suit === 'H'), 'R8: only trumps, not non-trump discard');
+}
+
 // ─── SCORING SCENARIOS ───────────────────────────────────────────────────────
 
 console.log('\n=== Scoring ===\n');
@@ -244,6 +311,185 @@ function makeTricks(winner0count, winner1count, trumpSuit) {
   assert(trickPoints[0] < contract.value, `S2: contract team had insufficient trick points (${trickPoints[0]} < ${contract.value})`);
   assert(scores[0] === 0, 'S2: contract team gets 0 on failure');
   assert(scores[1] === 160, 'S2: defending team gets 160 on contract failure');
+}
+
+// Scenario S3: coinched failure — (contract × 2) + 160, NOT 160 × 2
+{
+  const trumpSuit = 'H';
+  const contract = { value: 100, team: 0, coinched: true, surcoinched: false };
+
+  const tricks = [];
+  for (let i = 0; i < 8; i++) {
+    const winnerTeam = i < 2 ? 0 : 1; // team 0 wins only 2 tricks — fails 100
+    const winnerPlayer = winnerTeam;
+    tricks.push({
+      cards: [
+        { card: card('A', 'S'), playerIndex: winnerPlayer },
+        { card: card('10', 'S'), playerIndex: winnerPlayer },
+        { card: card('7', 'S'), playerIndex: 1 - winnerPlayer },
+        { card: card('8', 'S'), playerIndex: 1 - winnerPlayer },
+      ],
+      winner: winnerPlayer,
+    });
+  }
+
+  const { scores, contractMade } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: null });
+  assert(contractMade === false, 'S3: coinched failure — contractMade is false');
+  assert(scores[0] === 0, 'S3: coinched failure — contract team gets 0');
+  assert(scores[1] === (100 * 2) + 160, `S3: coinched failure — defenders get (100×2)+160=360, got ${scores[1]}`);
+}
+
+// Scenario S4: surcoinched failure — (contract × 4) + 160
+{
+  const trumpSuit = 'H';
+  const contract = { value: 90, team: 1, coinched: true, surcoinched: true };
+
+  const tricks = [];
+  for (let i = 0; i < 8; i++) {
+    const winnerTeam = 0; // team 1 wins zero tricks — definite failure
+    tricks.push({
+      cards: [
+        { card: card('A', 'S'), playerIndex: 0 },
+        { card: card('10', 'S'), playerIndex: 0 },
+        { card: card('7', 'S'), playerIndex: 1 },
+        { card: card('8', 'S'), playerIndex: 1 },
+      ],
+      winner: 0,
+    });
+  }
+
+  const { scores, contractMade } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: null });
+  assert(contractMade === false, 'S4: surcoinched failure — contractMade is false');
+  assert(scores[1] === 0, 'S4: surcoinched failure — contract team (1) gets 0');
+  assert(scores[0] === (90 * 4) + 160, `S4: surcoinched failure — defenders get (90×4)+160=520, got ${scores[0]}`);
+}
+
+// Scenario S5: capot success — 500 flat, no belote bonus
+{
+  const trumpSuit = 'H';
+  const contract = { value: 'capot', team: 0, coinched: false, surcoinched: false };
+
+  const tricks = [];
+  for (let i = 0; i < 8; i++) {
+    tricks.push({
+      cards: [
+        { card: card('A', 'S'), playerIndex: 0 },
+        { card: card('10', 'S'), playerIndex: 0 },
+        { card: card('7', 'S'), playerIndex: 1 },
+        { card: card('8', 'S'), playerIndex: 1 },
+      ],
+      winner: 0,
+    });
+  }
+
+  const { scores, contractMade } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: 0 });
+  assert(contractMade === true, 'S5: capot success — contractMade is true');
+  assert(scores[0] === 500, 'S5: capot success — 500 flat (no belote added on capot)');
+  assert(scores[1] === 0, 'S5: capot success — defenders get 0');
+}
+
+// Scenario S6: capot failure — defenders get 500 flat (not 160)
+{
+  const trumpSuit = 'H';
+  const contract = { value: 'capot', team: 0, coinched: false, surcoinched: false };
+
+  const tricks = [];
+  for (let i = 0; i < 8; i++) {
+    const winner = i < 7 ? 0 : 1; // team 1 wins last trick — capot fails
+    tricks.push({
+      cards: [
+        { card: card('A', 'S'), playerIndex: winner },
+        { card: card('10', 'S'), playerIndex: winner },
+        { card: card('7', 'S'), playerIndex: 1 - winner },
+        { card: card('8', 'S'), playerIndex: 1 - winner },
+      ],
+      winner,
+    });
+  }
+
+  const { scores, contractMade } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: null });
+  assert(contractMade === false, 'S6: capot failure — contractMade is false');
+  assert(scores[0] === 0, 'S6: capot failure — contract team gets 0');
+  assert(scores[1] === 500, `S6: capot failure — defenders get 500 flat, got ${scores[1]}`);
+}
+
+// Scenario S7: coinched capot failure — defenders get 1000
+{
+  const trumpSuit = 'H';
+  const contract = { value: 'capot', team: 0, coinched: true, surcoinched: false };
+
+  const tricks = [];
+  for (let i = 0; i < 8; i++) {
+    const winner = i < 7 ? 0 : 1;
+    tricks.push({
+      cards: [
+        { card: card('A', 'S'), playerIndex: winner },
+        { card: card('10', 'S'), playerIndex: winner },
+        { card: card('7', 'S'), playerIndex: 1 - winner },
+        { card: card('8', 'S'), playerIndex: 1 - winner },
+      ],
+      winner,
+    });
+  }
+
+  const { scores, contractMade } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: null });
+  assert(contractMade === false, 'S7: coinched capot failure — contractMade is false');
+  assert(scores[1] === 1000, `S7: coinched capot failure — defenders get 1000, got ${scores[1]}`);
+}
+
+// Scenario S8: non-announced capot (all tricks to contract team, bid was 100) — normal scoring
+{
+  const trumpSuit = 'H';
+  const contract = { value: 100, team: 0, coinched: false, surcoinched: false };
+
+  const tricks = [];
+  for (let i = 0; i < 8; i++) {
+    tricks.push({
+      cards: [
+        { card: card('A', 'S'), playerIndex: 0 },
+        { card: card('10', 'S'), playerIndex: 0 },
+        { card: card('7', 'S'), playerIndex: 1 },
+        { card: card('8', 'S'), playerIndex: 1 },
+      ],
+      winner: 0,
+    });
+  }
+
+  const { scores, contractMade, trickPoints } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: null });
+  // All tricks to team 0: trickPoints[0] = 8×21=168, dix de der → 168+10=178... wait
+  // Each trick: A(11)+10(10)+7(0)+8(0) = 21 pts. 8 tricks = 168. Last trick +10 dix de der = 178 to team 0.
+  // 178 >= 100 → success. scores[0] = 178 + 100 = 278 → rounds to 280. scores[1] = 0.
+  assert(contractMade === true, 'S8: non-announced capot — contractMade is true (normal rules)');
+  assert(scores[0] === Math.round((trickPoints[0] + 100) / 10) * 10,
+    `S8: non-announced capot — normal scoring (${Math.round((trickPoints[0] + 100) / 10) * 10}), got ${scores[0]}`);
+  assert(scores[1] === 0, 'S8: non-announced capot — defenders get 0 (no tricks)');
+}
+
+// Scenario S9: failed contract — belote does not add on top
+{
+  const trumpSuit = 'H';
+  const contract = { value: 120, team: 0, coinched: false, surcoinched: false };
+
+  const tricks = [];
+  for (let i = 0; i < 8; i++) {
+    const winnerTeam = i < 2 ? 0 : 1;
+    const winnerPlayer = winnerTeam;
+    tricks.push({
+      cards: [
+        { card: card('A', 'S'), playerIndex: winnerPlayer },
+        { card: card('10', 'S'), playerIndex: winnerPlayer },
+        { card: card('7', 'S'), playerIndex: 1 - winnerPlayer },
+        { card: card('8', 'S'), playerIndex: 1 - winnerPlayer },
+      ],
+      winner: winnerPlayer,
+    });
+  }
+
+  // Team 0 has belote but still fails
+  const { scores, contractMade } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: 0 });
+  assert(contractMade === false, 'S9: failed contract with belote — contractMade is false');
+  assert(scores[0] === 0, 'S9: failed contract — contract team still gets 0 (belote ignored)');
+  assert(scores[1] === 160, 'S9: failed contract — defenders still get 160 (belote not added)');
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────

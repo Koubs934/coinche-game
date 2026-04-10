@@ -226,6 +226,7 @@ function placeBid(code, userId, value, suit) {
 
   const current = room.game.currentBid;
   if (current) {
+    if (current.coinched) return { error: 'Cannot bid after coinche' };
     if (current.value === 'capot') return { error: 'Cannot outbid a capot' };
     if (value !== 'capot' && value <= current.value) return { error: 'Bid must be higher than current bid' };
   }
@@ -270,6 +271,7 @@ function coinche(code, userId) {
 
   const position = getPosition(room, userId);
   if (position === -1) return { error: 'Not in this room' };
+  if (room.game.biddingTurn !== position) return { error: 'Not your turn to coinche' };
 
   const bid = room.game.currentBid;
   if (!bid) return { error: 'No bid to coinche' };
@@ -277,7 +279,9 @@ function coinche(code, userId) {
   if (getTeamByPosition(position) === bid.team) return { error: 'Cannot coinche your own team\'s bid' };
 
   bid.coinched = true;
-  _startPlaying(room); // coinche ends bidding immediately
+  // Bidding continues — 3 consecutive passes needed to end (no new bids allowed)
+  room.game.consecutivePasses = 0;
+  room.game.biddingTurn = (position + 1) % 4;
   return { room };
 }
 
@@ -287,6 +291,7 @@ function surcoinche(code, userId) {
 
   const position = getPosition(room, userId);
   if (position === -1) return { error: 'Not in this room' };
+  if (room.game.biddingTurn !== position) return { error: 'Not your turn to surcoinche' };
 
   const bid = room.game.currentBid;
   if (!bid) return { error: 'No bid to surcoinche' };
@@ -295,7 +300,9 @@ function surcoinche(code, userId) {
   if (getTeamByPosition(position) !== bid.team) return { error: 'Only the contracting team can surcoinche' };
 
   bid.surcoinched = true;
-  _startPlaying(room);
+  // Bidding continues — 3 consecutive passes needed to end
+  room.game.consecutivePasses = 0;
+  room.game.biddingTurn = (position + 1) % 4;
   return { room };
 }
 
@@ -303,7 +310,7 @@ function _startPlaying(room) {
   const g = room.game;
   g.phase = 'PLAYING';
   g.trumpSuit = g.currentBid.suit;
-  g.currentPlayer = g.currentBid.playerIndex; // bid winner leads first
+  g.currentPlayer = (g.dealer + 1) % 4; // player after dealer leads first trick
   g.currentTrick = [];
 }
 

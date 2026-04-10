@@ -13,8 +13,9 @@ const { cardPoints } = require('./rules');
 function calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam }) {
   const contractTeam = contract.team;
   const opposingTeam = 1 - contractTeam;
+  const multiplier = contract.surcoinched ? 4 : contract.coinched ? 2 : 1;
 
-  // Tally raw trick points + dix de der
+  // Tally raw trick points + dix de der (informational; not used on flat-score outcomes)
   const trickPoints = [0, 0];
   for (let i = 0; i < tricks.length; i++) {
     const trick = tricks[i];
@@ -32,46 +33,46 @@ function calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam }) {
   let scores = [0, 0];
   let contractMade = false;
 
+  // ── Announced Capot ─────────────────────────────────────────────────────────
   if (contract.value === 'capot') {
     if (allTricksToContract) {
       contractMade = true;
-      scores[contractTeam] = 500;
+      scores[contractTeam] = 500 * multiplier;
     } else {
-      // Failed capot
-      scores[contractTeam] = 0;
-      scores[opposingTeam] = 160;
+      scores[opposingTeam] = 500 * multiplier;
     }
-  } else if (allTricksToContract) {
-    // Accidental capot (not bid): 250 flat
+    // Belote/Rebelote does NOT add on capot outcomes (spec: flat score only)
+    return { scores, contractMade, trickPoints };
+  }
+
+  // ── Normal contract ──────────────────────────────────────────────────────────
+  // Belote counts toward making the contract when it belongs to the contract team
+  const contractTeamBelote = beloteTeam === contractTeam ? 20 : 0;
+  const contractTeamTotal = trickPoints[contractTeam] + contractTeamBelote;
+
+  if (contractTeamTotal >= contract.value) {
     contractMade = true;
-    scores[contractTeam] = 250;
-    scores[opposingTeam] = 0;
-  } else if (trickPoints[contractTeam] >= contract.value) {
-    contractMade = true;
-    scores[0] = trickPoints[0];
-    scores[1] = trickPoints[1];
-    scores[contractTeam] += contract.value; // contract bonus added to trick points
+
+    // Each team scores their trick points; contract team also earns contract bonus
+    scores[contractTeam] = trickPoints[contractTeam] + contractTeamBelote + contract.value;
+    scores[opposingTeam] = trickPoints[opposingTeam] + (beloteTeam === opposingTeam ? 20 : 0);
+
+    // Round once, then apply multiplier to contract team (the winner of coinche)
+    scores[0] = Math.round(scores[0] / 10) * 10;
+    scores[1] = Math.round(scores[1] / 10) * 10;
+    if (multiplier > 1) {
+      scores[contractTeam] *= multiplier;
+    }
   } else {
-    // Contract failed
-    scores[contractTeam] = 0;
-    scores[opposingTeam] = 160;
+    // Contract failed — flat score; bonuses do not add on top
+    if (multiplier === 1) {
+      scores[opposingTeam] = 160;
+    } else {
+      // coinche: (contract × 2) + 160; surcoinche: (contract × 4) + 160
+      scores[opposingTeam] = (contract.value * multiplier) + 160;
+    }
+    // scores[contractTeam] stays 0
   }
-
-  // Belote/Rebelote: 20 pts to declaring team, always
-  if (beloteTeam !== null && beloteTeam !== undefined) {
-    scores[beloteTeam] += 20;
-  }
-
-  // Coinche / Surcoinche multiplier applied to winning team
-  const multiplier = contract.surcoinched ? 4 : contract.coinched ? 2 : 1;
-  if (multiplier > 1) {
-    const winningTeam = contractMade ? contractTeam : opposingTeam;
-    scores[winningTeam] *= multiplier;
-  }
-
-  // Round each team's total to nearest 10 (5 rounds up)
-  scores[0] = Math.round(scores[0] / 10) * 10;
-  scores[1] = Math.round(scores[1] / 10) * 10;
 
   return { scores, contractMade, trickPoints };
 }
