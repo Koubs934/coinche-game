@@ -61,17 +61,15 @@ function getValidCards(hand, trick, trumpSuit, playerIndex) {
   // 2. Can't follow suit — check trump obligation
   if (myTrumps.length === 0) return hand; // no trumps either — play anything
 
+  // 3. Partner currently winning (maître) — free to play anything, regardless of trump in trick
+  const partnerIndex = (playerIndex + 2) % 4;
+  if (getTrickWinner(trick, trumpSuit) === partnerIndex) return hand;
+
+  // 4. Opponent is winning — must play trump
   const trumpInTrick = trick.filter(t => t.card.suit === trumpSuit);
+  if (trumpInTrick.length === 0) return myTrumps; // no trump yet — any trump will do
 
-  if (trumpInTrick.length === 0) {
-    // No trump played yet in this trick
-    const winnerIndex = getTrickWinner(trick, trumpSuit);
-    const partnerIndex = (playerIndex + 2) % 4;
-    if (winnerIndex === partnerIndex) return hand; // partner is maître — free to play anything
-    return myTrumps; // must trump (opponent is winning)
-  }
-
-  // Trump already played — must overtrump if possible; otherwise any trump
+  // 5. Trump already in trick — must overtrump if possible; otherwise any trump
   const highestTrumpInTrick = trumpInTrick
     .reduce((max, t) => !max || TRUMP_RANK[t.card.value] > TRUMP_RANK[max.value] ? t.card : max, null);
   const overtrump = myTrumps.filter(c => TRUMP_RANK[c.value] > TRUMP_RANK[highestTrumpInTrick.value]);
