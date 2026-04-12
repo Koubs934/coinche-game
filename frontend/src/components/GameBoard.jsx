@@ -131,6 +131,7 @@ function TrickDisplay({ cards, myPosition, players, animDir, winnerPos }) {
 function PlayerSeat({ player, handCount, isActive, isDimmed, direction, bidAction }) {
   const { t } = useLang();
   const label = formatBidAction(bidAction, t);
+  const initial = player?.isBot ? '🤖' : (player?.username?.[0]?.toUpperCase() || '?');
   return (
     <div className={[
       'player-seat',
@@ -138,8 +139,11 @@ function PlayerSeat({ player, handCount, isActive, isDimmed, direction, bidActio
       isActive  ? 'active-player' : '',
       isDimmed  ? 'seat-dimmed'   : '',
     ].filter(Boolean).join(' ')}>
+      <div className={`player-avatar team${player?.team ?? 0}-avatar`}>
+        {initial}
+      </div>
       <div className="player-name">
-        {player?.isBot ? '🤖 ' : ''}{player?.username || '?'}
+        {player?.username || '?'}
         {!player?.connected && <span className="dc-indicator"> ⚠</span>}
         {isActive && <span className="turn-dot"> ●</span>}
       </div>
@@ -180,7 +184,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   } = game;
 
   const myHand       = hands[myPosition] || [];
-  const myTeam       = players.find(p => p.position === myPosition)?.team ?? 0;
+  const myPlayer     = players.find(p => p.position === myPosition);
+  const myTeam       = myPlayer?.team ?? 0;
   const isMyCardTurn = phase === 'PLAYING' && currentPlayer === myPosition;
   const isMyBidTurn  = phase === 'BIDDING' && biddingTurn  === myPosition;
   const isMyTurn     = isMyCardTurn || isMyBidTurn;
@@ -381,11 +386,19 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
                 </div>
               )}
 
-              {/* Last trick button */}
-              {tricks?.length > 0 && (
-                <button className="btn-last-trick" onClick={() => setShowLastTrick(true)}>
-                  ↩ {t.lastTrick}
-                </button>
+              {/* Last trick inline widget */}
+              {tricks?.length > 0 && lastDoneTrick && (
+                <div className="last-trick-widget" onClick={() => setShowLastTrick(true)}>
+                  <span className="ltw-label">{t.lastTrick}:</span>
+                  {lastDoneTrick.cards.map(({ card }) => (
+                    <span
+                      key={`${card.suit}${card.value}`}
+                      className={`ltw-card${card.suit === 'H' || card.suit === 'D' ? ' red' : ''}`}
+                    >
+                      {card.value}{SUIT_SYM[card.suit]}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -404,7 +417,22 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           <div className="your-turn-banner">{t.yourTurn} ●</div>
         )}
 
-        {/* Toolbar row: sort toggle + self bid status + leave */}
+        {/* Self player bar: avatar + name + bid status */}
+        <div className="self-player-bar">
+          <div className={`player-avatar team${myTeam}-avatar`}>
+            {myPlayer?.isBot ? '🤖' : (myPlayer?.username?.[0]?.toUpperCase() || '?')}
+          </div>
+          <span className="self-name">{myPlayer?.username || '?'}</span>
+          {phase === 'BIDDING' && (() => {
+            const selfAction = game.biddingActions?.[myPosition];
+            const label = formatBidAction(selfAction, t);
+            return label ? (
+              <span className={`bid-action-chip ${bidChipClass(selfAction)}`}>{label}</span>
+            ) : null;
+          })()}
+        </div>
+
+        {/* Toolbar row: sort toggle + leave */}
         <div className="hand-toolbar">
           <button
             className={`btn-sort${sortActive ? ' sort-on' : ''}`}
@@ -413,13 +441,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           >
             {sortActive ? '♠♥♦♣' : '⇅'} {t.sortHand}
           </button>
-          {phase === 'BIDDING' && (() => {
-            const selfAction = game.biddingActions?.[myPosition];
-            const label = formatBidAction(selfAction, t);
-            return label ? (
-              <span className={`bid-action-chip ${bidChipClass(selfAction)}`}>{label}</span>
-            ) : null;
-          })()}
           <button className="btn-leave" onClick={leaveTable}>{t.leaveTable}</button>
         </div>
 

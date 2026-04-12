@@ -16,7 +16,11 @@
       "Bash(curl:*)",
       "Bash(node:*)",
       "Bash(ipconfig)",
-      "Bash(findstr /i \"IPv4\")"
+      "Bash(findstr /i \"IPv4\")",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

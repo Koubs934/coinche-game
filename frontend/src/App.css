@@ -334,10 +334,11 @@ a      { color: var(--accent); }
   gap: 4px;
   min-height: 0;
 }
-.board-left   { display: flex; align-items: center; width: 70px; flex-shrink: 0; }
-.board-right  { display: flex; align-items: center; width: 70px; flex-shrink: 0; }
+.board-left   { display: flex; align-items: center; width: 86px; flex-shrink: 0; }
+.board-right  { display: flex; align-items: center; width: 86px; flex-shrink: 0; }
 .board-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 6px; }
-.board-hand   { flex-shrink: 0; background: rgba(0,0,0,0.2); border-radius: var(--radius); padding: 6px 4px max(6px, env(safe-area-inset-bottom)); }
+.board-middle { border-radius: 14px; background: radial-gradient(ellipse at center, #1e6b30 0%, #164f22 70%, #0f3a18 100%); }
+.board-hand   { flex-shrink: 0; background: rgba(0,0,0,0.28); border-top: 2px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding: 6px 4px max(6px, env(safe-area-inset-bottom)); }
 
 /* ─── Player seats ──────────────────────────────────────────────────────── */
 .player-seat {
@@ -346,7 +347,8 @@ a      { color: var(--accent); }
   align-items: center;
   gap: 2px;
   border: 2px solid transparent;
-  border-radius: 8px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.18);
   padding: 2px 4px;
 }
 .player-seat.player-left, .player-seat.player-right {
@@ -359,9 +361,63 @@ a      { color: var(--accent); }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 68px;
+  max-width: 80px;
 }
 .turn-dot { color: var(--success); }
+
+/* ─── Player avatar circles ──────────────────────────────────────────────── */
+.player-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75em;
+  font-weight: bold;
+  flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,0.15);
+}
+.team0-avatar { background: rgba(126,200,227,0.25); color: #7ec8e3; }
+.team1-avatar { background: rgba(244,162,97,0.25);  color: #f4a261; }
+.active-player .player-avatar {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(240,165,0,0.5);
+}
+
+/* ─── Self player bar ────────────────────────────────────────────────────── */
+.self-player-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 2px;
+}
+.self-name {
+  font-size: 0.8em;
+  font-weight: bold;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* ─── Last trick inline widget ───────────────────────────────────────────── */
+.last-trick-widget {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.78em;
+}
+.last-trick-widget:hover { background: rgba(0,0,0,0.5); }
+.ltw-label { color: var(--muted); white-space: nowrap; }
+.ltw-card  { font-weight: bold; color: var(--text); letter-spacing: -0.5px; }
+.ltw-card.red { color: var(--red); }
 
 .face-down-cards {
   display: flex;
@@ -949,6 +1005,7 @@ a      { color: var(--accent); }
   .board-left   { grid-area: left;   display: flex; align-items: center; justify-content: center; width: auto; }
   .board-center { grid-area: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 4px; }
   .board-right  { grid-area: right;  display: flex; align-items: center; justify-content: center; width: auto; }
+  .board-middle { border-radius: 0; background: none; }
   .board-hand   { grid-area: hand; }
 
   /* ── Score strip ── */
@@ -978,7 +1035,9 @@ a      { color: var(--accent); }
   .board-hand {
     padding: 2px 4px max(2px, env(safe-area-inset-bottom));
   }
-  .your-turn-banner { display: none; }
+  .your-turn-banner  { display: none; }
+  .player-avatar     { display: none; }
+  .self-player-bar   { display: none; }
   .my-hand {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -988,6 +1047,6 @@ a      { color: var(--accent); }
     padding: 0;
   }
   .hand-toolbar   { padding: 1px 2px; gap: 4px; }
-  .btn-sort       { padding: 2px 8px; min-height: 24px; }
-  .btn-last-trick { padding: 3px 8px; min-height: 24px; }
+  .btn-sort            { padding: 2px 8px; min-height: 24px; }
+  .last-trick-widget   { padding: 3px 8px; font-size: 0.7em; }
 }
