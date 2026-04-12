@@ -60,6 +60,10 @@ export default {
   wins: 'gagne !',
   playAgain: 'Nouvelle partie',
 
+  // Leave
+  leaveTable: 'Quitter la table',
+  leaveConfirm: 'Quitter la partie en cours ? Les autres joueurs seront mis en pause.',
+
   // Disconnect
   playerDisconnected: (name) => `${name} s'est déconnecté. En attente de reconnexion...`,
   gamePaused: "Partie en pause — en attente d'un joueur",

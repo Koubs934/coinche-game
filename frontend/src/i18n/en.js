@@ -60,6 +60,10 @@ export default {
   wins: 'wins!',
   playAgain: 'New Game',
 
+  // Leave
+  leaveTable: 'Leave table',
+  leaveConfirm: 'Leave the game in progress? Other players will be paused.',
+
   // Disconnect
   playerDisconnected: (name) => `${name} disconnected. Waiting for reconnection...`,
   gamePaused: 'Game paused — waiting for a player to reconnect',

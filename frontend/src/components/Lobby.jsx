@@ -123,6 +123,13 @@ export default function Lobby({ socket, roomState, myPosition }) {
           {!isCreator && (
             <p className="waiting-msg">{t.waitingForPlayers}</p>
           )}
+
+          <button
+            className="btn-leave"
+            onClick={() => socket.emit('leaveRoom', { code })}
+          >
+            ← {t.leaveTable}
+          </button>
         </div>
       </div>
     );

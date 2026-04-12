@@ -863,6 +863,33 @@ a      { color: var(--accent); }
   background: rgba(240,165,0,0.1);
 }
 
+/* ─── Bid action chips (per-player bidding status) ──────────────────────── */
+.bid-action-chip {
+  font-size: 0.62em;
+  font-weight: bold;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.5;
+}
+.chip-pass    { background: rgba(122,154,176,0.2); color: var(--muted); }
+.chip-bid     { background: rgba(240,165,0,0.18); color: var(--accent); }
+.chip-coinche { background: rgba(139,26,26,0.45); color: #f88; }
+.chip-surc    { background: rgba(90,10,138,0.45); color: #cc88ff; }
+
+/* ─── Leave table button ─────────────────────────────────────────────────── */
+.btn-leave {
+  background: rgba(0,0,0,0.3);
+  color: #e05050;
+  font-size: 0.75em;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(224,80,80,0.3);
+  min-height: 34px;
+}
+.btn-leave:hover { background: rgba(139,26,26,0.4); color: #ff8080; }
+
 /* ─── Responsive (wider screens) ────────────────────────────────────────── */
 @media (min-width: 480px) {
   :root { --card-w: 48px; --card-h: 70px; }

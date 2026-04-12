@@ -184,6 +184,15 @@ io.on('connection', socket => {
     broadcastGame(result.room); // new round may start with a bot bidder
   });
 
+  // ── Leave room (intentional) ─────────────────────────────────────────────
+  socket.on('leaveRoom', ({ code }) => {
+    const result = rm.leaveRoom(code, userId);
+    if (result.error) return emitError(socket, result.error);
+    socket.leave(code);
+    socket.emit('leftRoom');
+    if (result.room) broadcast(result.room);
+  });
+
   // ── Disconnect ───────────────────────────────────────────────────────────
   socket.on('disconnect', () => {
     const result = rm.handleDisconnect(socket.id);

@@ -72,6 +72,13 @@ export default function App() {
       setTimeout(() => setSocketError(''), 4000);
     });
 
+    socket.on('leftRoom', () => {
+      setRoomState(null);
+      setGameState(null);
+      setMyPosition(null);
+      sessionStorage.removeItem('coinche_room');
+    });
+
     return () => {
       socket.disconnect();
       socketRef.current = null;

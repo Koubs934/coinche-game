@@ -55,6 +55,7 @@ function publicGame(room, viewerPosition) {
     currentBid: g.currentBid,
     biddingTurn: g.biddingTurn,
     consecutivePasses: g.consecutivePasses,
+    biddingActions: g.biddingActions || [null, null, null, null],
     tricks: g.tricks,
     currentTrick: g.currentTrick,
     currentPlayer: g.currentPlayer,
@@ -189,6 +190,7 @@ function _startRound(room, dealer) {
     currentBid: null,
     biddingTurn: (dealer + 1) % 4,
     consecutivePasses: 0,
+    biddingActions: [null, null, null, null],
     tricks: [],
     currentTrick: [],
     currentPlayer: null,
@@ -239,6 +241,7 @@ function placeBid(code, userId, value, suit) {
     coinched: false,
     surcoinched: false,
   };
+  room.game.biddingActions[position] = { type: 'bid', value, suit };
   room.game.consecutivePasses = 0;
   room.game.biddingTurn = (position + 1) % 4;
   return { room };
@@ -252,6 +255,7 @@ function passBid(code, userId) {
   if (position === -1) return { error: 'Not in this room' };
   if (room.game.biddingTurn !== position) return { error: 'Not your turn' };
 
+  room.game.biddingActions[position] = { type: 'pass' };
   room.game.consecutivePasses++;
   room.game.biddingTurn = (position + 1) % 4;
 
@@ -279,6 +283,7 @@ function coinche(code, userId) {
   if (getTeamByPosition(position) === bid.team) return { error: 'Cannot coinche your own team\'s bid' };
 
   bid.coinched = true;
+  room.game.biddingActions[position] = { type: 'coinche' };
   // Bidding continues — 3 consecutive passes needed to end (no new bids allowed)
   room.game.consecutivePasses = 0;
   room.game.biddingTurn = (position + 1) % 4;
@@ -300,6 +305,7 @@ function surcoinche(code, userId) {
   if (getTeamByPosition(position) !== bid.team) return { error: 'Only the contracting team can surcoinche' };
 
   bid.surcoinched = true;
+  room.game.biddingActions[position] = { type: 'surcoinche' };
   // Bidding continues — 3 consecutive passes needed to end
   room.game.consecutivePasses = 0;
   room.game.biddingTurn = (position + 1) % 4;
@@ -404,6 +410,38 @@ function _finishRound(room) {
   }
 }
 
+// ─── Leave room ────────────────────────────────────────────────────────────
+
+function leaveRoom(code, userId) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+
+  const playerIdx = room.players.findIndex(p => p.userId === userId);
+  if (playerIdx === -1) return { error: 'Not in this room' };
+
+  if (room.phase === 'LOBBY') {
+    room.players.splice(playerIdx, 1);
+    // Delete room if no human players remain
+    if (!room.players.some(p => !p.isBot)) {
+      rooms.delete(code);
+      return { room: null };
+    }
+    // Transfer creator to first human player if creator left
+    if (room.creatorId === userId) {
+      room.creatorId = room.players.find(p => !p.isBot).userId;
+    }
+    return { room };
+  }
+
+  // Game in progress: treat as disconnect (pauses the game for others)
+  const player = room.players[playerIdx];
+  player.connected = false;
+  if (['PLAYING', 'ROUND_OVER'].includes(room.phase)) {
+    room.paused = true;
+  }
+  return { room };
+}
+
 // ─── Connection handling ───────────────────────────────────────────────────
 
 function handleDisconnect(socketId) {
@@ -461,6 +499,7 @@ module.exports = {
   surcoinche,
   playCard,
   nextRound,
+  leaveRoom,
   handleDisconnect,
   handleReconnect,
   getRoomForSocket,

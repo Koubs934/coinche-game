@@ -8,6 +8,23 @@ const TRUMP_PTS     = { J: 20, '9': 14, A: 11, '10': 10, K: 4, Q: 3, '8': 0, '7'
 const NON_TRUMP_PTS = { A: 11, '10': 10, K: 4, Q: 3, J: 2, '9': 0, '8': 0, '7': 0 };
 const SUIT_SYM      = { S: '♠', H: '♥', D: '♦', C: '♣' };
 
+// ─── Bid action helpers ────────────────────────────────────────────────────
+
+function formatBidAction(action, t) {
+  if (!action) return null;
+  if (action.type === 'pass') return t.pass;
+  if (action.type === 'bid')
+    return action.value === 'capot' ? t.capot : `${action.value} ${SUIT_SYM[action.suit]}`;
+  if (action.type === 'coinche') return t.coinche;
+  if (action.type === 'surcoinche') return t.surcoinche;
+  return null;
+}
+
+function bidChipClass(action) {
+  if (!action) return '';
+  return { pass: 'chip-pass', bid: 'chip-bid', coinche: 'chip-coinche', surcoinche: 'chip-surc' }[action.type] || '';
+}
+
 function cardPts(card, trump) {
   return ((card.suit === trump) ? TRUMP_PTS : NON_TRUMP_PTS)[card.value] || 0;
 }
@@ -111,7 +128,9 @@ function TrickDisplay({ cards, myPosition, players, animDir, winnerPos }) {
 
 // ─── Player seat (opponent, face-down) ────────────────────────────────────
 
-function PlayerSeat({ player, handCount, isActive, isDimmed, direction }) {
+function PlayerSeat({ player, handCount, isActive, isDimmed, direction, bidAction }) {
+  const { t } = useLang();
+  const label = formatBidAction(bidAction, t);
   return (
     <div className={[
       'player-seat',
@@ -124,6 +143,9 @@ function PlayerSeat({ player, handCount, isActive, isDimmed, direction }) {
         {!player?.connected && <span className="dc-indicator"> ⚠</span>}
         {isActive && <span className="turn-dot"> ●</span>}
       </div>
+      {label && (
+        <div className={`bid-action-chip ${bidChipClass(bidAction)}`}>{label}</div>
+      )}
       <div className="face-down-cards">
         {Array.from({ length: handCount || 0 }).map((_, i) => (
           <CardBack key={i} small />
@@ -179,7 +201,15 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
       handCount: handCounts[pos],
       isActive:  isActiveTurnPhase && pos === activeTurnPos,
       isDimmed:  isActiveTurnPhase && pos !== activeTurnPos,
+      bidAction: phase === 'BIDDING' ? (game.biddingActions?.[pos] ?? null) : null,
     };
+  }
+
+  function leaveTable() {
+    if (phase === 'BIDDING' || phase === 'PLAYING') {
+      if (!window.confirm(t.leaveConfirm)) return;
+    }
+    socket.emit('leaveRoom', { code: roomCode });
   }
 
   // ── Effect: trick completion — show 1.5 s then animate ────────────────────
@@ -376,7 +406,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           <div className="your-turn-banner">{t.yourTurn} ●</div>
         )}
 
-        {/* Toolbar row: sort toggle */}
+        {/* Toolbar row: sort toggle + self bid status + leave */}
         <div className="hand-toolbar">
           <button
             className={`btn-sort${sortActive ? ' sort-on' : ''}`}
@@ -385,6 +415,14 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           >
             {sortActive ? '♠♥♦♣' : '⇅'} {t.sortHand}
           </button>
+          {phase === 'BIDDING' && (() => {
+            const selfAction = game.biddingActions?.[myPosition];
+            const label = formatBidAction(selfAction, t);
+            return label ? (
+              <span className={`bid-action-chip ${bidChipClass(selfAction)}`}>{label}</span>
+            ) : null;
+          })()}
+          <button className="btn-leave" onClick={leaveTable}>{t.leaveTable}</button>
         </div>
 
         <div className="my-hand">

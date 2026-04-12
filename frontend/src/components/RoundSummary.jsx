@@ -80,6 +80,12 @@ export default function RoundSummary({ socket, roomCode, room, game }) {
             {t.nextRound}
           </button>
         )}
+        <button
+          className="btn-leave"
+          onClick={() => socket.emit('leaveRoom', { code: roomCode })}
+        >
+          {t.leaveTable}
+        </button>
       </div>
     </div>
   );
