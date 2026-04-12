@@ -41,6 +41,11 @@ export default function Lobby({ socket, roomState, myPosition }) {
     socket.emit('fillWithBots', { code: roomState.code });
   }
 
+  function leaveLobby() {
+    if (!window.confirm(t.leaveConfirmLobby)) return;
+    socket.emit('leaveRoom', { code: roomState.code });
+  }
+
   // ── Error listener already handled in App ──
 
   // ── In-room lobby ─────────────────────────────────────────────────────────
@@ -124,10 +129,7 @@ export default function Lobby({ socket, roomState, myPosition }) {
             <p className="waiting-msg">{t.waitingForPlayers}</p>
           )}
 
-          <button
-            className="btn-leave"
-            onClick={() => socket.emit('leaveRoom', { code })}
-          >
+          <button className="btn-leave" onClick={leaveLobby}>
             ← {t.leaveTable}
           </button>
         </div>

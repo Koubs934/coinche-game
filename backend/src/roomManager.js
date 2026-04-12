@@ -424,22 +424,20 @@ function leaveRoom(code, userId) {
     // Delete room if no human players remain
     if (!room.players.some(p => !p.isBot)) {
       rooms.delete(code);
-      return { room: null };
+      return { lobby: true, room: null };
     }
     // Transfer creator to first human player if creator left
     if (room.creatorId === userId) {
       room.creatorId = room.players.find(p => !p.isBot).userId;
     }
-    return { room };
+    return { lobby: true, room };
   }
 
-  // Game in progress: treat as disconnect (pauses the game for others)
-  const player = room.players[playerIdx];
-  player.connected = false;
-  if (['PLAYING', 'ROUND_OVER'].includes(room.phase)) {
-    room.paused = true;
-  }
-  return { room };
+  // Any in-game state (PLAYING, ROUND_OVER, GAME_OVER):
+  // void the game, destroy the room, return all players so server can kick everyone
+  const allPlayers = room.players.slice();
+  rooms.delete(code);
+  return { lobby: false, allPlayers };
 }
 
 // ─── Connection handling ───────────────────────────────────────────────────

@@ -2,6 +2,11 @@ import { useLang } from '../context/LanguageContext';
 
 export default function RoundSummary({ socket, roomCode, room, game }) {
   const { t } = useLang();
+
+  function leaveGame() {
+    if (!window.confirm(t.leaveConfirmGame)) return;
+    socket.emit('leaveRoom', { code: roomCode });
+  }
   const { roundScores, contractMade, trickPoints, currentBid, beloteInfo } = game;
   const { scores, players } = room;
 
@@ -80,10 +85,7 @@ export default function RoundSummary({ socket, roomCode, room, game }) {
             {t.nextRound}
           </button>
         )}
-        <button
-          className="btn-leave"
-          onClick={() => socket.emit('leaveRoom', { code: roomCode })}
-        >
+        <button className="btn-leave" onClick={leaveGame}>
           {t.leaveTable}
         </button>
       </div>

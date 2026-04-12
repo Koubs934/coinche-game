@@ -62,7 +62,8 @@ export default {
 
   // Leave
   leaveTable: 'Quitter la table',
-  leaveConfirm: 'Quitter la partie en cours ? Les autres joueurs seront mis en pause.',
+  leaveConfirmLobby: 'Quitter cette salle ?',
+  leaveConfirmGame: 'Cela mettra fin à la partie pour tout le monde. Quitter ?',
 
   // Disconnect
   playerDisconnected: (name) => `${name} s'est déconnecté. En attente de reconnexion...`,

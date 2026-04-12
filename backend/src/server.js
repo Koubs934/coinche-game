@@ -188,9 +188,24 @@ io.on('connection', socket => {
   socket.on('leaveRoom', ({ code }) => {
     const result = rm.leaveRoom(code, userId);
     if (result.error) return emitError(socket, result.error);
+
     socket.leave(code);
     socket.emit('leftRoom');
-    if (result.room) broadcast(result.room);
+
+    if (result.lobby) {
+      // Lobby leave: only this player left; notify remaining players of updated room
+      if (result.room) broadcast(result.room);
+    } else {
+      // In-game leave: room is destroyed; kick every other connected player home
+      for (const player of result.allPlayers) {
+        if (!player.socketId || player.socketId === socket.id) continue;
+        const s = io.sockets.sockets.get(player.socketId);
+        if (s) {
+          s.leave(code);
+          s.emit('leftRoom');
+        }
+      }
+    }
   });
 
   // ── Disconnect ───────────────────────────────────────────────────────────

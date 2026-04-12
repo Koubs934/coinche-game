@@ -206,9 +206,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   }
 
   function leaveTable() {
-    if (phase === 'BIDDING' || phase === 'PLAYING') {
-      if (!window.confirm(t.leaveConfirm)) return;
-    }
+    if (!window.confirm(t.leaveConfirmGame)) return;
     socket.emit('leaveRoom', { code: roomCode });
   }
 

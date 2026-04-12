@@ -62,7 +62,8 @@ export default {
 
   // Leave
   leaveTable: 'Leave table',
-  leaveConfirm: 'Leave the game in progress? Other players will be paused.',
+  leaveConfirmLobby: 'Leave this room?',
+  leaveConfirmGame: 'This will end the game for everyone. Leave?',
 
   // Disconnect
   playerDisconnected: (name) => `${name} disconnected. Waiting for reconnection...`,
