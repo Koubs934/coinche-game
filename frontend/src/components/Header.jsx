@@ -27,7 +27,7 @@ export default function Header({ roomCode, scores, targetScore }) {
 
       <div className="header-right">
         <button className="btn-lang" onClick={toggleLang} title="Toggle language">
-          {lang === 'en' ? 'FR' : 'EN'}
+          {lang.toUpperCase()}
         </button>
         <span className="header-user">{username}</span>
         <button className="btn-link btn-signout" onClick={signOut} title={t.signOut}>⎋</button>

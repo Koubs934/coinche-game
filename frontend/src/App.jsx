@@ -99,7 +99,7 @@ export default function App() {
     return (
       <>
         <div className="lang-toggle-fixed">
-          <button className="btn-lang" onClick={toggleLang}>{lang === 'en' ? 'FR' : 'EN'}</button>
+          <button className="btn-lang" onClick={toggleLang}>{lang.toUpperCase()}</button>
         </div>
         <Auth />
       </>
