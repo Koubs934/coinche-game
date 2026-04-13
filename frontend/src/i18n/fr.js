@@ -104,8 +104,10 @@ export default {
   right: 'Droite',
 
   // Misc
-  coinched: 'Coinché ×2',
-  surcoinched: 'Surcoinché ×4',
+  coincheBonus: 'Coinche',
+  surcoinchBonus: 'Surcoinche',
+  coinched: 'Coinché',
+  surcoinched: 'Surcoinché',
   dixDeDer: '+10 (dix de der)',
   sortHand: 'Trier',
   lastTrick: 'Dernier pli',

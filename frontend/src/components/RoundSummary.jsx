@@ -41,8 +41,8 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
           <div className="summary-contract">
             {t.contract}: {currentBid.value === 'capot' ? t.capot : currentBid.value}
             {' '}{t.suitSymbol[currentBid.suit]}
-            {currentBid.surcoinched && <span className="badge badge-sur"> ×4</span>}
-            {currentBid.coinched && !currentBid.surcoinched && <span className="badge badge-coin"> ×2</span>}
+            {currentBid.surcoinched && <span className="badge badge-sur"> — {t.surcoinched}</span>}
+            {currentBid.coinched && !currentBid.surcoinched && <span className="badge badge-coin"> — {t.coinched}</span>}
           </div>
         )}
 
@@ -76,6 +76,21 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
                   <td className="score-label">{t.announcedPoints}</td>
                   <td>{contractTeam === 0 ? val : 0}</td>
                   <td>{contractTeam === 1 ? val : 0}</td>
+                </tr>
+              );
+            })()}
+            {/* Coinche / Surcoinche bonus row — only for successful numeric contracts */}
+            {contractMade && currentBid && typeof currentBid.value === 'number' &&
+              (currentBid.coinched || currentBid.surcoinched) && (() => {
+              const contractTeam = currentBid.playerIndex % 2;
+              const multiplier = currentBid.surcoinched ? 4 : 2;
+              const bonus = currentBid.value * (multiplier - 1);
+              const label = currentBid.surcoinched ? t.surcoinchBonus : t.coincheBonus;
+              return (
+                <tr>
+                  <td className="score-label">{label} ({currentBid.value})</td>
+                  <td>{contractTeam === 0 ? bonus : 0}</td>
+                  <td>{contractTeam === 1 ? bonus : 0}</td>
                 </tr>
               );
             })()}
