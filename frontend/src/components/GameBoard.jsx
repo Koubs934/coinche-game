@@ -266,9 +266,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
     : { 0: [], 1: [], 2: [], 3: [] };
 
   const isBidding   = phase === 'BIDDING';
-  // After bidding, show the contract directly from game state — no timers needed.
-  const contractData = !isBidding && game.contract != null ? game.contract : null;
-  const contractBy   = contractData?.by ?? null;
+  // After bidding, currentBid is the winning contract (server field: currentBid.playerIndex = winner).
+  const contractData = !isBidding && currentBid != null ? currentBid : null;
+  const contractBy   = contractData?.playerIndex ?? null;
 
   function seatData(offset) {
     const pos    = (myPosition + offset + 4) % 4;
@@ -503,16 +503,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           {contractData && contractBy === (myPosition + 1) % 4 && (
             <div className="table-bid tbid-right">
               <ContractBadge contract={contractData} t={t} />
-            </div>
-          )}
-
-          {/* Contract badge — only during PLAYING (confirmed trump) */}
-          {phase === 'PLAYING' && currentBid && (
-            <div className="contract-badge">
-              {currentBid.value === 'capot' ? t.capot : currentBid.value}
-              {' '}{t.suitSymbol[currentBid.suit]}
-              {currentBid.surcoinched && ' ×4'}
-              {currentBid.coinched && !currentBid.surcoinched && ' ×2'}
             </div>
           )}
 
