@@ -498,9 +498,15 @@ a      { color: var(--accent); }
 .my-hand {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 5px;
   justify-content: center;
   padding: 4px;
+}
+/* Hand cards are larger than the shared --card-w/h used by trick display */
+.my-hand .card {
+  width: 54px;
+  height: 78px;
+  font-size: 1.15em;
 }
 
 .belote-checkbox {
@@ -1306,6 +1312,7 @@ a      { color: var(--accent); }
 @media (min-width: 480px) {
   :root { --card-w: 48px; --card-h: 70px; }
   .card { font-size: 0.95em; }
+  .my-hand .card { width: 60px; height: 86px; font-size: 1.1em; }
   .bid-values { grid-template-columns: repeat(5, 1fr); }
 }
 
@@ -1403,10 +1410,11 @@ a      { color: var(--accent); }
   .bid-action-row { gap: 4px; }
   .bid-action-row > button { padding: 4px 8px; }
 
-  /* ── Hand: thin strip, single unwrapped row ── */
+  /* ── Hand: thin strip, single unwrapped row — reset to global card size ── */
   .board-hand {
     padding: 2px 4px max(2px, env(safe-area-inset-bottom));
   }
+  .my-hand .card { width: var(--card-w); height: var(--card-h); font-size: 1em; }
   .your-turn-banner  { display: none; }
   .player-avatar     { display: none; }
   .self-player-bar   { display: none; }
