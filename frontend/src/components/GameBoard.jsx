@@ -425,17 +425,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           )}
 
           {phase === 'BIDDING' && (
-            <div className="bidding-area">
-              <BiddingPanel
-                socket={socket} roomCode={roomCode}
-                game={game} myPosition={myPosition} myTeam={myTeam}
-              />
-              <div className="bidding-turn-info">
-                {isMyBidTurn
-                  ? <strong className="your-turn">{t.yourTurn}</strong>
-                  : <span>{t.waitingFor(players.find(p => p.position === biddingTurn)?.username || '?')}</span>
-                }
-              </div>
+            <div className="bidding-turn-info">
+              {isMyBidTurn
+                ? <strong className="your-turn">{t.yourTurn}</strong>
+                : <span>{t.waitingFor(players.find(p => p.position === biddingTurn)?.username || '?')}</span>
+              }
             </div>
           )}
 
@@ -508,6 +502,14 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
             ) : null;
           })()}
         </div>
+
+        {/* Bidding controls — shown at the bottom during my bid turn */}
+        {phase === 'BIDDING' && isMyBidTurn && (
+          <BiddingPanel
+            socket={socket} roomCode={roomCode}
+            game={game} myPosition={myPosition} myTeam={myTeam}
+          />
+        )}
 
         {/* Toolbar row: sort toggle + admin manage + leave */}
         <div className="hand-toolbar">

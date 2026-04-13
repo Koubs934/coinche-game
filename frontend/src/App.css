@@ -144,23 +144,19 @@ a      { color: var(--accent); }
 .btn-coinche {
   background: #8b1a1a;
   color: #fff;
-  padding: 10px 20px;
+  padding: 7px 12px;
   border-radius: var(--radius);
   font-weight: bold;
-  font-size: 1em;
-  width: 100%;
-  margin: 4px 0;
+  font-size: 0.9em;
 }
 .btn-coinche:hover { background: #a52020; }
 .btn-surcoinche {
   background: #5a0a8a;
   color: #fff;
-  padding: 10px 20px;
+  padding: 7px 12px;
   border-radius: var(--radius);
   font-weight: bold;
-  font-size: 1em;
-  width: 100%;
-  margin: 4px 0;
+  font-size: 0.9em;
 }
 .btn-surcoinche:hover { background: #6d0faa; }
 
@@ -563,42 +559,30 @@ a      { color: var(--accent); }
   color: var(--accent);
 }
 
-/* ─── Bidding panel ─────────────────────────────────────────────────────── */
+/* ─── Bidding panel (lives in board-hand, full-width bottom panel) ──────── */
 .bidding-panel {
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  padding: 6px 0 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  margin-bottom: 2px;
 }
-.bidding-area {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  overflow-y: auto;
-  flex: 1;
-  min-height: 0;
-}
-.current-bid-info {
-  text-align: center;
-  font-size: 0.9em;
-  background: rgba(0,0,0,0.25);
-  padding: 4px 8px;
-  border-radius: var(--radius);
-}
+
 .bid-values {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 3px;
+  gap: 4px;
 }
 .bid-val-btn {
   background: #2c3e50;
   color: var(--text);
-  padding: 8px 4px;
+  padding: 7px 4px;
   border-radius: 4px;
-  font-size: 0.85em;
+  font-size: 0.9em;
   text-align: center;
-  min-height: 38px;
+  min-height: 36px;
 }
 .bid-val-btn.selected { background: var(--accent); color: #1a1a1a; font-weight: bold; }
 .bid-val-btn.disabled { opacity: 0.3; cursor: not-allowed; }
@@ -607,13 +591,13 @@ a      { color: var(--accent); }
 
 .suit-selector {
   display: flex;
-  gap: 6px;
+  gap: 10px;
   justify-content: center;
 }
 .suit-btn {
   width: 44px;
   height: 44px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 1.4em;
   background: #2c3e50;
 }
@@ -626,8 +610,7 @@ a      { color: var(--accent); }
   display: flex;
   gap: 8px;
 }
-.bid-action-row .btn-primary,
-.bid-action-row .btn-secondary { flex: 1; }
+.bid-action-row > button { flex: 1; }
 
 .bidding-turn-info, .play-turn-info {
   font-size: 0.85em;
@@ -1153,15 +1136,16 @@ a      { color: var(--accent); }
   /* ── Trick display ── */
   .trick-display { gap: 2px; }
 
-  /* ── Bidding: 10 values in one row across ~510px center width ── */
-  .bid-values { grid-template-columns: repeat(10, 1fr); gap: 2px; }
-  .bid-val-btn    { min-height: 28px; padding: 3px 1px; font-size: 0.78em; }
-  .suit-btn       { width: 34px; height: 34px; font-size: 1.1em; }
+  /* ── Bidding: 10 values in one row in the hand strip ── */
+  .bidding-panel  { padding: 2px 0; gap: 3px; border-bottom: none; margin-bottom: 0; }
+  .bid-values     { grid-template-columns: repeat(10, 1fr); gap: 2px; }
+  .bid-val-btn    { min-height: 22px; padding: 2px 1px; font-size: 0.75em; }
+  .suit-selector  { gap: 4px; }
+  .suit-btn       { width: 28px; height: 28px; font-size: 1em; }
   .btn-coinche,
-  .btn-surcoinche { padding: 5px 12px; margin: 2px 0; }
-  .bid-action-row .btn-primary,
-  .bid-action-row .btn-secondary { padding: 5px 10px; }
-  .bidding-area { gap: 3px; }
+  .btn-surcoinche { padding: 3px 8px; font-size: 0.8em; }
+  .bid-action-row { gap: 4px; }
+  .bid-action-row > button { padding: 4px 8px; }
 
   /* ── Hand: thin strip, single unwrapped row ── */
   .board-hand {

@@ -11,7 +11,6 @@ export default function BiddingPanel({ socket, roomCode, game, myPosition, myTea
 
   const isMyTurn = game.biddingTurn === myPosition;
   const currentBid = game.currentBid;
-  const myBidTeam = currentBid ? myTeam === currentBid.team : false;
   const canCoinche = isMyTurn && currentBid && !currentBid.coinched && myTeam !== currentBid.team;
   const canSurcoinche = isMyTurn && currentBid?.coinched && !currentBid?.surcoinched && myTeam === currentBid.team;
 
@@ -40,82 +39,53 @@ export default function BiddingPanel({ socket, roomCode, game, myPosition, myTea
     socket.emit('surcoinche', { code: roomCode });
   }
 
+  if (!isMyTurn) return null;
+
   return (
     <div className="bidding-panel">
-      {/* Current bid display */}
-      <div className="current-bid-info">
-        {currentBid ? (
-          <span>
-            {t.contract}: <strong>
-              {currentBid.value === 'capot' ? t.capot : currentBid.value}
-              {' '}{t.suitSymbol[currentBid.suit]}
-            </strong>
-            {currentBid.surcoinched && <span className="badge badge-sur"> {t.surcoinched}</span>}
-            {currentBid.coinched && !currentBid.surcoinched && <span className="badge badge-coin"> {t.coinched}</span>}
-          </span>
-        ) : (
-          <span className="muted">{t.biddingPhase}</span>
-        )}
+      {/* Value selector */}
+      <div className="bid-values">
+        {BID_VALUES.map(v => (
+          <button
+            key={v}
+            className={`bid-val-btn${selectedValue === v ? ' selected' : ''}${!isValidBid(v) ? ' disabled' : ''}`}
+            onClick={() => isValidBid(v) && setSelectedValue(v)}
+            disabled={!isValidBid(v)}
+          >
+            {v === 'capot' ? t.capot : v}
+          </button>
+        ))}
       </div>
 
-      {/* Coinche / Surcoinche buttons — available anytime (not turn-gated) */}
-      {canCoinche && (
-        <button className="btn-coinche" onClick={doCoinche}>{t.coinche}</button>
-      )}
-      {canSurcoinche && (
-        <button className="btn-surcoinche" onClick={doSurcoinche}>{t.surcoinche}</button>
-      )}
-
-      {/* Turn-gated bid/pass controls */}
-      {isMyTurn && (
-        <div className="bid-controls">
-          {/* Value selector */}
-          <div className="bid-values">
-            {BID_VALUES.map(v => (
-              <button
-                key={v}
-                className={`bid-val-btn${selectedValue === v ? ' selected' : ''}${!isValidBid(v) ? ' disabled' : ''}`}
-                onClick={() => isValidBid(v) && setSelectedValue(v)}
-                disabled={!isValidBid(v)}
-              >
-                {v === 'capot' ? t.capot : v}
-              </button>
-            ))}
-          </div>
-
-          {/* Suit selector (hidden when capot selected) */}
-          {selectedValue !== 'capot' && (
-            <div className="suit-selector">
-              {SUITS.map(s => (
-                <button
-                  key={s}
-                  className={`suit-btn ${s === 'H' || s === 'D' ? 'red' : 'black'}${selectedSuit === s ? ' selected' : ''}`}
-                  onClick={() => setSelectedSuit(s)}
-                >
-                  {t.suitSymbol[s]}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="bid-action-row">
+      {/* Suit selector — hidden when capot or surcoinche */}
+      {selectedValue !== 'capot' && !canSurcoinche && (
+        <div className="suit-selector">
+          {SUITS.map(s => (
             <button
-              className="btn-primary"
-              onClick={submitBid}
-              disabled={!selectedValue}
+              key={s}
+              className={`suit-btn ${s === 'H' || s === 'D' ? 'red' : 'black'}${selectedSuit === s ? ' selected' : ''}`}
+              onClick={() => setSelectedSuit(s)}
             >
-              {t.bid}
+              {t.suitSymbol[s]}
             </button>
-            <button className="btn-secondary" onClick={pass}>{t.pass}</button>
-          </div>
+          ))}
         </div>
       )}
 
-      {!isMyTurn && (
-        <p className="waiting-turn">
-          {/* Show who's bidding */}
-        </p>
-      )}
+      {/* Action row: Announce / [Coinche] / Pass */}
+      <div className="bid-action-row">
+        {canSurcoinche ? (
+          <button className="btn-surcoinche btn-action" onClick={doSurcoinche}>{t.surcoinche}</button>
+        ) : canCoinche ? (
+          <>
+            <button className="btn-primary" onClick={submitBid} disabled={!selectedValue}>{t.bid}</button>
+            <button className="btn-coinche btn-action" onClick={doCoinche}>{t.coinche}</button>
+          </>
+        ) : (
+          <button className="btn-primary" onClick={submitBid} disabled={!selectedValue}>{t.bid}</button>
+        )}
+        <button className="btn-secondary" onClick={pass}>{t.pass}</button>
+      </div>
     </div>
   );
 }
