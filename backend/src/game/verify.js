@@ -492,6 +492,69 @@ function makeTricks(winner0count, winner1count, trumpSuit) {
   assert(scores[1] === (160 + 120) * 1, `S9: failed contract — defenders get (160+120)×1=280 (belote not added), got ${scores[1]}`);
 }
 
+// Scenario S10: coinched success — only contract value is multiplied, not tricks
+{
+  const trumpSuit = 'H';
+  const contract = { value: 80, team: 0, coinched: true, surcoinched: false };
+
+  // Same trick layout as S1: team 0 wins 5 tricks (105 pts), team 1 wins 3 (73 pts incl. dix de der)
+  const tricks = [];
+  for (let i = 0; i < 8; i++) {
+    const winnerTeam = i < 5 ? 0 : 1;
+    const winnerPlayer = winnerTeam;
+    tricks.push({
+      cards: [
+        { card: card('A', 'S'), playerIndex: winnerPlayer },
+        { card: card('10', 'S'), playerIndex: winnerPlayer },
+        { card: card('7', 'S'), playerIndex: 1 - winnerPlayer },
+        { card: card('8', 'S'), playerIndex: 1 - winnerPlayer },
+      ],
+      winner: winnerPlayer,
+    });
+  }
+
+  const { scores, contractMade, trickPoints } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: null });
+  // trickPoints[0]=105, trickPoints[1]=73. Contract 80 coinched:
+  //   contract team: round((105 + 80×2) / 10) × 10 = round(265/10)×10 = 270
+  //   defending team: round(73/10)×10 = 70
+  const expectedContractTeam = Math.round((trickPoints[0] + contract.value * 2) / 10) * 10;
+  const expectedDefending    = Math.round(trickPoints[1] / 10) * 10;
+  assert(contractMade === true, 'S10: coinched success — contractMade is true');
+  assert(scores[0] === expectedContractTeam, `S10: coinched success — contract team gets tricks + contract×2 = ${expectedContractTeam}, got ${scores[0]}`);
+  assert(scores[1] === expectedDefending,    `S10: coinched success — defending team gets tricks only = ${expectedDefending}, got ${scores[1]}`);
+}
+
+// Scenario S11: surcoinched success — only contract value is multiplied ×4
+{
+  const trumpSuit = 'H';
+  const contract = { value: 80, team: 0, coinched: true, surcoinched: true };
+
+  const tricks = [];
+  for (let i = 0; i < 8; i++) {
+    const winnerTeam = i < 5 ? 0 : 1;
+    const winnerPlayer = winnerTeam;
+    tricks.push({
+      cards: [
+        { card: card('A', 'S'), playerIndex: winnerPlayer },
+        { card: card('10', 'S'), playerIndex: winnerPlayer },
+        { card: card('7', 'S'), playerIndex: 1 - winnerPlayer },
+        { card: card('8', 'S'), playerIndex: 1 - winnerPlayer },
+      ],
+      winner: winnerPlayer,
+    });
+  }
+
+  const { scores, contractMade, trickPoints } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: null });
+  // trickPoints[0]=105, trickPoints[1]=73. Contract 80 surcoinched:
+  //   contract team: round((105 + 80×4) / 10) × 10 = round(425/10)×10 = 430
+  //   defending team: round(73/10)×10 = 70
+  const expectedContractTeam = Math.round((trickPoints[0] + contract.value * 4) / 10) * 10;
+  const expectedDefending    = Math.round(trickPoints[1] / 10) * 10;
+  assert(contractMade === true, 'S11: surcoinched success — contractMade is true');
+  assert(scores[0] === expectedContractTeam, `S11: surcoinched success — contract team gets tricks + contract×4 = ${expectedContractTeam}, got ${scores[0]}`);
+  assert(scores[1] === expectedDefending,    `S11: surcoinched success — defending team gets tricks only = ${expectedDefending}, got ${scores[1]}`);
+}
+
 // ─── Summary ─────────────────────────────────────────────────────────────────
 
 console.log(`\n${'─'.repeat(40)}`);
