@@ -48,7 +48,9 @@ export default {
 
   // Scores
   score: 'Score',
-  roundScore: 'Round Score',
+  trickPoints: 'Trick points',
+  announcedPoints: 'Contract value',
+  roundScore: 'Round score',
   totalScore: 'Total',
   team: 'Team',
   contractMade: 'Contract made!',

@@ -63,11 +63,22 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
           <tbody>
             {trickPoints && (
               <tr>
-                <td className="score-label">{t.roundScore} (tricks)</td>
+                <td className="score-label">{t.trickPoints}</td>
                 <td>{trickPoints[0]}</td>
                 <td>{trickPoints[1]}</td>
               </tr>
             )}
+            {currentBid && (() => {
+              const contractTeam = currentBid.playerIndex % 2;
+              const val = currentBid.value === 'capot' ? t.capot : currentBid.value;
+              return (
+                <tr>
+                  <td className="score-label">{t.announcedPoints}</td>
+                  <td>{contractTeam === 0 ? val : 0}</td>
+                  <td>{contractTeam === 1 ? val : 0}</td>
+                </tr>
+              );
+            })()}
             <tr className="round-final">
               <td className="score-label">{t.roundScore}</td>
               <td className={roundScores[0] > roundScores[1] ? 'winner-score' : ''}>{roundScores[0]}</td>

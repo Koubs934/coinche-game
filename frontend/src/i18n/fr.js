@@ -48,7 +48,9 @@ export default {
 
   // Scores
   score: 'Score',
-  roundScore: 'Score du tour',
+  trickPoints: 'Points faits',
+  announcedPoints: 'Points annoncés',
+  roundScore: 'Score de la manche',
   totalScore: 'Total',
   team: 'Équipe',
   contractMade: 'Contrat réussi !',
