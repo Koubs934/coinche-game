@@ -2,6 +2,7 @@ const rm = require('./roomManager');
 const { getBotBidAction, getBotCardAction } = require('./game/botLogic');
 
 const BOT_DELAY_MS = 700;
+const BOT_CONFIRM_DELAY_MS = 2000;
 
 function isBotPosition(room, position) {
   return room.players.some(p => p.position === position && p.isBot);
@@ -63,4 +64,36 @@ function _execute(room, broadcastFn) {
   }
 }
 
-module.exports = { scheduleBotTurns, isBotTurn };
+/**
+ * After a delay, auto-confirm all bots for the next round.
+ * If that makes all humans confirmed too, the round starts and broadcastFn
+ * is called with the new game state; otherwise just broadcasts the updated
+ * ready count.
+ */
+function scheduleBotConfirms(code, broadcastFn) {
+  setTimeout(() => {
+    const room = rm.getRoom(code);
+    if (!room || room.phase !== 'ROUND_OVER' || room.paused) return;
+
+    const bots = room.players.filter(p => p.isBot);
+    const botsNeedingConfirm = bots.filter(b => !(room.nextRoundReady || []).includes(b.userId));
+    if (botsNeedingConfirm.length === 0) return; // already confirmed, nothing to do
+
+    let currentRoom = room;
+    let started = false;
+
+    for (const bot of botsNeedingConfirm) {
+      const result = rm.confirmNextRound(currentRoom.code, bot.userId);
+      if (result.error) continue;
+      currentRoom = result.room;
+      if (result.started) { started = true; break; }
+    }
+
+    broadcastFn(currentRoom);
+    if (started) {
+      scheduleBotTurns(currentRoom.code, broadcastFn);
+    }
+  }, BOT_CONFIRM_DELAY_MS);
+}
+
+module.exports = { scheduleBotTurns, isBotTurn, scheduleBotConfirms };

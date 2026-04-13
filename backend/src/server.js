@@ -4,7 +4,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 
 const rm = require('./roomManager');
-const { scheduleBotTurns } = require('./botProcessor');
+const { scheduleBotTurns, scheduleBotConfirms } = require('./botProcessor');
 
 const app = express();
 const httpServer = createServer(app);
@@ -56,10 +56,15 @@ function emitError(socket, message) {
   socket.emit('error', { message });
 }
 
-// Broadcast + queue the next bot turn (if any) for game-state changes
+// Broadcast + queue the next bot turn (if any) for game-state changes.
+// When the round just ended, schedule bot auto-confirms instead of bot turns.
 function broadcastGame(room) {
   broadcast(room);
-  scheduleBotTurns(room.code, broadcast);
+  if (room.phase === 'ROUND_OVER') {
+    scheduleBotConfirms(room.code, broadcastGame);
+  } else {
+    scheduleBotTurns(room.code, broadcastGame);
+  }
 }
 
 // ─── Socket handlers ───────────────────────────────────────────────────────
@@ -212,11 +217,15 @@ io.on('connection', socket => {
     broadcastGame(result.room);
   });
 
-  // ── Next round ───────────────────────────────────────────────────────────
-  socket.on('nextRound', ({ code }) => {
-    const result = rm.nextRound(code);
+  // ── Next round (per-player confirmation) ─────────────────────────────────
+  socket.on('confirmNextRound', ({ code }) => {
+    const result = rm.confirmNextRound(code, userId);
     if (result.error) return emitError(socket, result.error);
-    broadcastGame(result.room); // new round may start with a bot bidder
+    if (result.started) {
+      broadcastGame(result.room); // new round started — may need bot bidding
+    } else {
+      broadcast(result.room); // just update the ready-count for all clients
+    }
   });
 
   // ── Leave room (intentional) ─────────────────────────────────────────────

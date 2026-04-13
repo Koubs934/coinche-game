@@ -43,6 +43,7 @@ function publicRoom(room) {
     scores: room.scores,
     paused: room.paused || false,
     pendingJoins: (room.pendingJoins || []).map(({ userId, username }) => ({ userId, username })),
+    nextRoundReady: room.nextRoundReady || [],
   };
 }
 
@@ -206,15 +207,28 @@ function _startRound(room, dealer) {
   };
 }
 
-function nextRound(code) {
+function confirmNextRound(code, userId) {
   const room = rooms.get(code);
   if (!room) return { error: 'Room not found' };
   if (room.phase !== 'ROUND_OVER') return { error: 'Round not over yet' };
   if (room.paused) return { error: 'Game is paused — waiting for players' };
 
-  const nextDealer = (room.game.dealer + 1) % 4;
-  _startRound(room, nextDealer);
-  return { room };
+  if (!room.nextRoundReady) room.nextRoundReady = [];
+  if (!room.nextRoundReady.includes(userId)) {
+    room.nextRoundReady.push(userId);
+  }
+
+  // Round starts when every human player has confirmed (bots auto-confirm separately)
+  const humanPlayers = room.players.filter(p => !p.isBot);
+  const allConfirmed = humanPlayers.every(p => room.nextRoundReady.includes(p.userId));
+
+  if (allConfirmed) {
+    const nextDealer = (room.game.dealer + 1) % 4;
+    _startRound(room, nextDealer);
+    return { room, started: true };
+  }
+
+  return { room, started: false };
 }
 
 // ─── Bidding ───────────────────────────────────────────────────────────────
@@ -410,6 +424,7 @@ function _finishRound(room) {
   g.trickPoints = trickPoints;
   g.phase = 'ROUND_OVER';
   room.phase = 'ROUND_OVER';
+  room.nextRoundReady = []; // reset per-player confirmation list
 
   room.scores[0] += scores[0];
   room.scores[1] += scores[1];
@@ -634,7 +649,7 @@ module.exports = {
   coinche,
   surcoinche,
   playCard,
-  nextRound,
+  confirmNextRound,
   leaveRoom,
   creatorJoin,
   requestJoin,

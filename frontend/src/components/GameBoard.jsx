@@ -374,7 +374,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
             )}
           </div>
         )}
-        <RoundSummary socket={socket} roomCode={roomCode} room={room} game={game} />
+        <RoundSummary socket={socket} roomCode={roomCode} room={room} game={game} myPosition={myPosition} />
       </>
     );
   }

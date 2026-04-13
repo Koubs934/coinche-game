@@ -1,19 +1,32 @@
+import { useState } from 'react';
 import { useLang } from '../context/LanguageContext';
 
-export default function RoundSummary({ socket, roomCode, room, game }) {
+const SUIT_SYM = { S: '♠', H: '♥', D: '♦', C: '♣' };
+
+export default function RoundSummary({ socket, roomCode, room, game, myPosition }) {
   const { t } = useLang();
+  const [showTrickReview, setShowTrickReview] = useState(false);
 
   function leaveGame() {
     if (!window.confirm(t.leaveConfirmGame)) return;
     socket.emit('leaveRoom', { code: roomCode });
   }
-  const { roundScores, contractMade, trickPoints, currentBid, beloteInfo } = game;
+
+  const { roundScores, contractMade, trickPoints, currentBid, beloteInfo, tricks } = game;
   const { scores, players } = room;
 
   function getTeamLabel(teamIdx) {
     const members = players.filter(p => p.team === teamIdx).map(p => p.username);
     return members.join(' & ');
   }
+
+  // Per-player confirmation state
+  const myPlayer = players.find(p => p.position === myPosition);
+  const myUserId = myPlayer?.userId;
+  const nextRoundReady = room.nextRoundReady || [];
+  const myConfirmed = myUserId ? nextRoundReady.includes(myUserId) : false;
+  const readyCount = nextRoundReady.length;
+  const totalPlayers = players.length;
 
   return (
     <div className="round-summary">
@@ -81,14 +94,65 @@ export default function RoundSummary({ socket, roomCode, room, game }) {
             </p>
           </div>
         ) : (
-          <button className="btn-primary btn-large" onClick={() => socket.emit('nextRound', { code: roomCode })}>
-            {t.nextRound}
-          </button>
+          <>
+            {myConfirmed ? (
+              <button className="btn-primary btn-large" disabled>
+                {t.readyCount(readyCount, totalPlayers)}
+              </button>
+            ) : (
+              <button className="btn-primary btn-large" onClick={() => socket.emit('confirmNextRound', { code: roomCode })}>
+                {t.nextRound}
+              </button>
+            )}
+            {tricks?.length > 0 && (
+              <button className="btn-secondary btn-large" onClick={() => setShowTrickReview(true)}>
+                {t.seeAllTricks}
+              </button>
+            )}
+          </>
         )}
+
         <button className="btn-leave" onClick={leaveGame}>
           {t.leaveTable}
         </button>
       </div>
+
+      {/* ── Trick review modal ────────────────────────────────────────────── */}
+      {showTrickReview && tricks?.length > 0 && (
+        <div className="trick-review-overlay" onClick={() => setShowTrickReview(false)}>
+          <div className="trick-review-panel" onClick={e => e.stopPropagation()}>
+            <div className="trick-review-header">
+              <span className="trick-review-title">{t.allTricks}</span>
+              <button className="btn-close" onClick={() => setShowTrickReview(false)}>✕</button>
+            </div>
+            <div className="trick-review-list">
+              {tricks.map((trick, i) => {
+                const winner = players.find(p => p.position === trick.winner);
+                return (
+                  <div key={i} className="tri-item">
+                    <div className="tri-header">
+                      {t.trick} {i + 1} — <span className="tri-winner-name">{winner?.username}</span>
+                    </div>
+                    <div className="tri-cards">
+                      {trick.cards.map(({ card, playerIndex }) => {
+                        const player = players.find(p => p.position === playerIndex);
+                        const isRed = card.suit === 'H' || card.suit === 'D';
+                        const isWinner = playerIndex === trick.winner;
+                        return (
+                          <div key={playerIndex} className={`tri-card${isRed ? ' red' : ''}${isWinner ? ' tri-card-won' : ''}`}>
+                            <span className="tri-card-face">{card.value}{SUIT_SYM[card.suit]}</span>
+                            <span className="tri-card-player">{player?.username}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
