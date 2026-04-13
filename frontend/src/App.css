@@ -332,8 +332,23 @@ a      { color: var(--accent); }
 }
 .board-left   { display: flex; align-items: center; width: 86px; flex-shrink: 0; }
 .board-right  { display: flex; align-items: center; width: 86px; flex-shrink: 0; }
-.board-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 6px; }
+.board-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 6px; position: relative; }
 .board-middle { border-radius: 14px; background: radial-gradient(ellipse at center, #1e6b30 0%, #164f22 70%, #0f3a18 100%); }
+
+/* ─── Table-positioned bid chip overlays ────────────────────────────────── */
+/* Float on the green table surface in front of each player, not in their seat */
+.table-bid {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  text-align: center;
+}
+/* Top player (partner) — top-center of the table */
+.tbid-top   { top: 8px;   left: 50%; transform: translateX(-50%); }
+/* Left opponent — left edge of center, vertically centered */
+.tbid-left  { left: 6px;  top: 50%; transform: translateY(-50%); }
+/* Right opponent — right edge of center, vertically centered */
+.tbid-right { right: 6px; top: 50%; transform: translateY(-50%); }
 .board-hand   { flex-shrink: 0; background: rgba(0,0,0,0.28); border-top: 2px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding: 6px 4px max(6px, env(safe-area-inset-bottom)); }
 
 /* ─── Player seats ──────────────────────────────────────────────────────── */
@@ -1037,11 +1052,12 @@ a      { color: var(--accent); }
 
 /* Latest / current action — prominent */
 .bsi.bsi-current {
-  font-size: 0.84em;
-  font-weight: 700;
-  padding: 2px 6px;
-  background: rgba(0,0,0,0.32);
-  border-radius: 4px;
+  font-size: 1em;
+  font-weight: 800;
+  padding: 3px 7px;
+  background: rgba(0,0,0,0.42);
+  border-radius: 5px;
+  letter-spacing: 0.01em;
 }
 
 /* Older / outbid actions — subtle */
@@ -1286,8 +1302,12 @@ a      { color: var(--accent); }
   .bid-focal-suit  { font-size: 1.1em; }
   .bid-whose-turn  { font-size: 0.75em; }
 
-  /* ── Per-seat bid stack: tighter on phone ── */
-  .bsi.bsi-current { font-size: 0.76em; padding: 1px 4px; }
+  /* ── Table bid overlays: nudge positions for narrow landscape center ── */
+  .tbid-top   { top: 4px; }
+  .tbid-left  { left: 3px; }
+  .tbid-right { right: 3px; }
+  /* Keep current bid readable but slightly compact */
+  .bsi.bsi-current { font-size: 0.88em; padding: 2px 5px; }
   .bsi.bsi-older   { font-size: 0.5em; }
 
   /* ── Bidding: 10 values in one row in the hand strip ── */

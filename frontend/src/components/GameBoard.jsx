@@ -171,7 +171,7 @@ function BidStack({ history, t }) {
 
 // ─── Player seat (opponent, face-down) ────────────────────────────────────
 
-function PlayerSeat({ player, handCount, isActive, isDimmed, direction, bidHistory, isCreator, onRemove }) {
+function PlayerSeat({ player, handCount, isActive, isDimmed, direction, isCreator, onRemove }) {
   const { t } = useLang();
   const initial = player?.isBot ? '🤖' : (player?.username?.[0]?.toUpperCase() || '?');
   return (
@@ -198,7 +198,6 @@ function PlayerSeat({ player, handCount, isActive, isDimmed, direction, bidHisto
           title={t.removePlayer}
         >✕</button>
       )}
-      {bidHistory?.length > 0 && <BidStack history={bidHistory} t={t} />}
       <div className="face-down-cards">
         {Array.from({ length: handCount || 0 }).map((_, i) => (
           <CardBack key={i} small />
@@ -257,10 +256,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
     const player = players.find(p => p.position === pos);
     return {
       player,
-      handCount:  handCounts[pos],
-      isActive:   isActiveTurnPhase && pos === activeTurnPos,
-      isDimmed:   isActiveTurnPhase && pos !== activeTurnPos,
-      bidHistory: phase === 'BIDDING' ? (perPlayerHistory[pos] || []) : [],
+      handCount: handCounts[pos],
+      isActive:  isActiveTurnPhase && pos === activeTurnPos,
+      isDimmed:  isActiveTurnPhase && pos !== activeTurnPos,
     };
   }
 
@@ -457,6 +455,23 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
         </div>
 
         <div className="board-center">
+          {/* ── Table-positioned bid chips — float on table in front of each opponent ── */}
+          {phase === 'BIDDING' && perPlayerHistory[(myPosition + 2) % 4]?.length > 0 && (
+            <div className="table-bid tbid-top">
+              <BidStack history={perPlayerHistory[(myPosition + 2) % 4]} t={t} />
+            </div>
+          )}
+          {phase === 'BIDDING' && perPlayerHistory[(myPosition + 3) % 4]?.length > 0 && (
+            <div className="table-bid tbid-left">
+              <BidStack history={perPlayerHistory[(myPosition + 3) % 4]} t={t} />
+            </div>
+          )}
+          {phase === 'BIDDING' && perPlayerHistory[(myPosition + 1) % 4]?.length > 0 && (
+            <div className="table-bid tbid-right">
+              <BidStack history={perPlayerHistory[(myPosition + 1) % 4]} t={t} />
+            </div>
+          )}
+
           {/* Contract badge — only during PLAYING (confirmed trump) */}
           {phase === 'PLAYING' && currentBid && (
             <div className="contract-badge">
