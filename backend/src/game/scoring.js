@@ -64,13 +64,8 @@ function calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam }) {
       scores[contractTeam] *= multiplier;
     }
   } else {
-    // Contract failed — flat score; bonuses do not add on top
-    if (multiplier === 1) {
-      scores[opposingTeam] = 160;
-    } else {
-      // coinche: (contract × 2) + 160; surcoinche: (contract × 4) + 160
-      scores[opposingTeam] = (contract.value * multiplier) + 160;
-    }
+    // Contract failed — defending team scores (160 + contract) × multiplier
+    scores[opposingTeam] = (160 + contract.value) * multiplier;
     // scores[contractTeam] stays 0
   }
 
