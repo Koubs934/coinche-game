@@ -225,9 +225,10 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const prevDealerRef       = useRef(null);
   const prevTrumpRef        = useRef(null);
   const timerRef            = useRef([]);
-  const prevPhaseRef        = useRef(null);
-  const contractHoldTimer   = useRef(null);
-  const frozenContractRef   = useRef(null);
+  const prevPhaseRef           = useRef(null);
+  const contractHoldTimer      = useRef(null);
+  const frozenContractRef      = useRef(null);
+  const contractHoldStartedRef = useRef(true); // true = don't fire on mount
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const { players, scores, targetScore, paused } = room;
@@ -285,19 +286,27 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   }
 
   // ── Effect: hold winner chip visible for 3 s after auction closes ──────────
+  // Deps: phase + !!game.contract so the effect re-runs if the contract object
+  // arrives slightly after the phase transition (two separate socket messages).
   useEffect(() => {
-    if (prevPhaseRef.current === 'BIDDING' && phase !== 'BIDDING') {
+    if (phase === 'BIDDING') {
+      clearTimeout(contractHoldTimer.current);
+      contractHoldStartedRef.current = false; // arm for next auction close
+      setShowContractHold(false);
+      frozenContractRef.current = null;
+      prevPhaseRef.current = 'BIDDING';
+      return;
+    }
+    // phase !== 'BIDDING': start hold exactly once, only after contract is ready
+    if (!contractHoldStartedRef.current && game.contract != null) {
+      contractHoldStartedRef.current = true;
       frozenContractRef.current = game.contract;
+      clearTimeout(contractHoldTimer.current);
       setShowContractHold(true);
       contractHoldTimer.current = setTimeout(() => setShowContractHold(false), 3000);
     }
-    if (phase === 'BIDDING') {
-      clearTimeout(contractHoldTimer.current);
-      setShowContractHold(false);
-      frozenContractRef.current = null;
-    }
     prevPhaseRef.current = phase;
-  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [phase, !!game?.contract]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Effect: trick completion — show 1.5 s then animate ────────────────────
   useEffect(() => {
