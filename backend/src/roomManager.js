@@ -540,8 +540,6 @@ function removePlayer(code, creatorId, targetUserId) {
 
   const playerIdx = room.players.findIndex(p => p.userId === targetUserId);
   if (playerIdx === -1) return { error: 'Player not found' };
-  if (room.players[playerIdx].isBot) return { error: 'Cannot remove a bot this way' };
-
   const removedSocketId = room.players[playerIdx].socketId;
   room.players.splice(playerIdx, 1);
   // Only pause for in-game phases; lobby needs no pause

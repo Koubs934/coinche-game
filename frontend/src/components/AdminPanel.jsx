@@ -33,7 +33,7 @@ export default function AdminPanel({ players, creatorId, myUserId, phase, onRemo
                   {inGame && p.position !== undefined && ` · ${t.seat} ${p.position + 1}`}
                 </span>
               </div>
-              {p.userId !== myUserId && !p.isBot && (
+              {p.userId !== myUserId && (
                 <button className="btn-remove-admin" onClick={() => handleRemove(p)}>
                   {t.removePlayer}
                 </button>
