@@ -251,6 +251,13 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
     ? buildPerPlayerHistory(game.biddingHistory)
     : { 0: [], 1: [], 2: [], 3: [] };
 
+  const isBidding = phase === 'BIDDING';
+  const showWinningBidAfterAuction = !isBidding && game.contract != null && game.contract.by != null;
+  const contractChip = showWinningBidAfterAuction
+    ? [{ type: 'bid', value: game.contract.value, suit: game.contract.suit }]
+    : null;
+  const contractBy = showWinningBidAfterAuction ? game.contract.by : null;
+
   function seatData(offset) {
     const pos    = (myPosition + offset + 4) % 4;
     const player = players.find(p => p.position === pos);
@@ -456,19 +463,34 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
 
         <div className="board-center">
           {/* ── Table-positioned bid chips — float on table in front of each opponent ── */}
-          {phase === 'BIDDING' && perPlayerHistory[(myPosition + 2) % 4]?.length > 0 && (
+          {isBidding && perPlayerHistory[(myPosition + 2) % 4]?.length > 0 && (
             <div className="table-bid tbid-top">
               <BidStack history={perPlayerHistory[(myPosition + 2) % 4]} t={t} />
             </div>
           )}
-          {phase === 'BIDDING' && perPlayerHistory[(myPosition + 3) % 4]?.length > 0 && (
+          {showWinningBidAfterAuction && contractBy === (myPosition + 2) % 4 && (
+            <div className="table-bid tbid-top">
+              <BidStack history={contractChip} t={t} />
+            </div>
+          )}
+          {isBidding && perPlayerHistory[(myPosition + 3) % 4]?.length > 0 && (
             <div className="table-bid tbid-left">
               <BidStack history={perPlayerHistory[(myPosition + 3) % 4]} t={t} />
             </div>
           )}
-          {phase === 'BIDDING' && perPlayerHistory[(myPosition + 1) % 4]?.length > 0 && (
+          {showWinningBidAfterAuction && contractBy === (myPosition + 3) % 4 && (
+            <div className="table-bid tbid-left">
+              <BidStack history={contractChip} t={t} />
+            </div>
+          )}
+          {isBidding && perPlayerHistory[(myPosition + 1) % 4]?.length > 0 && (
             <div className="table-bid tbid-right">
               <BidStack history={perPlayerHistory[(myPosition + 1) % 4]} t={t} />
+            </div>
+          )}
+          {showWinningBidAfterAuction && contractBy === (myPosition + 1) % 4 && (
+            <div className="table-bid tbid-right">
+              <BidStack history={contractChip} t={t} />
             </div>
           )}
 
@@ -577,8 +599,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
             {myPlayer?.isBot ? '🤖' : (myPlayer?.username?.[0]?.toUpperCase() || '?')}
           </div>
           <span className="self-name">{myPlayer?.username || '?'}</span>
-          {phase === 'BIDDING' && perPlayerHistory[myPosition]?.length > 0 && (
+          {isBidding && perPlayerHistory[myPosition]?.length > 0 && (
             <BidStack history={perPlayerHistory[myPosition]} t={t} />
+          )}
+          {showWinningBidAfterAuction && contractBy === myPosition && (
+            <BidStack history={contractChip} t={t} />
           )}
         </div>
 
