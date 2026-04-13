@@ -64,8 +64,15 @@ export default {
   leaveTable: 'Quitter la table',
   leaveConfirmLobby: 'Quitter cette salle ?',
   leaveConfirmGame: 'Quitter la table ? La partie sera mise en pause jusqu\'à ce qu\'un joueur prenne votre place.',
-  removePlayer: 'Retirer le joueur',
+  removePlayer: 'Retirer',
   removeConfirm: (name) => `Retirer ${name} ? La partie sera en pause jusqu'à ce qu'un joueur prenne sa place.`,
+  removeConfirmLobby: (name) => `Retirer ${name} de la salle ?`,
+
+  // Admin panel
+  managePlayers: 'Gérer',
+  managePlayersTitle: 'Gérer les joueurs',
+  adminBadge: 'Admin',
+  seat: 'Siège',
 
   // Pending join
   waitingApproval: 'En attente d\'approbation',

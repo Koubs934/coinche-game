@@ -544,7 +544,8 @@ function removePlayer(code, creatorId, targetUserId) {
 
   const removedSocketId = room.players[playerIdx].socketId;
   room.players.splice(playerIdx, 1);
-  room.paused = true;
+  // Only pause for in-game phases; lobby needs no pause
+  if (['PLAYING', 'ROUND_OVER', 'GAME_OVER'].includes(room.phase)) room.paused = true;
 
   return { room, removedSocketId };
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
+import AdminPanel from './AdminPanel';
 
 export default function Lobby({ socket, roomState, myPosition, pendingRoom, onCancelPending }) {
   const { user, username } = useAuth();
@@ -9,6 +10,7 @@ export default function Lobby({ socket, roomState, myPosition, pendingRoom, onCa
   const [targetInput, setTargetInput] = useState('2000');
   const [error, setError] = useState('');
   const [view, setView] = useState('home'); // 'home' | 'create' | 'join'
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
 
   function createRoom() {
     socket.emit('createRoom');
@@ -72,6 +74,14 @@ export default function Lobby({ socket, roomState, myPosition, pendingRoom, onCa
 
     return (
       <div className="lobby">
+        {showAdminPanel && isCreator && (
+          <AdminPanel
+            players={players} creatorId={creatorId} myUserId={user?.id}
+            phase="LOBBY"
+            onRemove={(targetUserId) => socket.emit('removePlayer', { code, targetUserId })}
+            onClose={() => setShowAdminPanel(false)}
+          />
+        )}
         <div className="lobby-card">
           <h2>{t.shareCode}</h2>
           <div className="room-code-display">{code}</div>
@@ -126,6 +136,12 @@ export default function Lobby({ socket, roomState, myPosition, pendingRoom, onCa
           {isCreator && players.length < 4 && (
             <button className="btn-secondary" onClick={fillWithBots}>
               🤖 {t.fillWithBots}
+            </button>
+          )}
+
+          {isCreator && players.length > 1 && (
+            <button className="btn-secondary btn-manage-lobby" onClick={() => setShowAdminPanel(true)}>
+              ⚙ {t.managePlayers}
             </button>
           )}
 

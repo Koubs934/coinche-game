@@ -64,8 +64,15 @@ export default {
   leaveTable: 'Leave table',
   leaveConfirmLobby: 'Leave this room?',
   leaveConfirmGame: 'Leave the table? The game will be paused until someone takes your seat.',
-  removePlayer: 'Remove player',
+  removePlayer: 'Remove',
   removeConfirm: (name) => `Remove ${name}? The game will be paused until someone fills their seat.`,
+  removeConfirmLobby: (name) => `Remove ${name} from the room?`,
+
+  // Admin panel
+  managePlayers: 'Manage',
+  managePlayersTitle: 'Manage Players',
+  adminBadge: 'Admin',
+  seat: 'Seat',
 
   // Pending join
   waitingApproval: 'Waiting for approval',

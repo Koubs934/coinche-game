@@ -934,6 +934,90 @@ a      { color: var(--accent); }
 .chip-coinche { background: rgba(139,26,26,0.45); color: #f88; }
 .chip-surc    { background: rgba(90,10,138,0.45); color: #cc88ff; }
 
+/* ─── Admin panel modal ─────────────────────────────────────────────────── */
+.admin-panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.admin-panel {
+  background: var(--ui-card);
+  border-radius: 12px;
+  padding: 18px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 260px;
+  max-width: 92vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.admin-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.admin-panel-title { font-weight: bold; font-size: 1em; }
+.admin-panel-list  { display: flex; flex-direction: column; gap: 8px; }
+.admin-player-row  {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  background: rgba(0,0,0,0.18);
+  border-radius: var(--radius);
+}
+.admin-player-info { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.admin-player-name {
+  font-size: 0.9em;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-player-name.disconnected { opacity: 0.55; }
+.admin-player-meta { font-size: 0.72em; color: var(--muted); }
+.admin-badge {
+  display: inline-block;
+  font-size: 0.68em;
+  font-weight: bold;
+  background: rgba(240,165,0,0.2);
+  color: var(--accent);
+  border-radius: 3px;
+  padding: 0 4px;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+.btn-remove-admin {
+  flex-shrink: 0;
+  background: rgba(139,26,26,0.35);
+  color: #f88;
+  font-size: 0.75em;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(224,80,80,0.3);
+  white-space: nowrap;
+  min-height: 28px;
+}
+.btn-remove-admin:hover { background: rgba(139,26,26,0.6); color: #ffaaaa; }
+
+/* ─── Manage button (toolbar + lobby) ───────────────────────────────────── */
+.btn-manage {
+  background: rgba(0,0,0,0.3);
+  color: var(--muted);
+  font-size: 0.75em;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,0.12);
+  min-height: 34px;
+}
+.btn-manage:hover { color: var(--text); background: rgba(0,0,0,0.5); }
+.btn-manage-lobby { font-size: 0.9em; padding: 10px 20px; min-height: auto; }
+
 /* ─── Remove player button (on disconnected opponent seat) ──────────────── */
 .btn-remove-player {
   background: none;

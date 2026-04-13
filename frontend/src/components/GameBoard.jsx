@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useLang } from '../context/LanguageContext';
 import BiddingPanel from './BiddingPanel';
 import RoundSummary from './RoundSummary';
+import AdminPanel from './AdminPanel';
 
 // ─── Card point tables (mirrors backend — used for live scoring) ───────────
 const TRUMP_PTS     = { J: 20, '9': 14, A: 11, '10': 10, K: 4, Q: 3, '8': 0, '7': 0 };
@@ -176,6 +177,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   // ── State ──────────────────────────────────────────────────────────────────
   const [sortActive, setSortActive] = useState(false);
   const [showLastTrick, setShowLastTrick] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
   // trickOverlay = { cards, winnerPos, animate } | null
   const [trickOverlay, setTrickOverlay]   = useState(null);
 
@@ -282,6 +284,13 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   if (room.phase === 'ROUND_OVER' || room.phase === 'GAME_OVER') {
     return (
       <>
+        {showAdminPanel && isCreator && (
+          <AdminPanel
+            players={players} creatorId={room.creatorId} myUserId={myPlayer?.userId}
+            phase={room.phase}
+            onRemove={removePlayer} onClose={() => setShowAdminPanel(false)}
+          />
+        )}
         {paused && <PauseBanner players={players} t={t} />}
         {room.pendingJoins?.length > 0 && (
           <div className="pending-joins-panel">
@@ -320,6 +329,13 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
 
   return (
     <div className="game-board">
+      {showAdminPanel && isCreator && (
+        <AdminPanel
+          players={players} creatorId={room.creatorId} myUserId={myPlayer?.userId}
+          phase={room.phase}
+          onRemove={removePlayer} onClose={() => setShowAdminPanel(false)}
+        />
+      )}
       {paused && <PauseBanner players={players} t={t} />}
 
       {/* ── Pending join requests ───────────────────────────────────────────── */}
@@ -493,7 +509,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           })()}
         </div>
 
-        {/* Toolbar row: sort toggle + leave */}
+        {/* Toolbar row: sort toggle + admin manage + leave */}
         <div className="hand-toolbar">
           <button
             className={`btn-sort${sortActive ? ' sort-on' : ''}`}
@@ -502,6 +518,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           >
             {sortActive ? '♠♥♦♣' : '⇅'} {t.sortHand}
           </button>
+          {isCreator && (
+            <button className="btn-manage" onClick={() => setShowAdminPanel(true)} title={t.managePlayersTitle}>
+              ⚙ {t.managePlayers}
+            </button>
+          )}
           <button className="btn-leave" onClick={leaveTable}>{t.leaveTable}</button>
         </div>
 
