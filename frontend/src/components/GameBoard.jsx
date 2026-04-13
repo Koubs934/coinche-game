@@ -218,12 +218,16 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   // trickOverlay = { cards, winnerPos, animate } | null
   const [trickOverlay, setTrickOverlay]   = useState(null);
+  const [showContractHold, setShowContractHold] = useState(false);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
-  const prevTricksLenRef = useRef(0);
-  const prevDealerRef    = useRef(null);
-  const prevTrumpRef     = useRef(null);
-  const timerRef         = useRef([]);
+  const prevTricksLenRef    = useRef(0);
+  const prevDealerRef       = useRef(null);
+  const prevTrumpRef        = useRef(null);
+  const timerRef            = useRef([]);
+  const prevPhaseRef        = useRef(null);
+  const contractHoldTimer   = useRef(null);
+  const frozenContractRef   = useRef(null);
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const { players, scores, targetScore, paused } = room;
@@ -252,11 +256,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
     : { 0: [], 1: [], 2: [], 3: [] };
 
   const isBidding = phase === 'BIDDING';
-  const showWinningBidAfterAuction = !isBidding && game.contract != null && game.contract.by != null;
+  const showWinningBidAfterAuction = showContractHold && frozenContractRef.current != null && frozenContractRef.current.by != null;
   const contractChip = showWinningBidAfterAuction
-    ? [{ type: 'bid', value: game.contract.value, suit: game.contract.suit }]
+    ? [{ type: 'bid', value: frozenContractRef.current.value, suit: frozenContractRef.current.suit }]
     : null;
-  const contractBy = showWinningBidAfterAuction ? game.contract.by : null;
+  const contractBy = showWinningBidAfterAuction ? frozenContractRef.current.by : null;
 
   function seatData(offset) {
     const pos    = (myPosition + offset + 4) % 4;
@@ -279,6 +283,21 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   function removePlayer(targetUserId) {
     socket.emit('removePlayer', { code: roomCode, targetUserId });
   }
+
+  // ── Effect: hold winner chip visible for 3 s after auction closes ──────────
+  useEffect(() => {
+    if (prevPhaseRef.current === 'BIDDING' && phase !== 'BIDDING') {
+      frozenContractRef.current = game.contract;
+      setShowContractHold(true);
+      contractHoldTimer.current = setTimeout(() => setShowContractHold(false), 3000);
+    }
+    if (phase === 'BIDDING') {
+      clearTimeout(contractHoldTimer.current);
+      setShowContractHold(false);
+      frozenContractRef.current = null;
+    }
+    prevPhaseRef.current = phase;
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Effect: trick completion — show 1.5 s then animate ────────────────────
   useEffect(() => {
@@ -313,6 +332,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
 
   // Cleanup on unmount
   useEffect(() => () => timerRef.current.forEach(clearTimeout), []);
+  useEffect(() => () => clearTimeout(contractHoldTimer.current), []);
 
   // ── Effect: auto-sort when trump is first revealed ─────────────────────────
   useEffect(() => {
