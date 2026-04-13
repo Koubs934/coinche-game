@@ -445,6 +445,33 @@ function leaveRoom(code, userId) {
 
 // ─── Pending join requests ─────────────────────────────────────────────────
 
+// Creator rejoining their own room bypasses the approval queue
+function creatorJoin(code, { userId, username, socketId }) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+  if (room.creatorId !== userId) return { error: 'Not the room creator' };
+  if (room.players.find(p => p.userId === userId)) return { error: 'Already in this game' };
+
+  const takenPositions = new Set(room.players.map(p => p.position));
+  let openPosition = -1;
+  for (let i = 0; i < 4; i++) {
+    if (!takenPositions.has(i)) { openPosition = i; break; }
+  }
+  if (openPosition === -1) return { error: 'Room is full' };
+
+  room.players.push({
+    userId, username, socketId,
+    team: openPosition % 2,
+    position: openPosition,
+    connected: true,
+    isBot: false,
+  });
+
+  if (room.players.length === 4) room.paused = false;
+
+  return { room, position: openPosition };
+}
+
 function requestJoin(code, { userId, username, socketId }) {
   const room = rooms.get(code);
   if (!room) return { error: 'Room not found' };
@@ -604,6 +631,7 @@ module.exports = {
   playCard,
   nextRound,
   leaveRoom,
+  creatorJoin,
   requestJoin,
   acceptJoin,
   removePlayer,

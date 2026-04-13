@@ -87,14 +87,28 @@ io.on('connection', socket => {
     const existing = rm.getRoomForSocket(socket.id);
     if (existing && existing.code !== code) socket.leave(existing.code);
 
-    // If the room is already in-game, create a pending join request instead
+    // If the room is already in-game, handle based on whether the joiner is the creator
     const peek = rm.getRoom(code);
     if (peek && peek.phase !== 'LOBBY') {
-      const result = rm.requestJoin(code, { userId, username, socketId: socket.id });
-      if (result.error) return emitError(socket, result.error);
-      socket.join(code);
-      socket.emit('joinPending', { code });
-      if (!result.alreadyPending) broadcast(result.room);
+      if (peek.creatorId === userId) {
+        // Creator bypasses approval — seats directly
+        const result = rm.creatorJoin(code, { userId, username, socketId: socket.id });
+        if (result.error) return emitError(socket, result.error);
+        socket.join(code);
+        socket.emit('roomJoined', {
+          room: rm.publicRoom(result.room),
+          game: rm.publicGame(result.room, result.position),
+          myPosition: result.position,
+        });
+        broadcastGame(result.room);
+      } else {
+        // Non-admin: create a pending join request for the creator to approve
+        const result = rm.requestJoin(code, { userId, username, socketId: socket.id });
+        if (result.error) return emitError(socket, result.error);
+        socket.join(code);
+        socket.emit('joinPending', { code });
+        if (!result.alreadyPending) broadcast(result.room);
+      }
       return;
     }
 
