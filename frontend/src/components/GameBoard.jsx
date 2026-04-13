@@ -26,6 +26,14 @@ function bidChipClass(action) {
   return { pass: 'chip-pass', bid: 'chip-bid', coinche: 'chip-coinche', surcoinche: 'chip-surc' }[action.type] || '';
 }
 
+// Build per-player history { 0:[], 1:[], 2:[], 3:[] } from flat biddingHistory
+function buildPerPlayerHistory(history) {
+  const r = { 0: [], 1: [], 2: [], 3: [] };
+  if (!history) return r;
+  for (const entry of history) r[entry.position].push(entry);
+  return r;
+}
+
 function cardPts(card, trump) {
   return ((card.suit === trump) ? TRUMP_PTS : NON_TRUMP_PTS)[card.value] || 0;
 }
@@ -127,11 +135,44 @@ function TrickDisplay({ cards, myPosition, players, animDir, winnerPos }) {
   );
 }
 
+// ─── Per-player bid stack (bidding phase) ─────────────────────────────────
+
+function BidStack({ history, t }) {
+  if (!history?.length) return null;
+  const items = [...history].reverse(); // latest first
+  return (
+    <div className="bid-stack">
+      {items.map((action, i) => {
+        const isLatest = i === 0;
+        const isRed = action.suit === 'H' || action.suit === 'D';
+        const label =
+          action.type === 'pass'         ? t.pass
+          : action.type === 'coinche'    ? t.coinche
+          : action.type === 'surcoinche' ? t.surcoinche
+          : action.value === 'capot'     ? t.capot
+          : `${action.value}${SUIT_SYM[action.suit]}`;
+        return (
+          <span
+            key={i}
+            className={[
+              'bsi',
+              isLatest ? 'bsi-current' : 'bsi-older',
+              `bsi-${action.type}`,
+              isLatest && isRed ? 'bsi-red' : '',
+            ].filter(Boolean).join(' ')}
+          >
+            {label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Player seat (opponent, face-down) ────────────────────────────────────
 
-function PlayerSeat({ player, handCount, isActive, isDimmed, direction, bidAction, isCreator, onRemove }) {
+function PlayerSeat({ player, handCount, isActive, isDimmed, direction, bidHistory, isCreator, onRemove }) {
   const { t } = useLang();
-  const label = formatBidAction(bidAction, t);
   const initial = player?.isBot ? '🤖' : (player?.username?.[0]?.toUpperCase() || '?');
   return (
     <div className={[
@@ -157,9 +198,7 @@ function PlayerSeat({ player, handCount, isActive, isDimmed, direction, bidActio
           title={t.removePlayer}
         >✕</button>
       )}
-      {label && (
-        <div className={`bid-action-chip ${bidChipClass(bidAction)}`}>{label}</div>
-      )}
+      {bidHistory?.length > 0 && <BidStack history={bidHistory} t={t} />}
       <div className="face-down-cards">
         {Array.from({ length: handCount || 0 }).map((_, i) => (
           <CardBack key={i} small />
@@ -209,15 +248,19 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const isActiveTurnPhase = phase === 'BIDDING' || phase === 'PLAYING';
   const activeTurnPos     = phase === 'BIDDING' ? biddingTurn : currentPlayer;
 
+  const perPlayerHistory = phase === 'BIDDING'
+    ? buildPerPlayerHistory(game.biddingHistory)
+    : { 0: [], 1: [], 2: [], 3: [] };
+
   function seatData(offset) {
     const pos    = (myPosition + offset + 4) % 4;
     const player = players.find(p => p.position === pos);
     return {
       player,
-      handCount: handCounts[pos],
-      isActive:  isActiveTurnPhase && pos === activeTurnPos,
-      isDimmed:  isActiveTurnPhase && pos !== activeTurnPos,
-      bidAction: phase === 'BIDDING' ? (game.biddingActions?.[pos] ?? null) : null,
+      handCount:  handCounts[pos],
+      isActive:   isActiveTurnPhase && pos === activeTurnPos,
+      isDimmed:   isActiveTurnPhase && pos !== activeTurnPos,
+      bidHistory: phase === 'BIDDING' ? (perPlayerHistory[pos] || []) : [],
     };
   }
 
@@ -455,27 +498,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
                 }
               </div>
 
-              {/* Auction history — newest first */}
-              {game.biddingHistory?.length > 0 && (
-                <div className="bid-history">
-                  {[...game.biddingHistory].reverse().map((entry, i) => {
-                    const p = players.find(pl => pl.position === entry.position);
-                    const name = entry.position === myPosition ? t.you : (p?.username || '?');
-                    const actionLabel =
-                      entry.type === 'pass'         ? t.pass
-                      : entry.type === 'coinche'    ? t.coinche
-                      : entry.type === 'surcoinche' ? t.surcoinche
-                      : entry.value === 'capot'     ? t.capot
-                      : `${entry.value} ${t.suitSymbol[entry.suit]}`;
-                    return (
-                      <div key={i} className={`bh-row bh-${entry.type}`}>
-                        <span className="bh-name">{name}</span>
-                        <span className="bh-action">{actionLabel}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           )}
 
@@ -540,13 +562,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
             {myPlayer?.isBot ? '🤖' : (myPlayer?.username?.[0]?.toUpperCase() || '?')}
           </div>
           <span className="self-name">{myPlayer?.username || '?'}</span>
-          {phase === 'BIDDING' && (() => {
-            const selfAction = game.biddingActions?.[myPosition];
-            const label = formatBidAction(selfAction, t);
-            return label ? (
-              <span className={`bid-action-chip ${bidChipClass(selfAction)}`}>{label}</span>
-            ) : null;
-          })()}
+          {phase === 'BIDDING' && perPlayerHistory[myPosition]?.length > 0 && (
+            <BidStack history={perPlayerHistory[myPosition]} t={t} />
+          )}
         </div>
 
         {/* Bidding controls — shown at the bottom during my bid turn */}
