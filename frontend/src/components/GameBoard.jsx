@@ -491,7 +491,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
             </div>
           )}
           {contractData && contractBy === (myPosition + 3) % 4 && (
-            <div className="table-bid tbid-left">
+            <div className="table-bid tbid-left tbid-contract">
               <ContractBadge contract={contractData} t={t} />
             </div>
           )}
@@ -501,7 +501,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
             </div>
           )}
           {contractData && contractBy === (myPosition + 1) % 4 && (
-            <div className="table-bid tbid-right">
+            <div className="table-bid tbid-right tbid-contract">
               <ContractBadge contract={contractData} t={t} />
             </div>
           )}
