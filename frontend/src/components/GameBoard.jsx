@@ -169,6 +169,20 @@ function BidStack({ history, t }) {
   );
 }
 
+// ─── Contract badge shown in front of the winning player after auction ───────
+
+function ContractBadge({ contract, t }) {
+  const isRed = contract.suit === 'H' || contract.suit === 'D';
+  const value = contract.value === 'capot' ? t.capot : contract.value;
+  const suit  = t.suitSymbol?.[contract.suit] ?? SUIT_SYM[contract.suit];
+  const mod   = contract.surcoinched ? ' ×4' : contract.coinched ? ' ×2' : '';
+  return (
+    <div className="seat-contract-badge">
+      <span className={`scb-value${isRed ? ' red' : ''}`}>{value} {suit}{mod}</span>
+    </div>
+  );
+}
+
 // ─── Player seat (opponent, face-down) ────────────────────────────────────
 
 function PlayerSeat({ player, handCount, isActive, isDimmed, direction, isCreator, onRemove }) {
@@ -218,17 +232,12 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   // trickOverlay = { cards, winnerPos, animate } | null
   const [trickOverlay, setTrickOverlay]   = useState(null);
-  const [showContractHold, setShowContractHold] = useState(false);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
-  const prevTricksLenRef    = useRef(0);
-  const prevDealerRef       = useRef(null);
-  const prevTrumpRef        = useRef(null);
-  const timerRef            = useRef([]);
-  const prevPhaseRef           = useRef(null);
-  const contractHoldTimer      = useRef(null);
-  const frozenContractRef      = useRef(null);
-  const contractHoldStartedRef = useRef(true); // true = don't fire on mount
+  const prevTricksLenRef = useRef(0);
+  const prevDealerRef    = useRef(null);
+  const prevTrumpRef     = useRef(null);
+  const timerRef         = useRef([]);
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const { players, scores, targetScore, paused } = room;
@@ -256,12 +265,10 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
     ? buildPerPlayerHistory(game.biddingHistory)
     : { 0: [], 1: [], 2: [], 3: [] };
 
-  const isBidding = phase === 'BIDDING';
-  const showWinningBidAfterAuction = showContractHold && frozenContractRef.current != null && frozenContractRef.current.by != null;
-  const contractChip = showWinningBidAfterAuction
-    ? [{ type: 'bid', value: frozenContractRef.current.value, suit: frozenContractRef.current.suit }]
-    : null;
-  const contractBy = showWinningBidAfterAuction ? frozenContractRef.current.by : null;
+  const isBidding   = phase === 'BIDDING';
+  // After bidding, show the contract directly from game state — no timers needed.
+  const contractData = !isBidding && game.contract != null ? game.contract : null;
+  const contractBy   = contractData?.by ?? null;
 
   function seatData(offset) {
     const pos    = (myPosition + offset + 4) % 4;
@@ -284,29 +291,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   function removePlayer(targetUserId) {
     socket.emit('removePlayer', { code: roomCode, targetUserId });
   }
-
-  // ── Effect: hold winner chip visible for 3 s after auction closes ──────────
-  // Deps: phase + !!game.contract so the effect re-runs if the contract object
-  // arrives slightly after the phase transition (two separate socket messages).
-  useEffect(() => {
-    if (phase === 'BIDDING') {
-      clearTimeout(contractHoldTimer.current);
-      contractHoldStartedRef.current = false; // arm for next auction close
-      setShowContractHold(false);
-      frozenContractRef.current = null;
-      prevPhaseRef.current = 'BIDDING';
-      return;
-    }
-    // phase !== 'BIDDING': start hold exactly once, only after contract is ready
-    if (!contractHoldStartedRef.current && game.contract != null) {
-      contractHoldStartedRef.current = true;
-      frozenContractRef.current = game.contract;
-      clearTimeout(contractHoldTimer.current);
-      setShowContractHold(true);
-      contractHoldTimer.current = setTimeout(() => setShowContractHold(false), 3000);
-    }
-    prevPhaseRef.current = phase;
-  }, [phase, !!game?.contract]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Effect: trick completion — show 1.5 s then animate ────────────────────
   useEffect(() => {
@@ -341,7 +325,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
 
   // Cleanup on unmount
   useEffect(() => () => timerRef.current.forEach(clearTimeout), []);
-  useEffect(() => () => clearTimeout(contractHoldTimer.current), []);
 
   // ── Effect: auto-sort when trump is first revealed ─────────────────────────
   useEffect(() => {
@@ -497,9 +480,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
               <BidStack history={perPlayerHistory[(myPosition + 2) % 4]} t={t} />
             </div>
           )}
-          {showWinningBidAfterAuction && contractBy === (myPosition + 2) % 4 && (
+          {contractData && contractBy === (myPosition + 2) % 4 && (
             <div className="table-bid tbid-top">
-              <BidStack history={contractChip} t={t} />
+              <ContractBadge contract={contractData} t={t} />
             </div>
           )}
           {isBidding && perPlayerHistory[(myPosition + 3) % 4]?.length > 0 && (
@@ -507,9 +490,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
               <BidStack history={perPlayerHistory[(myPosition + 3) % 4]} t={t} />
             </div>
           )}
-          {showWinningBidAfterAuction && contractBy === (myPosition + 3) % 4 && (
+          {contractData && contractBy === (myPosition + 3) % 4 && (
             <div className="table-bid tbid-left">
-              <BidStack history={contractChip} t={t} />
+              <ContractBadge contract={contractData} t={t} />
             </div>
           )}
           {isBidding && perPlayerHistory[(myPosition + 1) % 4]?.length > 0 && (
@@ -517,9 +500,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
               <BidStack history={perPlayerHistory[(myPosition + 1) % 4]} t={t} />
             </div>
           )}
-          {showWinningBidAfterAuction && contractBy === (myPosition + 1) % 4 && (
+          {contractData && contractBy === (myPosition + 1) % 4 && (
             <div className="table-bid tbid-right">
-              <BidStack history={contractChip} t={t} />
+              <ContractBadge contract={contractData} t={t} />
             </div>
           )}
 
@@ -631,8 +614,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           {isBidding && perPlayerHistory[myPosition]?.length > 0 && (
             <BidStack history={perPlayerHistory[myPosition]} t={t} />
           )}
-          {showWinningBidAfterAuction && contractBy === myPosition && (
-            <BidStack history={contractChip} t={t} />
+          {contractData && contractBy === myPosition && (
+            <ContractBadge contract={contractData} t={t} />
           )}
         </div>
 

@@ -574,6 +574,22 @@ a      { color: var(--accent); }
   color: var(--accent);
 }
 
+/* ─── Seat contract badge — shown in front of the auction winner's seat ───── */
+.seat-contract-badge {
+  background: rgba(0,0,0,0.55);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  pointer-events: none;
+}
+.scb-value {
+  font-size: 1.05em;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+.scb-value.red { color: var(--red); }
+
 /* ─── Bid center (board-center during BIDDING) ───────────────────────────── */
 .bid-center {
   display: flex;
