@@ -323,15 +323,15 @@ a      { color: var(--accent); }
 /* (replaced by .score-bars / .total-score-bar / .live-score-bar below) */
 .score-target-small { color: var(--muted); font-size: 0.85em; }
 
-.board-top    { display: flex; justify-content: center; flex-shrink: 0; }
+.board-top    { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
 .board-middle {
   display: flex;
   flex: 1;
   gap: 4px;
   min-height: 0;
 }
-.board-left   { display: flex; align-items: center; width: 86px; flex-shrink: 0; }
-.board-right  { display: flex; align-items: center; width: 86px; flex-shrink: 0; }
+.board-left   { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 86px; flex-shrink: 0; }
+.board-right  { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 86px; flex-shrink: 0; }
 .board-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 6px; position: relative; }
 .board-middle { border-radius: 14px; background: radial-gradient(ellipse at center, #1e6b30 0%, #164f22 70%, #0f3a18 100%); }
 
@@ -349,9 +349,7 @@ a      { color: var(--accent); }
 .tbid-left  { left: 6px;  top: 50%; transform: translateY(-50%); }
 /* Right opponent — right edge of center, vertically centered */
 .tbid-right { right: 6px; top: 50%; transform: translateY(-50%); }
-/* Contract badge: override left/right to top corners — avoids trick-card overlap */
-.tbid-left.tbid-contract  { top: 8px; transform: none; }
-.tbid-right.tbid-contract { top: 8px; transform: none; }
+
 .board-hand   { flex-shrink: 0; background: rgba(0,0,0,0.28); border-top: 2px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding: 6px 4px max(6px, env(safe-area-inset-bottom)); }
 
 /* ─── Player seats ──────────────────────────────────────────────────────── */
@@ -1296,9 +1294,9 @@ a      { color: var(--accent); }
   .score-bars   { grid-area: scores; }
   .board-top    { display: none; }        /* partner seat hidden — no value in landscape */
   .board-middle { display: contents; }    /* dissolve: children become direct grid items */
-  .board-left   { grid-area: left;   display: flex; align-items: center; justify-content: center; width: auto; }
+  .board-left   { grid-area: left;   display: flex; flex-direction: column; align-items: center; justify-content: center; width: auto; }
   .board-center { grid-area: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 4px; }
-  .board-right  { grid-area: right;  display: flex; align-items: center; justify-content: center; width: auto; }
+  .board-right  { grid-area: right;  display: flex; flex-direction: column; align-items: center; justify-content: center; width: auto; }
   .board-middle { border-radius: 0; background: none; }
   .board-hand   { grid-area: hand; }
 
@@ -1325,8 +1323,7 @@ a      { color: var(--accent); }
   .tbid-top   { top: 4px; }
   .tbid-left  { left: 3px; }
   .tbid-right { right: 3px; }
-  .tbid-left.tbid-contract  { top: 4px; transform: none; }
-  .tbid-right.tbid-contract { top: 4px; transform: none; }
+
   /* Keep current bid readable but slightly compact */
   .bsi.bsi-current { font-size: 0.88em; padding: 2px 5px; }
   .bsi.bsi-older   { font-size: 0.5em; }

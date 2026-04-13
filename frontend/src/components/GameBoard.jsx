@@ -463,6 +463,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
 
       {/* ── Top seat (partner) ─────────────────────────────────────────────── */}
       <div className="board-top">
+        {contractData && contractBy === (myPosition + 2) % 4 && (
+          <ContractBadge contract={contractData} t={t} />
+        )}
         <PlayerSeat {...seatData(2)} direction="top" isCreator={isCreator} onRemove={removePlayer} />
       </div>
 
@@ -470,6 +473,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
       <div className="board-middle">
 
         <div className="board-left">
+          {contractData && contractBy === (myPosition + 3) % 4 && (
+            <ContractBadge contract={contractData} t={t} />
+          )}
           <PlayerSeat {...seatData(3)} direction="left" isCreator={isCreator} onRemove={removePlayer} />
         </div>
 
@@ -480,29 +486,14 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
               <BidStack history={perPlayerHistory[(myPosition + 2) % 4]} t={t} />
             </div>
           )}
-          {contractData && contractBy === (myPosition + 2) % 4 && (
-            <div className="table-bid tbid-top">
-              <ContractBadge contract={contractData} t={t} />
-            </div>
-          )}
           {isBidding && perPlayerHistory[(myPosition + 3) % 4]?.length > 0 && (
             <div className="table-bid tbid-left">
               <BidStack history={perPlayerHistory[(myPosition + 3) % 4]} t={t} />
             </div>
           )}
-          {contractData && contractBy === (myPosition + 3) % 4 && (
-            <div className="table-bid tbid-left tbid-contract">
-              <ContractBadge contract={contractData} t={t} />
-            </div>
-          )}
           {isBidding && perPlayerHistory[(myPosition + 1) % 4]?.length > 0 && (
             <div className="table-bid tbid-right">
               <BidStack history={perPlayerHistory[(myPosition + 1) % 4]} t={t} />
-            </div>
-          )}
-          {contractData && contractBy === (myPosition + 1) % 4 && (
-            <div className="table-bid tbid-right tbid-contract">
-              <ContractBadge contract={contractData} t={t} />
             </div>
           )}
 
@@ -583,6 +574,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
         </div>
 
         <div className="board-right">
+          {contractData && contractBy === (myPosition + 1) % 4 && (
+            <ContractBadge contract={contractData} t={t} />
+          )}
           <PlayerSeat {...seatData(1)} direction="right" isCreator={isCreator} onRemove={removePlayer} />
         </div>
       </div>
@@ -595,6 +589,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           <div className="your-turn-banner">{t.yourTurn} ●</div>
         )}
 
+        {/* Contract badge above self player bar when self won the auction */}
+        {contractData && contractBy === myPosition && (
+          <ContractBadge contract={contractData} t={t} />
+        )}
+
         {/* Self player bar: avatar + name + bid status */}
         <div className="self-player-bar">
           <div className={`player-avatar team${myTeam}-avatar`}>
@@ -603,9 +602,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           <span className="self-name">{myPlayer?.username || '?'}</span>
           {isBidding && perPlayerHistory[myPosition]?.length > 0 && (
             <BidStack history={perPlayerHistory[myPosition]} t={t} />
-          )}
-          {contractData && contractBy === myPosition && (
-            <ContractBadge contract={contractData} t={t} />
           )}
         </div>
 
