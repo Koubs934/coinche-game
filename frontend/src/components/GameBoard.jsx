@@ -128,7 +128,7 @@ function TrickDisplay({ cards, myPosition, players, animDir, winnerPos }) {
 
 // ─── Player seat (opponent, face-down) ────────────────────────────────────
 
-function PlayerSeat({ player, handCount, isActive, isDimmed, direction, bidAction }) {
+function PlayerSeat({ player, handCount, isActive, isDimmed, direction, bidAction, isCreator, onRemove }) {
   const { t } = useLang();
   const label = formatBidAction(bidAction, t);
   const initial = player?.isBot ? '🤖' : (player?.username?.[0]?.toUpperCase() || '?');
@@ -147,6 +147,15 @@ function PlayerSeat({ player, handCount, isActive, isDimmed, direction, bidActio
         {!player?.connected && <span className="dc-indicator"> ⚠</span>}
         {isActive && <span className="turn-dot"> ●</span>}
       </div>
+      {isCreator && player && !player.connected && !player.isBot && (
+        <button
+          className="btn-remove-player"
+          onClick={() => {
+            if (window.confirm(t.removeConfirm(player.username))) onRemove(player.userId);
+          }}
+          title={t.removePlayer}
+        >✕</button>
+      )}
       {label && (
         <div className={`bid-action-chip ${bidChipClass(bidAction)}`}>{label}</div>
       )}
@@ -210,9 +219,15 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
     };
   }
 
+  const isCreator = room.creatorId === myPlayer?.userId;
+
   function leaveTable() {
     if (!window.confirm(t.leaveConfirmGame)) return;
     socket.emit('leaveRoom', { code: roomCode });
+  }
+
+  function removePlayer(targetUserId) {
+    socket.emit('removePlayer', { code: roomCode, targetUserId });
   }
 
   // ── Effect: trick completion — show 1.5 s then animate ────────────────────
@@ -268,6 +283,28 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
     return (
       <>
         {paused && <PauseBanner players={players} t={t} />}
+        {room.pendingJoins?.length > 0 && (
+          <div className="pending-joins-panel">
+            {isCreator ? (
+              <>
+                <span className="pjp-label">{t.pendingJoinsLabel}</span>
+                {room.pendingJoins.map(({ userId, username }) => (
+                  <div key={userId} className="pjp-request">
+                    <span className="pjp-name">{username}</span>
+                    <button
+                      className="btn-small btn-accept"
+                      onClick={() => socket.emit('acceptJoin', { code: roomCode, targetUserId: userId })}
+                    >
+                      {t.acceptJoin}
+                    </button>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <span className="pjp-label">{t.pendingJoinsWaiting}</span>
+            )}
+          </div>
+        )}
         <RoundSummary socket={socket} roomCode={roomCode} room={room} game={game} />
       </>
     );
@@ -284,6 +321,30 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   return (
     <div className="game-board">
       {paused && <PauseBanner players={players} t={t} />}
+
+      {/* ── Pending join requests ───────────────────────────────────────────── */}
+      {room.pendingJoins?.length > 0 && (
+        <div className="pending-joins-panel">
+          {isCreator ? (
+            <>
+              <span className="pjp-label">{t.pendingJoinsLabel}</span>
+              {room.pendingJoins.map(({ userId, username }) => (
+                <div key={userId} className="pjp-request">
+                  <span className="pjp-name">{username}</span>
+                  <button
+                    className="btn-small btn-accept"
+                    onClick={() => socket.emit('acceptJoin', { code: roomCode, targetUserId: userId })}
+                  >
+                    {t.acceptJoin}
+                  </button>
+                </div>
+              ))}
+            </>
+          ) : (
+            <span className="pjp-label">{t.pendingJoinsWaiting}</span>
+          )}
+        </div>
+      )}
 
       {/* ── Last trick viewer modal ─────────────────────────────────────── */}
       {showLastTrick && lastDoneTrick && (
@@ -326,14 +387,14 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
 
       {/* ── Top seat (partner) ─────────────────────────────────────────────── */}
       <div className="board-top">
-        <PlayerSeat {...seatData(2)} direction="top" />
+        <PlayerSeat {...seatData(2)} direction="top" isCreator={isCreator} onRemove={removePlayer} />
       </div>
 
       {/* ── Middle row ─────────────────────────────────────────────────────── */}
       <div className="board-middle">
 
         <div className="board-left">
-          <PlayerSeat {...seatData(3)} direction="left" />
+          <PlayerSeat {...seatData(3)} direction="left" isCreator={isCreator} onRemove={removePlayer} />
         </div>
 
         <div className="board-center">
@@ -405,7 +466,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
         </div>
 
         <div className="board-right">
-          <PlayerSeat {...seatData(1)} direction="right" />
+          <PlayerSeat {...seatData(1)} direction="right" isCreator={isCreator} onRemove={removePlayer} />
         </div>
       </div>
 

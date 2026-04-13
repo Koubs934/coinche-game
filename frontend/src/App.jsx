@@ -21,6 +21,7 @@ export default function App() {
   const [roomState, setRoomState] = useState(null); // public room info
   const [gameState, setGameState] = useState(null); // filtered game info
   const [myPosition, setMyPosition] = useState(null);
+  const [pendingRoom, setPendingRoom] = useState(null); // code when waiting for admin approval
 
   // ── Socket setup ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -72,10 +73,16 @@ export default function App() {
       setTimeout(() => setSocketError(''), 4000);
     });
 
+    socket.on('joinPending', ({ code }) => {
+      setPendingRoom(code);
+      sessionStorage.setItem('coinche_room', code);
+    });
+
     socket.on('leftRoom', () => {
       setRoomState(null);
       setGameState(null);
       setMyPosition(null);
+      setPendingRoom(null);
       sessionStorage.removeItem('coinche_room');
     });
 
@@ -137,6 +144,12 @@ export default function App() {
           socket={socketRef.current}
           roomState={roomState?.phase === 'LOBBY' ? roomState : null}
           myPosition={myPosition}
+          pendingRoom={pendingRoom}
+          onCancelPending={() => {
+            socketRef.current?.emit('cancelJoinRequest', { code: pendingRoom });
+            setPendingRoom(null);
+            sessionStorage.removeItem('coinche_room');
+          }}
         />
       )}
     </div>

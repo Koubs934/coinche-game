@@ -87,6 +87,17 @@ io.on('connection', socket => {
     const existing = rm.getRoomForSocket(socket.id);
     if (existing && existing.code !== code) socket.leave(existing.code);
 
+    // If the room is already in-game, create a pending join request instead
+    const peek = rm.getRoom(code);
+    if (peek && peek.phase !== 'LOBBY') {
+      const result = rm.requestJoin(code, { userId, username, socketId: socket.id });
+      if (result.error) return emitError(socket, result.error);
+      socket.join(code);
+      socket.emit('joinPending', { code });
+      if (!result.alreadyPending) broadcast(result.room);
+      return;
+    }
+
     const result = rm.joinRoom(code, { userId, username, socketId: socket.id });
     if (result.error) return emitError(socket, result.error);
 
@@ -105,11 +116,21 @@ io.on('connection', socket => {
   // ── Rejoin after disconnect ──────────────────────────────────────────────
   socket.on('rejoinRoom', ({ code }) => {
     const result = rm.handleReconnect(socket.id, code, userId);
-    if (!result) return emitError(socket, 'Could not rejoin room');
+    if (!result) {
+      // Not in room anymore (e.g. removed by admin) — clear client state
+      socket.emit('leftRoom');
+      return;
+    }
 
     socket.join(code);
-    const { room, player } = result;
 
+    if (result.pending) {
+      // Was a pending join requester — re-show waiting screen
+      socket.emit('joinPending', { code });
+      return;
+    }
+
+    const { room, player } = result;
     socket.emit('roomJoined', {
       room: rm.publicRoom(room),
       game: rm.publicGame(room, player.position),
@@ -191,21 +212,45 @@ io.on('connection', socket => {
 
     socket.leave(code);
     socket.emit('leftRoom');
+    // result.room is null only if the lobby was deleted (no human players remain)
+    if (result.room) broadcast(result.room);
+  });
 
-    if (result.lobby) {
-      // Lobby leave: only this player left; notify remaining players of updated room
-      if (result.room) broadcast(result.room);
-    } else {
-      // In-game leave: room is destroyed; kick every other connected player home
-      for (const player of result.allPlayers) {
-        if (!player.socketId || player.socketId === socket.id) continue;
-        const s = io.sockets.sockets.get(player.socketId);
-        if (s) {
-          s.leave(code);
-          s.emit('leftRoom');
-        }
+  // ── Remove player (creator only) ─────────────────────────────────────────
+  socket.on('removePlayer', ({ code, targetUserId }) => {
+    const result = rm.removePlayer(code, userId, targetUserId);
+    if (result.error) return emitError(socket, result.error);
+    if (result.removedSocketId) {
+      const s = io.sockets.sockets.get(result.removedSocketId);
+      if (s) { s.leave(code); s.emit('leftRoom'); }
+    }
+    broadcast(result.room);
+  });
+
+  // ── Accept pending join request (creator only) ────────────────────────────
+  socket.on('acceptJoin', ({ code, targetUserId }) => {
+    const result = rm.acceptJoin(code, userId, targetUserId);
+    if (result.error) return emitError(socket, result.error);
+    const { room, acceptedSocketId, acceptedPosition } = result;
+    if (acceptedSocketId) {
+      const s = io.sockets.sockets.get(acceptedSocketId);
+      if (s) {
+        s.join(code);
+        s.emit('roomJoined', {
+          room: rm.publicRoom(room),
+          game: rm.publicGame(room, acceptedPosition),
+          myPosition: acceptedPosition,
+        });
       }
     }
+    broadcastGame(room); // may resume bot scheduling if game unpaused
+  });
+
+  // ── Cancel pending join request ───────────────────────────────────────────
+  socket.on('cancelJoinRequest', ({ code }) => {
+    const result = rm.cancelJoinRequest(code, userId);
+    socket.leave(code);
+    if (!result.error && result.room) broadcast(result.room);
   });
 
   // ── Disconnect ───────────────────────────────────────────────────────────

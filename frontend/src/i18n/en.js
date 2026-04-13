@@ -60,14 +60,24 @@ export default {
   wins: 'wins!',
   playAgain: 'New Game',
 
-  // Leave
+  // Leave / remove
   leaveTable: 'Leave table',
   leaveConfirmLobby: 'Leave this room?',
-  leaveConfirmGame: 'This will end the game for everyone. Leave?',
+  leaveConfirmGame: 'Leave the table? The game will be paused until someone takes your seat.',
+  removePlayer: 'Remove player',
+  removeConfirm: (name) => `Remove ${name}? The game will be paused until someone fills their seat.`,
+
+  // Pending join
+  waitingApproval: 'Waiting for approval',
+  waitingApprovalMsg: 'Your request to join has been sent. Waiting for the room admin to accept.',
+  cancelRequest: 'Cancel request',
+  pendingJoinsLabel: 'Wants to join:',
+  acceptJoin: 'Accept',
+  pendingJoinsWaiting: 'A player is waiting to join — admin approval needed',
 
   // Disconnect
   playerDisconnected: (name) => `${name} disconnected. Waiting for reconnection...`,
-  gamePaused: 'Game paused — waiting for a player to reconnect',
+  gamePaused: 'Game paused — a seat is open',
   reconnecting: 'Reconnecting...',
 
   // Suits

@@ -934,6 +934,54 @@ a      { color: var(--accent); }
 .chip-coinche { background: rgba(139,26,26,0.45); color: #f88; }
 .chip-surc    { background: rgba(90,10,138,0.45); color: #cc88ff; }
 
+/* ─── Remove player button (on disconnected opponent seat) ──────────────── */
+.btn-remove-player {
+  background: none;
+  color: #e05050;
+  font-size: 0.68em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid rgba(224,80,80,0.3);
+  line-height: 1.4;
+}
+.btn-remove-player:hover { background: rgba(139,26,26,0.4); color: #ff8080; }
+
+/* ─── Pending join requests panel ───────────────────────────────────────── */
+.pending-joins-panel {
+  position: fixed;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 250;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 30, 48, 0.95);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  max-width: 90vw;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+.pjp-label { font-size: 0.82em; color: var(--accent); font-weight: bold; white-space: nowrap; }
+.pjp-request {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pjp-name { font-size: 0.88em; }
+.btn-accept {
+  background: var(--success);
+  color: #111;
+  font-weight: bold;
+  font-size: 0.75em;
+  padding: 4px 10px;
+  border-radius: 4px;
+  min-height: 28px;
+}
+.btn-accept:hover { opacity: 0.85; }
+
 /* ─── Leave table button ─────────────────────────────────────────────────── */
 .btn-leave {
   background: rgba(0,0,0,0.3);

@@ -36,12 +36,13 @@ function publicRoom(room) {
   return {
     code: room.code,
     creatorId: room.creatorId,
-    players: room.players.map(({ userId, username, team, position, connected }) =>
-      ({ userId, username, team, position, connected })),
+    players: room.players.map(({ userId, username, team, position, connected, isBot }) =>
+      ({ userId, username, team, position, connected, isBot: !!isBot })),
     targetScore: room.targetScore,
     phase: room.phase,
     scores: room.scores,
     paused: room.paused || false,
+    pendingJoins: (room.pendingJoins || []).map(({ userId, username }) => ({ userId, username })),
   };
 }
 
@@ -88,6 +89,7 @@ function createRoom({ userId, username, socketId }) {
     scores: [0, 0],
     game: null,
     paused: false,
+    pendingJoins: [],
   });
   return rooms.get(code);
 }
@@ -206,6 +208,7 @@ function nextRound(code) {
   const room = rooms.get(code);
   if (!room) return { error: 'Room not found' };
   if (room.phase !== 'ROUND_OVER') return { error: 'Round not over yet' };
+  if (room.paused) return { error: 'Game is paused — waiting for players' };
 
   const nextDealer = (room.game.dealer + 1) % 4;
   _startRound(room, nextDealer);
@@ -424,26 +427,115 @@ function leaveRoom(code, userId) {
     // Delete room if no human players remain
     if (!room.players.some(p => !p.isBot)) {
       rooms.delete(code);
-      return { lobby: true, room: null };
+      return { deleted: true };
     }
     // Transfer creator to first human player if creator left
     if (room.creatorId === userId) {
       room.creatorId = room.players.find(p => !p.isBot).userId;
     }
-    return { lobby: true, room };
+    return { room };
   }
 
   // Any in-game state (PLAYING, ROUND_OVER, GAME_OVER):
-  // void the game, destroy the room, return all players so server can kick everyone
-  const allPlayers = room.players.slice();
-  rooms.delete(code);
-  return { lobby: false, allPlayers };
+  // remove only this player, pause the room, keep it alive for others
+  room.players.splice(playerIdx, 1);
+  room.paused = true;
+  return { room };
+}
+
+// ─── Pending join requests ─────────────────────────────────────────────────
+
+function requestJoin(code, { userId, username, socketId }) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+  if (!['PLAYING', 'ROUND_OVER', 'GAME_OVER'].includes(room.phase)) {
+    return { error: 'Use joinRoom for lobby rooms' };
+  }
+  if (room.players.find(p => p.userId === userId)) return { error: 'Already in this game' };
+
+  // Check an open seat exists
+  const takenPositions = new Set(room.players.map(p => p.position));
+  const hasOpenSeat = [0, 1, 2, 3].some(i => !takenPositions.has(i));
+  if (!hasOpenSeat) return { error: 'Room is full' };
+
+  // Upsert: if already pending (e.g. after browser refresh), just update socketId
+  const existing = (room.pendingJoins || []).find(p => p.userId === userId);
+  if (existing) {
+    existing.socketId = socketId;
+    existing.username = username;
+    return { room, alreadyPending: true };
+  }
+
+  room.pendingJoins.push({ userId, username, socketId });
+  return { room };
+}
+
+function acceptJoin(code, creatorId, targetUserId) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+  if (room.creatorId !== creatorId) return { error: 'Only the creator can accept requests' };
+
+  const requestIdx = (room.pendingJoins || []).findIndex(p => p.userId === targetUserId);
+  if (requestIdx === -1) return { error: 'No pending request from this player' };
+
+  const request = room.pendingJoins[requestIdx];
+
+  const takenPositions = new Set(room.players.map(p => p.position));
+  let openPosition = -1;
+  for (let i = 0; i < 4; i++) {
+    if (!takenPositions.has(i)) { openPosition = i; break; }
+  }
+  if (openPosition === -1) {
+    room.pendingJoins.splice(requestIdx, 1);
+    return { error: 'No open seats available' };
+  }
+
+  room.pendingJoins.splice(requestIdx, 1);
+  room.players.push({
+    userId: request.userId,
+    username: request.username,
+    socketId: request.socketId,
+    team: openPosition % 2,
+    position: openPosition,
+    connected: true,
+    isBot: false,
+  });
+
+  if (room.players.length === 4) room.paused = false;
+
+  return { room, acceptedSocketId: request.socketId, acceptedPosition: openPosition };
+}
+
+function removePlayer(code, creatorId, targetUserId) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+  if (room.creatorId !== creatorId) return { error: 'Only the creator can remove players' };
+
+  const playerIdx = room.players.findIndex(p => p.userId === targetUserId);
+  if (playerIdx === -1) return { error: 'Player not found' };
+  if (room.players[playerIdx].isBot) return { error: 'Cannot remove a bot this way' };
+
+  const removedSocketId = room.players[playerIdx].socketId;
+  room.players.splice(playerIdx, 1);
+  room.paused = true;
+
+  return { room, removedSocketId };
+}
+
+function cancelJoinRequest(code, userId) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+  const idx = (room.pendingJoins || []).findIndex(p => p.userId === userId);
+  if (idx === -1) return { error: 'No pending request' };
+  room.pendingJoins.splice(idx, 1);
+  return { room };
 }
 
 // ─── Connection handling ───────────────────────────────────────────────────
 
 function handleDisconnect(socketId) {
   for (const room of rooms.values()) {
+    // Active player
     const player = room.players.find(p => p.socketId === socketId);
     if (player) {
       player.connected = false;
@@ -451,6 +543,12 @@ function handleDisconnect(socketId) {
         room.paused = true;
       }
       return { code: room.code, room, player };
+    }
+    // Pending join request
+    const pendingIdx = (room.pendingJoins || []).findIndex(p => p.socketId === socketId);
+    if (pendingIdx !== -1) {
+      room.pendingJoins.splice(pendingIdx, 1);
+      return { code: room.code, room };
     }
   }
   return null;
@@ -460,17 +558,25 @@ function handleReconnect(socketId, code, userId) {
   const room = rooms.get(code);
   if (!room) return null;
 
+  // Active player reconnecting
   const player = room.players.find(p => p.userId === userId);
-  if (!player) return null;
-
-  player.socketId = socketId;
-  player.connected = true;
-
-  if (room.paused && room.players.every(p => p.connected)) {
-    room.paused = false;
+  if (player) {
+    player.socketId = socketId;
+    player.connected = true;
+    if (room.paused && room.players.every(p => p.connected)) {
+      room.paused = false;
+    }
+    return { room, player };
   }
 
-  return { room, player };
+  // Pending join request reconnecting — restore socket
+  const pending = (room.pendingJoins || []).find(p => p.userId === userId);
+  if (pending) {
+    pending.socketId = socketId;
+    return { room, pending: true };
+  }
+
+  return null;
 }
 
 function getRoomForSocket(socketId) {
@@ -498,6 +604,10 @@ module.exports = {
   playCard,
   nextRound,
   leaveRoom,
+  requestJoin,
+  acceptJoin,
+  removePlayer,
+  cancelJoinRequest,
   handleDisconnect,
   handleReconnect,
   getRoomForSocket,

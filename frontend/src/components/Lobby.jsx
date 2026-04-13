@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 
-export default function Lobby({ socket, roomState, myPosition }) {
+export default function Lobby({ socket, roomState, myPosition, pendingRoom, onCancelPending }) {
   const { user, username } = useAuth();
   const { t } = useLang();
   const [codeInput, setCodeInput] = useState('');
@@ -47,6 +47,20 @@ export default function Lobby({ socket, roomState, myPosition }) {
   }
 
   // ── Error listener already handled in App ──
+
+  // ── Waiting for admin approval ────────────────────────────────────────────
+  if (pendingRoom) {
+    return (
+      <div className="lobby">
+        <div className="lobby-card">
+          <h2>{t.waitingApproval}</h2>
+          <div className="room-code-display">{pendingRoom}</div>
+          <p className="lobby-welcome">{t.waitingApprovalMsg}</p>
+          <button className="btn-leave" onClick={onCancelPending}>← {t.cancelRequest}</button>
+        </div>
+      </div>
+    );
+  }
 
   // ── In-room lobby ─────────────────────────────────────────────────────────
   if (roomState) {

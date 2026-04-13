@@ -60,14 +60,24 @@ export default {
   wins: 'gagne !',
   playAgain: 'Nouvelle partie',
 
-  // Leave
+  // Leave / remove
   leaveTable: 'Quitter la table',
   leaveConfirmLobby: 'Quitter cette salle ?',
-  leaveConfirmGame: 'Cela mettra fin à la partie pour tout le monde. Quitter ?',
+  leaveConfirmGame: 'Quitter la table ? La partie sera mise en pause jusqu\'à ce qu\'un joueur prenne votre place.',
+  removePlayer: 'Retirer le joueur',
+  removeConfirm: (name) => `Retirer ${name} ? La partie sera en pause jusqu'à ce qu'un joueur prenne sa place.`,
+
+  // Pending join
+  waitingApproval: 'En attente d\'approbation',
+  waitingApprovalMsg: 'Votre demande a été envoyée. En attente de l\'acceptation de l\'administrateur.',
+  cancelRequest: 'Annuler la demande',
+  pendingJoinsLabel: 'Demande de rejoindre :',
+  acceptJoin: 'Accepter',
+  pendingJoinsWaiting: 'Un joueur souhaite rejoindre — approbation de l\'admin requise',
 
   // Disconnect
   playerDisconnected: (name) => `${name} s'est déconnecté. En attente de reconnexion...`,
-  gamePaused: "Partie en pause — en attente d'un joueur",
+  gamePaused: 'Partie en pause — une place est libre',
   reconnecting: 'Reconnexion...',
 
   // Suits
