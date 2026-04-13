@@ -57,6 +57,7 @@ function publicGame(room, viewerPosition) {
     biddingTurn: g.biddingTurn,
     consecutivePasses: g.consecutivePasses,
     biddingActions: g.biddingActions || [null, null, null, null],
+    biddingHistory: g.biddingHistory || [],
     tricks: g.tricks,
     currentTrick: g.currentTrick,
     currentPlayer: g.currentPlayer,
@@ -193,6 +194,7 @@ function _startRound(room, dealer) {
     biddingTurn: (dealer + 1) % 4,
     consecutivePasses: 0,
     biddingActions: [null, null, null, null],
+    biddingHistory: [],
     tricks: [],
     currentTrick: [],
     currentPlayer: null,
@@ -245,6 +247,7 @@ function placeBid(code, userId, value, suit) {
     surcoinched: false,
   };
   room.game.biddingActions[position] = { type: 'bid', value, suit };
+  room.game.biddingHistory.push({ position, type: 'bid', value, suit });
   room.game.consecutivePasses = 0;
   room.game.biddingTurn = (position + 1) % 4;
   return { room };
@@ -259,6 +262,7 @@ function passBid(code, userId) {
   if (room.game.biddingTurn !== position) return { error: 'Not your turn' };
 
   room.game.biddingActions[position] = { type: 'pass' };
+  room.game.biddingHistory.push({ position, type: 'pass' });
   room.game.consecutivePasses++;
   room.game.biddingTurn = (position + 1) % 4;
 
@@ -287,6 +291,7 @@ function coinche(code, userId) {
 
   bid.coinched = true;
   room.game.biddingActions[position] = { type: 'coinche' };
+  room.game.biddingHistory.push({ position, type: 'coinche' });
   // Bidding continues — 3 consecutive passes needed to end (no new bids allowed)
   room.game.consecutivePasses = 0;
   room.game.biddingTurn = (position + 1) % 4;
@@ -309,6 +314,7 @@ function surcoinche(code, userId) {
 
   bid.surcoinched = true;
   room.game.biddingActions[position] = { type: 'surcoinche' };
+  room.game.biddingHistory.push({ position, type: 'surcoinche' });
   // Bidding continues — 3 consecutive passes needed to end
   room.game.consecutivePasses = 0;
   room.game.biddingTurn = (position + 1) % 4;

@@ -414,8 +414,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
         </div>
 
         <div className="board-center">
-          {/* Contract / trump badge */}
-          {currentBid && (
+          {/* Contract badge — only during PLAYING (confirmed trump) */}
+          {phase === 'PLAYING' && currentBid && (
             <div className="contract-badge">
               {currentBid.value === 'capot' ? t.capot : currentBid.value}
               {' '}{t.suitSymbol[currentBid.suit]}
@@ -424,12 +424,58 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
             </div>
           )}
 
+          {/* Bidding center — focal bid + turn + history */}
           {phase === 'BIDDING' && (
-            <div className="bidding-turn-info">
-              {isMyBidTurn
-                ? <strong className="your-turn">{t.yourTurn}</strong>
-                : <span>{t.waitingFor(players.find(p => p.position === biddingTurn)?.username || '?')}</span>
-              }
+            <div className="bid-center">
+              {/* Focal element: current highest bid */}
+              <div className="bid-focal">
+                {currentBid ? (
+                  <>
+                    <span className="bid-focal-value">
+                      {currentBid.value === 'capot' ? t.capot : currentBid.value}
+                    </span>
+                    {currentBid.suit && (
+                      <span className={`bid-focal-suit${currentBid.suit === 'H' || currentBid.suit === 'D' ? ' red' : ''}`}>
+                        {t.suitSymbol[currentBid.suit]}
+                      </span>
+                    )}
+                    {currentBid.surcoinched && <span className="bid-focal-mod sur">×4</span>}
+                    {currentBid.coinched && !currentBid.surcoinched && <span className="bid-focal-mod coin">×2</span>}
+                  </>
+                ) : (
+                  <span className="bid-focal-empty">{t.biddingPhase}</span>
+                )}
+              </div>
+
+              {/* Whose turn */}
+              <div className={`bid-whose-turn${isMyBidTurn ? ' mine' : ''}`}>
+                {isMyBidTurn
+                  ? `▶ ${t.yourTurn}`
+                  : `▶ ${players.find(p => p.position === biddingTurn)?.username || '?'}`
+                }
+              </div>
+
+              {/* Auction history — newest first */}
+              {game.biddingHistory?.length > 0 && (
+                <div className="bid-history">
+                  {[...game.biddingHistory].reverse().map((entry, i) => {
+                    const p = players.find(pl => pl.position === entry.position);
+                    const name = entry.position === myPosition ? t.you : (p?.username || '?');
+                    const actionLabel =
+                      entry.type === 'pass'         ? t.pass
+                      : entry.type === 'coinche'    ? t.coinche
+                      : entry.type === 'surcoinche' ? t.surcoinche
+                      : entry.value === 'capot'     ? t.capot
+                      : `${entry.value} ${t.suitSymbol[entry.suit]}`;
+                    return (
+                      <div key={i} className={`bh-row bh-${entry.type}`}>
+                        <span className="bh-name">{name}</span>
+                        <span className="bh-action">{actionLabel}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

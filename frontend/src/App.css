@@ -548,7 +548,7 @@ a      { color: var(--accent); }
   border-radius: 5px;
 }
 
-/* ─── Contract badge ─────────────────────────────────────────────────────── */
+/* ─── Contract badge (PLAYING phase only) ───────────────────────────────── */
 .contract-badge {
   background: rgba(0,0,0,0.35);
   border: 1px solid rgba(255,255,255,0.1);
@@ -558,6 +558,103 @@ a      { color: var(--accent); }
   font-weight: bold;
   color: var(--accent);
 }
+
+/* ─── Bid center (board-center during BIDDING) ───────────────────────────── */
+.bid-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Current highest bid — the focal element */
+.bid-focal {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(212,175,55,0.3);
+  border-radius: 10px;
+  padding: 8px 16px;
+  min-width: 80px;
+  justify-content: center;
+}
+.bid-focal-value {
+  font-size: 1.9em;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+.bid-focal-suit {
+  font-size: 1.6em;
+  color: var(--accent);
+  line-height: 1;
+}
+.bid-focal-suit.red { color: var(--red); }
+.bid-focal-mod {
+  font-size: 0.8em;
+  font-weight: bold;
+  margin-left: 3px;
+  line-height: 1;
+  align-self: center;
+}
+.bid-focal-mod.coin { color: #e05050; }
+.bid-focal-mod.sur  { color: #cc66ff; }
+.bid-focal-empty {
+  font-size: 0.85em;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Whose turn */
+.bid-whose-turn {
+  font-size: 0.88em;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+.bid-whose-turn.mine { color: var(--success); }
+
+/* Auction history — compact list, newest at top */
+.bid-history {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: 112px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.22);
+  padding: 2px 0;
+}
+.bh-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 0.74em;
+  line-height: 1.5;
+}
+.bh-name {
+  color: var(--muted);
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.bh-action {
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+.bh-pass .bh-action       { color: rgba(255,255,255,0.3); }
+.bh-bid .bh-action        { color: var(--accent); }
+.bh-coinche .bh-action    { color: #e05050; }
+.bh-surcoinche .bh-action { color: #cc66ff; }
 
 /* ─── Bidding panel (lives in board-hand, full-width bottom panel) ──────── */
 .bidding-panel {
@@ -1135,6 +1232,14 @@ a      { color: var(--accent); }
 
   /* ── Trick display ── */
   .trick-display { gap: 2px; }
+
+  /* ── Bid center: compact in landscape's narrow center column ── */
+  .bid-focal       { padding: 4px 8px; }
+  .bid-focal-value { font-size: 1.3em; }
+  .bid-focal-suit  { font-size: 1.1em; }
+  .bid-whose-turn  { font-size: 0.75em; }
+  .bid-history     { max-height: 60px; }
+  .bh-row          { font-size: 0.65em; padding: 1px 4px; }
 
   /* ── Bidding: 10 values in one row in the hand strip ── */
   .bidding-panel  { padding: 2px 0; gap: 3px; border-bottom: none; margin-bottom: 0; }
