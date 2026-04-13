@@ -69,11 +69,11 @@ function getValidCards(hand, trick, trumpSuit, playerIndex) {
   const trumpInTrick = trick.filter(t => t.card.suit === trumpSuit);
   if (trumpInTrick.length === 0) return myTrumps; // no trump yet — any trump will do
 
-  // 5. Trump already in trick — must overtrump if possible; otherwise any trump
+  // 5. Trump already in trick — must overtrump if possible; otherwise free to play anything
   const highestTrumpInTrick = trumpInTrick
     .reduce((max, t) => !max || TRUMP_RANK[t.card.value] > TRUMP_RANK[max.value] ? t.card : max, null);
   const overtrump = myTrumps.filter(c => TRUMP_RANK[c.value] > TRUMP_RANK[highestTrumpInTrick.value]);
-  return overtrump.length > 0 ? overtrump : myTrumps;
+  return overtrump.length > 0 ? overtrump : hand;
 }
 
 module.exports = { cardPoints, getTrickWinner, getValidCards, TRUMP_RANK };
