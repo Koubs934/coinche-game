@@ -781,11 +781,80 @@ a      { color: var(--accent); }
 .round-summary {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 16px;
+  padding: 12px 16px 16px;
+  gap: 12px;
   overflow-y: auto;
 }
+
+/* ─── Auction recap (mini table above score card) ────────────────────────── */
+.auction-recap {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.ar-top-row,
+.ar-bot-row {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.ar-mid-row {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  gap: 4px;
+}
+.ar-table-felt {
+  flex: 1;
+  border-radius: 40%;
+  background: radial-gradient(ellipse at center, #1e6b30 0%, #164f22 70%, #0f3a18 100%);
+  border: 1px solid rgba(255,255,255,0.06);
+  min-height: 50px;
+  margin: 4px 0;
+}
+.ar-seat {
+  background: rgba(0,0,0,0.38);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  padding: 6px 10px;
+  min-width: 88px;
+  max-width: 130px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.ar-name {
+  font-size: 0.68em;
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+.ar-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+/* Action chips inside the stack */
+.ar-action       { display: block; text-align: center; }
+.ar-win          { font-size: 0.95em; font-weight: 800; color: var(--accent); }
+.ar-win.red      { color: var(--red); }
+.ar-latest       { font-size: 0.82em; font-weight: 700; color: var(--accent); }
+.ar-latest.red   { color: var(--red); }
+.ar-old          { font-size: 0.72em; color: var(--muted); }
+.ar-pass         { font-size: 0.72em; color: var(--muted); font-style: italic; }
+.ar-coinche      { font-size: 0.82em; font-weight: 700; color: #f0a030; }
+.ar-surcoinche   { font-size: 0.82em; font-weight: 700; color: #cc66ff; }
 .summary-card {
   background: var(--ui-card);
   border-radius: 10px;

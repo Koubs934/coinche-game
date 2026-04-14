@@ -3,6 +3,85 @@ import { useLang } from '../context/LanguageContext';
 
 const SUIT_SYM = { S: '♠', H: '♥', D: '♦', C: '♣' };
 
+// ─── Mini auction table recap ─────────────────────────────────────────────────
+
+function AuctionRecap({ biddingHistory, currentBid, players, myPosition, t }) {
+  // Group all actions by player position, keeping chronological order
+  const perPlayer = { 0: [], 1: [], 2: [], 3: [] };
+  for (const entry of (biddingHistory || [])) {
+    if (perPlayer[entry.position]) perPlayer[entry.position].push(entry);
+  }
+
+  const topPos   = (myPosition + 2) % 4;
+  const leftPos  = (myPosition + 3) % 4;
+  const rightPos = (myPosition + 1) % 4;
+
+  function nameAt(pos) {
+    return players.find(p => p.position === pos)?.username || '?';
+  }
+
+  // Vertical stack of actions for one player, latest at top
+  function PlayerStack({ pos }) {
+    const actions = [...perPlayer[pos]].reverse();
+    if (!actions.length) return null;
+    return (
+      <div className="ar-stack">
+        {actions.map((entry, i) => {
+          const isWinningBid =
+            entry.type === 'bid' &&
+            pos === currentBid?.playerIndex &&
+            entry.value === currentBid?.value &&
+            entry.suit  === currentBid?.suit;
+          const isRed = entry.suit === 'H' || entry.suit === 'D';
+
+          let label;
+          if      (entry.type === 'pass')        label = t.pass;
+          else if (entry.type === 'coinche')     label = t.coinched;
+          else if (entry.type === 'surcoinche')  label = t.surcoinched;
+          else label = entry.value === 'capot' ? t.capot : `${entry.value} ${SUIT_SYM[entry.suit]}`;
+
+          let cls = 'ar-action';
+          if      (entry.type === 'surcoinche')  cls += ' ar-surcoinche';
+          else if (entry.type === 'coinche')     cls += ' ar-coinche';
+          else if (isWinningBid)                 cls += ` ar-win${isRed ? ' red' : ''}`;
+          else if (entry.type === 'pass')        cls += ' ar-pass';
+          else if (i === 0)                      cls += ` ar-latest${isRed ? ' red' : ''}`;
+          else                                   cls += ' ar-old';
+
+          return <span key={i} className={cls}>{label}</span>;
+        })}
+      </div>
+    );
+  }
+
+  function Seat({ pos, isMe }) {
+    return (
+      <div className="ar-seat">
+        <span className="ar-name">{nameAt(pos)}{isMe ? ` (${t.you})` : ''}</span>
+        <PlayerStack pos={pos} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="auction-recap">
+      <div className="ar-top-row">
+        <Seat pos={topPos} />
+      </div>
+      <div className="ar-mid-row">
+        <Seat pos={leftPos} />
+        <div className="ar-table-felt" />
+        <Seat pos={rightPos} />
+      </div>
+      <div className="ar-bot-row">
+        <Seat pos={myPosition} isMe />
+      </div>
+    </div>
+  );
+}
+
+// ─── Round summary ────────────────────────────────────────────────────────────
+
 export default function RoundSummary({ socket, roomCode, room, game, myPosition }) {
   const { t } = useLang();
   const [showTrickReview, setShowTrickReview] = useState(false);
@@ -12,7 +91,7 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
     socket.emit('leaveRoom', { code: roomCode });
   }
 
-  const { roundScores, contractMade, trickPoints, currentBid, beloteInfo, tricks } = game;
+  const { roundScores, contractMade, trickPoints, currentBid, beloteInfo, tricks, biddingHistory } = game;
   const { scores, players } = room;
 
   function getTeamLabel(teamIdx) {
@@ -36,6 +115,19 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
 
   return (
     <div className="round-summary">
+
+      {/* ── Auction recap — fills the green area above the score card ───────── */}
+      {biddingHistory?.length > 0 && (
+        <AuctionRecap
+          biddingHistory={biddingHistory}
+          currentBid={currentBid}
+          players={players}
+          myPosition={myPosition}
+          t={t}
+        />
+      )}
+
+      {/* ── Score card ──────────────────────────────────────────────────────── */}
       <div className="summary-card">
         <h2>{t.roundOver}</h2>
 
