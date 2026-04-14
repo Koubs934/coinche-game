@@ -48,13 +48,18 @@ function computeLivePoints(tricks, trump) {
   return pts;
 }
 
-// Return the suit that maximises total hand value if it were trump (deterministic)
+// Return the suit with the highest trump potential in the hand.
+// Scores only cards of that suit using TRUMP_PTS (J=20, 9=14, A=11, 10=10, K=4, Q=3, 8/7=0).
+// Tie-break 1: more cards in the suit. Tie-break 2: canonical order S→H→D→C.
 function bestSuitForHand(hand) {
   if (!hand?.length) return 'S';
-  let best = 'S', bestScore = -1;
+  let best = 'S', bestScore = -1, bestCount = -1;
   for (const suit of ['S', 'H', 'D', 'C']) {
-    const score = hand.reduce((s, c) => s + cardPts(c, suit), 0);
-    if (score > bestScore) { bestScore = score; best = suit; }
+    const score = hand.reduce((s, c) => c.suit === suit ? s + (TRUMP_PTS[c.value] ?? 0) : s, 0);
+    const count = hand.filter(c => c.suit === suit).length;
+    if (score > bestScore || (score === bestScore && count > bestCount)) {
+      bestScore = score; bestCount = count; best = suit;
+    }
   }
   return best;
 }
