@@ -62,8 +62,8 @@ function calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam }) {
     scores[0] = Math.round(scores[0] / 10) * 10;
     scores[1] = Math.round(scores[1] / 10) * 10;
   } else {
-    // Contract failed — defending team scores (160 + contract) × multiplier
-    scores[opposingTeam] = (160 + contract.value) * multiplier;
+    // Contract failed — defending team scores 160 + (contract × multiplier)
+    scores[opposingTeam] = 160 + contract.value * multiplier;
     // scores[contractTeam] stays 0
   }
 

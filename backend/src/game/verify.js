@@ -313,7 +313,7 @@ function makeTricks(winner0count, winner1count, trumpSuit) {
   assert(scores[1] === (160 + 120) * 1, `S2: defending team gets (160+120)×1=280 on contract failure, got ${scores[1]}`);
 }
 
-// Scenario S3: coinched failure — (160 + contract) × 2
+// Scenario S3: coinched failure — 160 + (contract × 2)
 {
   const trumpSuit = 'H';
   const contract = { value: 100, team: 0, coinched: true, surcoinched: false };
@@ -336,10 +336,10 @@ function makeTricks(winner0count, winner1count, trumpSuit) {
   const { scores, contractMade } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: null });
   assert(contractMade === false, 'S3: coinched failure — contractMade is false');
   assert(scores[0] === 0, 'S3: coinched failure — contract team gets 0');
-  assert(scores[1] === (160 + 100) * 2, `S3: coinched failure — defenders get (160+100)×2=520, got ${scores[1]}`);
+  assert(scores[1] === 160 + 100 * 2, `S3: coinched failure — defenders get 160+(100×2)=360, got ${scores[1]}`);
 }
 
-// Scenario S4: surcoinched failure — (160 + contract) × 4
+// Scenario S4: surcoinched failure — 160 + (contract × 4)
 {
   const trumpSuit = 'H';
   const contract = { value: 90, team: 1, coinched: true, surcoinched: true };
@@ -361,7 +361,7 @@ function makeTricks(winner0count, winner1count, trumpSuit) {
   const { scores, contractMade } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: null });
   assert(contractMade === false, 'S4: surcoinched failure — contractMade is false');
   assert(scores[1] === 0, 'S4: surcoinched failure — contract team (1) gets 0');
-  assert(scores[0] === (160 + 90) * 4, `S4: surcoinched failure — defenders get (160+90)×4=1000, got ${scores[0]}`);
+  assert(scores[0] === 160 + 90 * 4, `S4: surcoinched failure — defenders get 160+(90×4)=520, got ${scores[0]}`);
 }
 
 // Scenario S5: capot success — 500 flat, no belote bonus

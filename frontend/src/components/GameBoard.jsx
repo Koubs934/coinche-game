@@ -175,7 +175,7 @@ function ContractBadge({ contract, t }) {
   const isRed = contract.suit === 'H' || contract.suit === 'D';
   const value = contract.value === 'capot' ? t.capot : contract.value;
   const suit  = t.suitSymbol?.[contract.suit] ?? SUIT_SYM[contract.suit];
-  const mod   = contract.surcoinched ? ' ×4' : contract.coinched ? ' ×2' : '';
+  const mod   = contract.surcoinched ? ` — ${t.surcoinched}` : contract.coinched ? ` — ${t.coinched}` : '';
   return (
     <div className="seat-contract-badge">
       <span className={`scb-value${isRed ? ' red' : ''}`}>{value} {suit}{mod}</span>
@@ -512,8 +512,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
                         {t.suitSymbol[currentBid.suit]}
                       </span>
                     )}
-                    {currentBid.surcoinched && <span className="bid-focal-mod sur">×4</span>}
-                    {currentBid.coinched && !currentBid.surcoinched && <span className="bid-focal-mod coin">×2</span>}
+                    {currentBid.surcoinched && <span className="bid-focal-mod sur">{t.surcoinched}</span>}
+                    {currentBid.coinched && !currentBid.surcoinched && <span className="bid-focal-mod coin">{t.coinched}</span>}
                   </>
                 ) : (
                   <span className="bid-focal-empty">{t.biddingPhase}</span>
