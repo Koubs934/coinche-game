@@ -121,16 +121,13 @@ function TopArea({
   return (
     <div className="auction-recap">
 
-      {/* Mode label + replay trigger (auction mode only) */}
+      {/* Mode label */}
       <div className="ta-header">
         <span className="ta-mode-label">
           {isReplaying
             ? `${t.trick} ${replayStep + 1} / ${tricks.length}`
             : t.biddingPhase}
         </span>
-        {!isReplaying && hasTricks && (
-          <button className="ta-btn ta-btn-sec" onClick={onStartReplay}>{t.replayBtn}</button>
-        )}
       </div>
 
       {/* Seats */}
@@ -158,17 +155,26 @@ function TopArea({
       </div>
       <div className="ar-bot-row"><Seat pos={myPosition} isMe /></div>
 
-      {isReplaying && (
+      {/* Bottom nav: Rejouer in summary mode, Précédent+Suivant in replay mode */}
+      {hasTricks && (
         <div className="ta-nav">
-          <button className="ta-btn ta-btn-sec" onClick={onPrevTrick} disabled={replayStep === 0}>
-            ◀ {t.replayPrev}
-          </button>
-          <button
-            className={isLastTrick ? 'ta-btn ta-btn-sec' : 'ta-btn ta-btn-pri'}
-            onClick={isLastTrick ? onEndReplay : onNextTrick}
-          >
-            {isLastTrick ? t.replayEnd : `${t.replayNext} ▶`}
-          </button>
+          {isReplaying ? (
+            <>
+              <button className="ta-btn ta-btn-sec" onClick={replayStep === 0 ? onEndReplay : onPrevTrick}>
+                ◀ {replayStep === 0 ? t.replayEnd : t.replayPrev}
+              </button>
+              <button
+                className={isLastTrick ? 'ta-btn ta-btn-sec' : 'ta-btn ta-btn-pri'}
+                onClick={isLastTrick ? onEndReplay : onNextTrick}
+              >
+                {isLastTrick ? t.replayEnd : `${t.replayNext} ▶`}
+              </button>
+            </>
+          ) : (
+            <button className="ta-btn ta-btn-pri ta-btn-replay" onClick={onStartReplay}>
+              {t.replayBtn}
+            </button>
+          )}
         </div>
       )}
 
