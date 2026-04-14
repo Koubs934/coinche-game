@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLang } from '../context/LanguageContext';
 
-const ITEM_H = 52;
+const ITEM_H = 64;
 
 function CutPicker({ onCut, onSkip, t }) {
   const drumRef = useRef(null);
