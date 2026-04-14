@@ -565,10 +565,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
       };
       const meta = META[lastShuffleCutAction];
       if (meta) {
-        const actorName = lastShuffleCutActorPos != null
-          ? (players.find(p => p.position === lastShuffleCutActorPos)?.username || '?')
-          : '?';
-        setShuffleCutMsg({ text: t[meta.key](actorName), positive: meta.positive });
+        setShuffleCutMsg({ actorPos: lastShuffleCutActorPos, positive: meta.positive, key: meta.key });
         timerRef.current.push(setTimeout(() => setShuffleCutMsg(null), 3500));
       }
     }
@@ -918,11 +915,16 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           )}
 
           {/* Shuffle / Cut action feedback — shown to all players */}
-          {shuffleCutMsg && (
-            <div className={`scc-announce${shuffleCutMsg.positive ? ' scc-yes' : ' scc-no'}`}>
-              {shuffleCutMsg.text}
-            </div>
-          )}
+          {shuffleCutMsg && (() => {
+            const actorName = shuffleCutMsg.actorPos != null
+              ? (players.find(p => p.position === shuffleCutMsg.actorPos)?.username || '?')
+              : '?';
+            return (
+              <div className={`scc-announce${shuffleCutMsg.positive ? ' scc-yes' : ' scc-no'}`}>
+                {t[shuffleCutMsg.key](actorName)}
+              </div>
+            );
+          })()}
 
           {/* Shuffle / Cut status — only shown to the active player */}
           {(isMyShuffleTurn || isMyCutTurn) && (
