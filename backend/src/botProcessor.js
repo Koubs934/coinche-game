@@ -53,7 +53,7 @@ function _execute(room, broadcastFn) {
     const player = room.players.find(p => p.position === pos);
     const action = getBotCardAction(g, pos);
 
-    const result = rm.playCard(code, player.userId, action.card);
+    const result = rm.playCard(code, player.userId, action.card, action.declareBelote);
 
     if (!result.error) {
       broadcastFn(result.room);

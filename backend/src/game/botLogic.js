@@ -40,15 +40,17 @@ function getBotBidAction(game, position) {
 }
 
 /**
- * Returns { card, declareBelote: false }.
+ * Returns { card, declareBelote }.
  *
  * Strategy:
  *  - Leading a trick: play highest non-trump (pressure opponents); if only trump, highest trump.
  *  - Partner winning: play lowest card (conserve high cards).
  *  - Otherwise: play highest available card (try to win).
+ *
+ * Belote: bot always declares when playing the first of its K+Q of trump.
  */
 function getBotCardAction(game, position) {
-  const { hands, currentTrick, trumpSuit } = game;
+  const { hands, currentTrick, trumpSuit, beloteInfo } = game;
   const hand = hands[position];
   const valid = getValidCards(hand, currentTrick, trumpSuit, position);
 
@@ -71,7 +73,18 @@ function getBotCardAction(game, position) {
     }
   }
 
-  return { card, declareBelote: false };
+  // Belote declaration: true if this is the first of the bot's K+Q of trump pair
+  let declareBelote = false;
+  if (trumpSuit && card.suit === trumpSuit && (card.value === 'K' || card.value === 'Q')) {
+    if (!beloteInfo || beloteInfo.declared === null) {
+      const otherValue = card.value === 'K' ? 'Q' : 'K';
+      if (hand.some(c => c.suit === trumpSuit && c.value === otherValue)) {
+        declareBelote = true;
+      }
+    }
+  }
+
+  return { card, declareBelote };
 }
 
 module.exports = { getBotBidAction, getBotCardAction };

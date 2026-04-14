@@ -1576,6 +1576,77 @@ a      { color: var(--accent); }
   .last-trick-widget   { padding: 3px 8px; font-size: 0.7em; }
 }
 
+/* ─── Belote / Rebelote prompt overlay ──────────────────────────────────── */
+.belote-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+.belote-prompt {
+  background: var(--ui-card);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  min-width: 220px;
+  max-width: 320px;
+  width: 90vw;
+}
+.belote-prompt-q {
+  font-size: 1em;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+  margin: 0;
+}
+.belote-prompt-card {
+  font-size: 1.6em;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.belote-prompt-card .red { color: var(--red); }
+.belote-prompt-btns {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+.belote-btn {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: var(--radius);
+  font-size: 1em;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+}
+.belote-yes { background: var(--accent); color: #1a1a1a; }
+.belote-yes:hover { opacity: 0.85; }
+.belote-no  { background: #2c3e50; color: var(--text); }
+.belote-no:hover { background: #3a4f65; }
+
+/* ─── Belote / Rebelote announce banner (board-center) ──────────────────── */
+.belote-announce {
+  font-size: 1.1em;
+  font-weight: 800;
+  padding: 5px 18px;
+  border-radius: 20px;
+  letter-spacing: 0.04em;
+  animation: belote-pop 0.25s ease-out;
+}
+.ba-belote   { background: rgba(240,165,0,0.18); color: var(--accent); border: 1px solid var(--accent); }
+.ba-rebelote { background: rgba(240,165,0,0.28); color: #ffe066;       border: 1px solid #ffe066; }
+@keyframes belote-pop {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
 /* ─── Shuffle / Cut — on-table status label (board-center) ─────────────── */
 .scc-status {
   text-align: center;

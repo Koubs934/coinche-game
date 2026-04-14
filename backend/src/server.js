@@ -213,8 +213,8 @@ io.on('connection', socket => {
   });
 
   // ── Play card ────────────────────────────────────────────────────────────
-  socket.on('playCard', ({ code, card }) => {
-    const result = rm.playCard(code, userId, card);
+  socket.on('playCard', ({ code, card, declareBelote }) => {
+    const result = rm.playCard(code, userId, card, declareBelote);
     if (result.error) return emitError(socket, result.error);
     broadcastGame(result.room);
   });

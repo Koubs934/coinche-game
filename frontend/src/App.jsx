@@ -16,7 +16,7 @@ const EMPTY_GAME = {
   dealer: -1, phase: null, currentBid: null, biddingTurn: null,
   consecutivePasses: 0, biddingActions: [null, null, null, null],
   biddingHistory: [], tricks: [], currentTrick: [], currentPlayer: null,
-  trumpSuit: null, beloteInfo: { playerIndex: null, complete: false },
+  trumpSuit: null, beloteInfo: { playerIndex: null, declared: null, rebeloteDone: false, complete: false },
   roundScores: [0, 0], contractMade: null, trickPoints: null,
   hands: [[], [], [], []], handCounts: [0, 0, 0, 0],
 };

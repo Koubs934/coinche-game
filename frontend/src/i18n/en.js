@@ -44,7 +44,8 @@ export default {
   capot: 'Capot',
   belote: 'Belote',
   rebelote: 'Rebelote',
-  announceBelote: 'Announce Belote/Rebelote',
+  announceBelote: 'Declare Belote?',
+  no: 'No',
 
   // Scores
   score: 'Score',

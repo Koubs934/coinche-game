@@ -371,6 +371,10 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const [dragVisual, setDragVisual] = useState(null);
   // dealAnimCounts: [c0,c1,c2,c3] while the 3-2-3 deal plays out; null = show all
   const [dealAnimCounts, setDealAnimCounts] = useState(null);
+  // beloteDecisionCard: card waiting for belote/non choice; null when not prompting
+  const [beloteDecisionCard, setBeloteDecisionCard] = useState(null);
+  // beloteAnnounce: 'belote' | 'rebelote' | null — table message after declaration
+  const [beloteAnnounce, setBeloteAnnounce] = useState(null);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const prevTricksLenRef = useRef(0);
@@ -384,6 +388,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const handElRef        = useRef(null);   // ref on .my-hand div
   const prevDealerMRef   = useRef(game.dealer); // for detecting new round
   const prevRoomPhaseRef = useRef(room.phase);  // for CUT→PLAYING deal animation
+  const prevBeloteRef    = useRef({ declared: game.beloteInfo?.declared ?? null, rebeloteDone: game.beloteInfo?.rebeloteDone ?? false });
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const { players, scores, targetScore, paused, shuffleDealer, cutPlayer } = room;
@@ -530,9 +535,35 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
     prevRoomPhaseRef.current = room.phase;
   }, [room.phase]);
 
+  // ── Effect: show Belote / Rebelote announce banner ────────────────────────
+  useEffect(() => {
+    const prev = prevBeloteRef.current;
+    const declared     = beloteInfo?.declared     ?? null;
+    const rebeloteDone = beloteInfo?.rebeloteDone ?? false;
+    if (!prev.declared && declared === 'yes') {
+      setBeloteAnnounce('belote');
+      timerRef.current.push(setTimeout(() => setBeloteAnnounce(null), 2500));
+    }
+    if (!prev.rebeloteDone && rebeloteDone) {
+      setBeloteAnnounce('rebelote');
+      timerRef.current.push(setTimeout(() => setBeloteAnnounce(null), 2500));
+    }
+    prevBeloteRef.current = { declared, rebeloteDone };
+  }, [beloteInfo?.declared, beloteInfo?.rebeloteDone]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
-  function playCard(card) {
-    socket.emit('playCard', { code: roomCode, card });
+  function playCard(card, declareBelote = false) {
+    socket.emit('playCard', { code: roomCode, card, declareBelote });
+  }
+
+  // True when tapping this card should trigger the Belote prompt
+  function needsBelotePrompt(card) {
+    if (!trumpSuit || !isMyCardTurn) return false;
+    if (card.suit !== trumpSuit) return false;
+    if (card.value !== 'K' && card.value !== 'Q') return false;
+    if (beloteInfo?.declared !== null) return false; // already decided
+    const otherValue = card.value === 'K' ? 'Q' : 'K';
+    return myHand.some(c => c.suit === trumpSuit && c.value === otherValue);
   }
 
   // ── Sort mode cycle ────────────────────────────────────────────────────────
@@ -855,6 +886,13 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
             </div>
           )}
 
+          {/* Belote / Rebelote announce banner */}
+          {beloteAnnounce && (
+            <div className={`belote-announce ba-${beloteAnnounce}`}>
+              {beloteAnnounce === 'belote' ? t.belote : t.rebelote} !
+            </div>
+          )}
+
           {/* Shuffle / Cut status — shown on the table when preparing next deal */}
           {isShuffleCut && (
             <div className="scc-status">
@@ -969,7 +1007,12 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
               card={card}
               onClick={() => {
                 if (wasDragRef.current) { wasDragRef.current = false; return; }
-                if (isMyCardTurn) playCard(card);
+                if (!isMyCardTurn) return;
+                if (needsBelotePrompt(card)) {
+                  setBeloteDecisionCard(card);
+                } else {
+                  playCard(card);
+                }
               }}
               highlight={isMyCardTurn}
               disabled={!isMyCardTurn}
@@ -981,6 +1024,30 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           )}
         </div>
       </div>
+
+      {/* ── Belote decision prompt ───────────────────────────────────────────── */}
+      {beloteDecisionCard && (
+        <div className="belote-overlay">
+          <div className="belote-prompt">
+            <p className="belote-prompt-q">{t.announceBelote}</p>
+            <div className="belote-prompt-card">
+              <span className={beloteDecisionCard.suit === 'H' || beloteDecisionCard.suit === 'D' ? 'red' : ''}>
+                {beloteDecisionCard.value}{SUIT_SYM[beloteDecisionCard.suit]}
+              </span>
+            </div>
+            <div className="belote-prompt-btns">
+              <button className="belote-btn belote-yes" onClick={() => {
+                playCard(beloteDecisionCard, true);
+                setBeloteDecisionCard(null);
+              }}>{t.belote}</button>
+              <button className="belote-btn belote-no" onClick={() => {
+                playCard(beloteDecisionCard, false);
+                setBeloteDecisionCard(null);
+              }}>{t.no}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

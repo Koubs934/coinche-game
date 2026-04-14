@@ -66,8 +66,10 @@ function publicGame(room, viewerPosition) {
     currentPlayer: g.currentPlayer,
     trumpSuit: g.trumpSuit,
     beloteInfo: {
-      playerIndex: g.beloteInfo.playerIndex,
-      complete: g.beloteInfo.complete,
+      playerIndex:  g.beloteInfo.playerIndex,
+      declared:     g.beloteInfo.declared,
+      rebeloteDone: g.beloteInfo.rebeloteDone,
+      complete:     g.beloteInfo.complete,
       team: g.beloteInfo.playerIndex !== null ? g.beloteInfo.playerIndex % 2 : null,
     },
     roundScores: g.roundScores,
@@ -217,7 +219,7 @@ function _startRound(room, dealer) {
     currentTrick: [],
     currentPlayer: null,
     trumpSuit: null,
-    beloteInfo: { playerIndex: null, complete: false },
+    beloteInfo: { playerIndex: null, declared: null, rebeloteDone: false, complete: false },
     roundScores: [0, 0],
     contractMade: null,
     trickPoints: null,
@@ -362,7 +364,7 @@ function _startPlaying(room) {
 
 // ─── Card play ─────────────────────────────────────────────────────────────
 
-function playCard(code, userId, card) {
+function playCard(code, userId, card, declareBelote) {
   const room = rooms.get(code);
   if (!room || !room.game || room.game.phase !== 'PLAYING') return { error: 'Not in playing phase' };
 
@@ -378,6 +380,30 @@ function playCard(code, userId, card) {
   if (!valid.some(c => c.suit === card.suit && c.value === card.value)) {
     return { error: 'That card cannot be played right now' };
   }
+
+  // ── Belote / Rebelote declaration ─────────────────────────────────────────
+  const { trumpSuit, beloteInfo } = room.game;
+  const isTrumpRoyale = trumpSuit && card.suit === trumpSuit &&
+                        (card.value === 'K' || card.value === 'Q');
+  if (isTrumpRoyale) {
+    if (beloteInfo.declared === null) {
+      // Check if player still holds the partner card — first of the pair
+      const otherValue = card.value === 'K' ? 'Q' : 'K';
+      const hasOther = hand.some(c => c.suit === trumpSuit && c.value === otherValue);
+      if (hasOther) {
+        if (typeof declareBelote !== 'boolean') return { error: 'beloteDecisionRequired' };
+        beloteInfo.declared = declareBelote ? 'yes' : 'no';
+        if (declareBelote) beloteInfo.playerIndex = position;
+      }
+    } else if (beloteInfo.declared === 'yes' &&
+               beloteInfo.playerIndex === position &&
+               !beloteInfo.rebeloteDone) {
+      // Second of the pair → Rebelote!
+      beloteInfo.rebeloteDone = true;
+      beloteInfo.complete = true;
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Remove from hand and add to trick
   hand.splice(cardIdx, 1);
@@ -405,29 +431,11 @@ function _completeTrick(room) {
   }
 }
 
-// Auto-detect Belote/Rebelote: player who played both K and Q of trump in the same hand.
-function _detectBelote(tricks, trumpSuit) {
-  const trumpPlayed = {}; // playerIndex -> Set of trump values played
-  for (const trick of tricks) {
-    for (const { card, playerIndex } of trick.cards) {
-      if (card.suit === trumpSuit) {
-        if (!trumpPlayed[playerIndex]) trumpPlayed[playerIndex] = new Set();
-        trumpPlayed[playerIndex].add(card.value);
-      }
-    }
-  }
-  for (const [idx, values] of Object.entries(trumpPlayed)) {
-    if (values.has('K') && values.has('Q')) return parseInt(idx, 10);
-  }
-  return null;
-}
-
 function _finishRound(room) {
   const g = room.game;
 
-  const belotePlayerIndex = _detectBelote(g.tricks, g.trumpSuit);
-  g.beloteInfo = { playerIndex: belotePlayerIndex, complete: belotePlayerIndex !== null };
-  const beloteTeam = belotePlayerIndex !== null ? belotePlayerIndex % 2 : null;
+  // beloteInfo is fully populated during play — just read it
+  const beloteTeam = g.beloteInfo.rebeloteDone ? g.beloteInfo.playerIndex % 2 : null;
 
   const { scores, contractMade, trickPoints } = calculateRoundScore({
     tricks: g.tricks,
