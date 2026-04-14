@@ -44,9 +44,10 @@ function publicRoom(room) {
     paused: room.paused || false,
     pendingJoins: (room.pendingJoins || []).map(({ userId, username }) => ({ userId, username })),
     nextRoundReady: room.nextRoundReady || [],
-    shuffleDealer:        room.shuffleDealer ?? null,
-    cutPlayer:            room.cutPlayer ?? null,
-    lastShuffleCutAction: room.lastShuffleCutAction ?? null,
+    shuffleDealer:           room.shuffleDealer ?? null,
+    cutPlayer:               room.cutPlayer ?? null,
+    lastShuffleCutAction:    room.lastShuffleCutAction ?? null,
+    lastShuffleCutActorPos:  room.lastShuffleCutActorPos ?? null,
   };
 }
 
@@ -474,7 +475,8 @@ function shuffleDeck(code, userId) {
   const position = getPosition(room, userId);
   if (position !== room.shuffleDealer) return { error: 'Not your turn to shuffle' };
   room.deck = shuffleArr(room.deck);
-  room.lastShuffleCutAction = 'shuffled';
+  room.lastShuffleCutAction   = 'shuffled';
+  room.lastShuffleCutActorPos = position;
   _beginCut(room);
   return { room };
 }
@@ -485,7 +487,8 @@ function skipShuffle(code, userId) {
   if (room.phase !== 'SHUFFLE') return { error: 'Not in shuffle phase' };
   const position = getPosition(room, userId);
   if (position !== room.shuffleDealer) return { error: 'Not your turn to shuffle' };
-  room.lastShuffleCutAction = 'notShuffled';
+  room.lastShuffleCutAction   = 'notShuffled';
+  room.lastShuffleCutActorPos = position;
   _beginCut(room);
   return { room };
 }
@@ -498,7 +501,8 @@ function doCutDeck(code, userId, n) {
   if (position !== room.cutPlayer) return { error: 'Not your turn to cut' };
   if (typeof n !== 'number' || n < 1 || n > 31) return { error: 'Invalid cut value' };
   room.deck = cutDeckArr(room.deck, n);
-  room.lastShuffleCutAction = 'cut';
+  room.lastShuffleCutAction   = 'cut';
+  room.lastShuffleCutActorPos = position;
   _startRound(room, room.nextDealer);
   return { room };
 }
@@ -509,7 +513,8 @@ function skipCut(code, userId) {
   if (room.phase !== 'CUT') return { error: 'Not in cut phase' };
   const position = getPosition(room, userId);
   if (position !== room.cutPlayer) return { error: 'Not your turn to cut' };
-  room.lastShuffleCutAction = 'notCut';
+  room.lastShuffleCutAction   = 'notCut';
+  room.lastShuffleCutActorPos = position;
   _startRound(room, room.nextDealer);
   return { room };
 }

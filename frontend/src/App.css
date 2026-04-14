@@ -1661,16 +1661,16 @@ a      { color: var(--accent); }
 
 /* Shuffle / Cut action feedback banner (shown to all players after action) */
 .scc-announce {
-  font-size: 0.88em;
-  font-weight: 700;
-  color: rgba(255,255,255,0.92);
-  background: rgba(0,0,0,0.45);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 20px;
-  padding: 5px 16px;
+  font-size: 1.25em;
+  font-weight: 800;
+  border-radius: 12px;
+  padding: 10px 22px;
   text-align: center;
-  animation: belote-pop 0.2s ease-out;
+  max-width: 240px;
+  animation: belote-pop 0.22s ease-out;
 }
+.scc-yes { background: rgba(30,100,50,0.85);  color: #6ee89a; border: 1px solid #3dbb6a; }
+.scc-no  { background: rgba(100,26,26,0.85);  color: #ff9090; border: 1px solid #c04040; }
 
 /* Centering wrapper for shuffle / cut controls inside board-hand */
 .deal-controls {

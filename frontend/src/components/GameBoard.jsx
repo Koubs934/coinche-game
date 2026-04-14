@@ -375,7 +375,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const [beloteDecisionCard, setBeloteDecisionCard] = useState(null);
   // beloteAnnounce: 'belote' | 'rebelote' | null — table message after declaration
   const [beloteAnnounce, setBeloteAnnounce] = useState(null);
-  // shuffleCutMsg: translated string shown on table after a shuffle/cut action; null when hidden
+  // shuffleCutMsg: { text, positive } shown on table after a shuffle/cut action; null when hidden
   const [shuffleCutMsg, setShuffleCutMsg] = useState(null);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
@@ -394,7 +394,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const prevSCActionRef     = useRef(room.lastShuffleCutAction ?? null); // for shuffle/cut feedback
 
   // ── Derived ────────────────────────────────────────────────────────────────
-  const { players, scores, targetScore, paused, shuffleDealer, cutPlayer, lastShuffleCutAction } = room;
+  const { players, scores, targetScore, paused, shuffleDealer, cutPlayer, lastShuffleCutAction, lastShuffleCutActorPos } = room;
   const {
     phase, currentTrick, currentPlayer, biddingTurn,
     trumpSuit, currentBid, hands, handCounts, beloteInfo, tricks,
@@ -557,15 +557,19 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   // ── Effect: show shuffle/cut action feedback to all players ──────────────
   useEffect(() => {
     if (lastShuffleCutAction && lastShuffleCutAction !== prevSCActionRef.current) {
-      const msgKey = {
-        shuffled:    'deckShuffled',
-        notShuffled: 'deckNotShuffled',
-        cut:         'deckCut',
-        notCut:      'deckNotCut',
-      }[lastShuffleCutAction];
-      if (msgKey) {
-        setShuffleCutMsg(t[msgKey]);
-        timerRef.current.push(setTimeout(() => setShuffleCutMsg(null), 2500));
+      const META = {
+        shuffled:    { key: 'deckShuffled',    positive: true  },
+        notShuffled: { key: 'deckNotShuffled', positive: false },
+        cut:         { key: 'deckCut',         positive: true  },
+        notCut:      { key: 'deckNotCut',      positive: false },
+      };
+      const meta = META[lastShuffleCutAction];
+      if (meta) {
+        const actorName = lastShuffleCutActorPos != null
+          ? (players.find(p => p.position === lastShuffleCutActorPos)?.username || '?')
+          : '?';
+        setShuffleCutMsg({ text: t[meta.key](actorName), positive: meta.positive });
+        timerRef.current.push(setTimeout(() => setShuffleCutMsg(null), 3500));
       }
     }
     prevSCActionRef.current = lastShuffleCutAction ?? null;
@@ -915,16 +919,15 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
 
           {/* Shuffle / Cut action feedback — shown to all players */}
           {shuffleCutMsg && (
-            <div className="scc-announce">{shuffleCutMsg}</div>
+            <div className={`scc-announce${shuffleCutMsg.positive ? ' scc-yes' : ' scc-no'}`}>
+              {shuffleCutMsg.text}
+            </div>
           )}
 
-          {/* Shuffle / Cut status — shown on the table when preparing next deal */}
-          {isShuffleCut && (
+          {/* Shuffle / Cut status — only shown to the active player */}
+          {(isMyShuffleTurn || isMyCutTurn) && (
             <div className="scc-status">
-              {isMyShuffleTurn ? t.yourTurnShuffle
-                : isMyCutTurn  ? t.yourTurnCut
-                : room.phase === 'SHUFFLE' ? t.waitingShuffle(scActorName)
-                : t.waitingCut(scActorName)}
+              {isMyShuffleTurn ? t.yourTurnShuffle : t.yourTurnCut}
             </div>
           )}
         </div>
