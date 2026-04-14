@@ -18,7 +18,7 @@ function TopArea({
   biddingHistory, currentBid,
   tricks, trumpSuit,
   players, myPosition,
-  replayStep, onStartReplay, onNextTrick, onEndReplay,
+  replayStep, onStartReplay, onNextTrick, onPrevTrick, onEndReplay,
   t,
 }) {
   const isReplaying = replayStep >= 0;
@@ -79,7 +79,7 @@ function TopArea({
     const actions = [...perPlayer[pos]].reverse();
     return (
       <>
-        {isFirst && <span className="ar-first-badge">{t.firstToSpeak}</span>}
+        {isFirst && <span className="ar-first-badge">{t.trickLead}</span>}
         {actions.length > 0 && (
           <div className="ar-stack">
             {actions.map((entry, i) => {
@@ -118,27 +118,18 @@ function TopArea({
     );
   }
 
-  // ── Header button ───────────────────────────────────────────────────────────
-  const btnLabel  = !isReplaying  ? t.replayBtn
-                  : isLastTrick   ? t.replayEnd
-                  :                 `${t.replayNext} ▶`;
-  const btnAction = !isReplaying  ? onStartReplay
-                  : isLastTrick   ? onEndReplay
-                  :                 onNextTrick;
-  const btnCls    = (!isReplaying || isLastTrick) ? 'ta-btn ta-btn-sec' : 'ta-btn ta-btn-pri';
-
   return (
     <div className="auction-recap">
 
-      {/* Mode label + action button */}
+      {/* Mode label + replay trigger (auction mode only) */}
       <div className="ta-header">
         <span className="ta-mode-label">
           {isReplaying
             ? `${t.trick} ${replayStep + 1} / ${tricks.length}`
             : t.biddingPhase}
         </span>
-        {hasTricks && (
-          <button className={btnCls} onClick={btnAction}>{btnLabel}</button>
+        {!isReplaying && hasTricks && (
+          <button className="ta-btn ta-btn-sec" onClick={onStartReplay}>{t.replayBtn}</button>
         )}
       </div>
 
@@ -166,6 +157,20 @@ function TopArea({
         <Seat pos={rightPos} />
       </div>
       <div className="ar-bot-row"><Seat pos={myPosition} isMe /></div>
+
+      {isReplaying && (
+        <div className="ta-nav">
+          <button className="ta-btn ta-btn-sec" onClick={onPrevTrick} disabled={replayStep === 0}>
+            ◀ {t.replayPrev}
+          </button>
+          <button
+            className={isLastTrick ? 'ta-btn ta-btn-sec' : 'ta-btn ta-btn-pri'}
+            onClick={isLastTrick ? onEndReplay : onNextTrick}
+          >
+            {isLastTrick ? t.replayEnd : `${t.replayNext} ▶`}
+          </button>
+        </div>
+      )}
 
     </div>
   );
@@ -221,6 +226,7 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
           myPosition={myPosition}
           replayStep={replayStep}
           onStartReplay={() => setReplayStep(0)}
+          onPrevTrick={() => setReplayStep(s => s - 1)}
           onNextTrick={() => setReplayStep(s => s + 1)}
           onEndReplay={() => setReplayStep(-1)}
           t={t}

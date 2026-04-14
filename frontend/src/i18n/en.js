@@ -108,6 +108,7 @@ export default {
   surcoinchBonus: 'Surcoinche',
   chutePenalty: 'Penalty base',
   replayBtn: 'Replay',
+  replayPrev: 'Previous',
   replayNext: 'Next',
   replayEnd: 'Back to summary',
   trickLead: 'Lead',
