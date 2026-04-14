@@ -591,6 +591,19 @@ a      { color: var(--accent); }
 }
 .scb-value.red { color: var(--red); }
 
+/* ─── Seat coinche/surcoinche badge — shown above the player who called it ── */
+.seat-coinche-badge {
+  border-radius: var(--radius);
+  padding: 2px 8px;
+  pointer-events: none;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.scbt-coinche    { background: rgba(240,160,48,0.15); border: 1.5px solid #f0a030; color: #f0a030; }
+.scbt-surcoinche { background: rgba(204,102,255,0.15); border: 1.5px solid #cc66ff; color: #cc66ff; }
+
 /* ─── Bid center (board-center during BIDDING) ───────────────────────────── */
 .bid-center {
   display: flex;

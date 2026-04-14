@@ -175,10 +175,18 @@ function ContractBadge({ contract, t }) {
   const isRed = contract.suit === 'H' || contract.suit === 'D';
   const value = contract.value === 'capot' ? t.capot : contract.value;
   const suit  = t.suitSymbol?.[contract.suit] ?? SUIT_SYM[contract.suit];
-  const mod   = contract.surcoinched ? ` — ${t.surcoinched}` : contract.coinched ? ` — ${t.coinched}` : '';
   return (
     <div className="seat-contract-badge">
-      <span className={`scb-value${isRed ? ' red' : ''}`}>{value} {suit}{mod}</span>
+      <span className={`scb-value${isRed ? ' red' : ''}`}>{value} {suit}</span>
+    </div>
+  );
+}
+
+// Small badge shown above the player who called Coinche or Surcoinche
+function CoincheBadge({ type, t }) {
+  return (
+    <div className={`seat-coinche-badge scbt-${type}`}>
+      <span>{type === 'surcoinche' ? t.surcoinched : t.coinched}</span>
     </div>
   );
 }
@@ -269,6 +277,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   // After bidding, currentBid is the winning contract (server field: currentBid.playerIndex = winner).
   const contractData = !isBidding && currentBid != null ? currentBid : null;
   const contractBy   = contractData?.playerIndex ?? null;
+
+  // Derive who actually called Coinche / Surcoinche from the bidding history
+  const biddingHistory = game.biddingHistory || [];
+  const coincheBy    = contractData ? ([...biddingHistory].reverse().find(e => e.type === 'coinche')?.position   ?? null) : null;
+  const surcoincheBy = contractData ? ([...biddingHistory].reverse().find(e => e.type === 'surcoinche')?.position ?? null) : null;
 
   function seatData(offset) {
     const pos    = (myPosition + offset + 4) % 4;
@@ -466,6 +479,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
         {contractData && contractBy === (myPosition + 2) % 4 && (
           <ContractBadge contract={contractData} t={t} />
         )}
+        {surcoincheBy === (myPosition + 2) % 4 && <CoincheBadge type="surcoinche" t={t} />}
+        {coincheBy    === (myPosition + 2) % 4 && surcoincheBy !== (myPosition + 2) % 4 && <CoincheBadge type="coinche" t={t} />}
         <PlayerSeat {...seatData(2)} direction="top" isCreator={isCreator} onRemove={removePlayer} />
       </div>
 
@@ -476,6 +491,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           {contractData && contractBy === (myPosition + 3) % 4 && (
             <ContractBadge contract={contractData} t={t} />
           )}
+          {surcoincheBy === (myPosition + 3) % 4 && <CoincheBadge type="surcoinche" t={t} />}
+          {coincheBy    === (myPosition + 3) % 4 && surcoincheBy !== (myPosition + 3) % 4 && <CoincheBadge type="coinche" t={t} />}
           <PlayerSeat {...seatData(3)} direction="left" isCreator={isCreator} onRemove={removePlayer} />
         </div>
 
@@ -577,6 +594,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           {contractData && contractBy === (myPosition + 1) % 4 && (
             <ContractBadge contract={contractData} t={t} />
           )}
+          {surcoincheBy === (myPosition + 1) % 4 && <CoincheBadge type="surcoinche" t={t} />}
+          {coincheBy    === (myPosition + 1) % 4 && surcoincheBy !== (myPosition + 1) % 4 && <CoincheBadge type="coinche" t={t} />}
           <PlayerSeat {...seatData(1)} direction="right" isCreator={isCreator} onRemove={removePlayer} />
         </div>
       </div>
@@ -593,6 +612,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
         {contractData && contractBy === myPosition && (
           <ContractBadge contract={contractData} t={t} />
         )}
+        {surcoincheBy === myPosition && <CoincheBadge type="surcoinche" t={t} />}
+        {coincheBy    === myPosition && surcoincheBy !== myPosition && <CoincheBadge type="coinche" t={t} />}
 
         {/* Self player bar: avatar + name + bid status */}
         <div className="self-player-bar">
