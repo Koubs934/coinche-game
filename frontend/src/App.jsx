@@ -6,6 +6,7 @@ import Auth from './components/Auth';
 import Header from './components/Header';
 import Lobby from './components/Lobby';
 import GameBoard from './components/GameBoard';
+import ShuffleCutPanel from './components/ShuffleCutPanel';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
@@ -113,7 +114,7 @@ export default function App() {
     );
   }
 
-  const inGame = roomState && (roomState.phase === 'PLAYING' || roomState.phase === 'ROUND_OVER' || roomState.phase === 'GAME_OVER');
+  const inGame = roomState && ['PLAYING', 'ROUND_OVER', 'GAME_OVER', 'SHUFFLE', 'CUT'].includes(roomState.phase);
 
   return (
     <div className="app">
@@ -131,7 +132,14 @@ export default function App() {
         <div className="toast-info">{t.reconnecting}</div>
       )}
 
-      {inGame && gameState ? (
+      {inGame && (roomState.phase === 'SHUFFLE' || roomState.phase === 'CUT') ? (
+        <ShuffleCutPanel
+          socket={socketRef.current}
+          roomCode={roomState.code}
+          room={roomState}
+          myPosition={myPosition}
+        />
+      ) : inGame && gameState ? (
         <GameBoard
           socket={socketRef.current}
           roomCode={roomState.code}

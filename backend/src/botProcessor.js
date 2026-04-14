@@ -96,4 +96,27 @@ function scheduleBotConfirms(code, broadcastFn) {
   }, BOT_CONFIRM_DELAY_MS);
 }
 
-module.exports = { scheduleBotTurns, isBotTurn, scheduleBotConfirms };
+/**
+ * After a delay, bot dealer shuffles and/or bot left-of-dealer cuts.
+ * Dealer bots always shuffle; cut bots pick a random value 1–31.
+ */
+function scheduleBotShuffleCut(code, broadcastFn) {
+  setTimeout(() => {
+    const room = rm.getRoom(code);
+    if (!room || room.paused) return;
+    if (room.phase === 'SHUFFLE') {
+      const bot = room.players.find(p => p.position === room.shuffleDealer && p.isBot);
+      if (!bot) return;
+      const result = rm.shuffleDeck(code, bot.userId);
+      if (!result.error) broadcastFn(result.room);
+    } else if (room.phase === 'CUT') {
+      const bot = room.players.find(p => p.position === room.cutPlayer && p.isBot);
+      if (!bot) return;
+      const n = Math.floor(Math.random() * 31) + 1;
+      const result = rm.doCutDeck(code, bot.userId, n);
+      if (!result.error) broadcastFn(result.room);
+    }
+  }, 1500);
+}
+
+module.exports = { scheduleBotTurns, isBotTurn, scheduleBotConfirms, scheduleBotShuffleCut };

@@ -1548,3 +1548,127 @@ a      { color: var(--accent); }
   .btn-sort            { padding: 2px 8px; min-height: 24px; }
   .last-trick-widget   { padding: 3px 8px; font-size: 0.7em; }
 }
+
+/* ─── Shuffle / Cut panel ───────────────────────────────────────────────── */
+.shuffle-cut-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 32px 20px;
+  flex: 1;
+}
+
+.scp-phase-label {
+  font-size: 1.1em;
+  font-weight: 600;
+  text-align: center;
+}
+
+.scp-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.scp-btn {
+  min-width: 120px;
+  padding: 12px 20px;
+  font-size: 1em;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  border: none;
+}
+
+.scp-btn-pri { background: var(--accent); color: #000; }
+.scp-btn-sec {
+  background: rgba(255,255,255,0.1);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.scp-cut-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.scp-cut-label {
+  font-size: 0.95em;
+  color: var(--muted);
+}
+
+.scp-cut-selected {
+  font-size: 1.4em;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.scp-wait-indicator .scp-spinner-icon {
+  font-size: 2em;
+  color: var(--muted);
+}
+
+.cut-drum-wrap {
+  position: relative;
+  width: 80px;
+  height: 156px;
+  background: rgba(0,0,0,0.4);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.cut-drum {
+  height: 100%;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+}
+
+.cut-drum::-webkit-scrollbar { display: none; }
+
+.cut-drum-pad { height: 52px; }
+
+.cut-drum-item {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3em;
+  font-weight: 600;
+  scroll-snap-align: center;
+  color: var(--muted);
+}
+
+.cut-drum-center-bar {
+  position: absolute;
+  top: 52px;
+  left: 0;
+  right: 0;
+  height: 52px;
+  border-top: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  background: rgba(240,165,0,0.08);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.cut-drum-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 52px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.cut-drum-overlay.top {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(20,20,30,0.9), transparent);
+}
+
+.cut-drum-overlay.bot {
+  bottom: 0;
+  background: linear-gradient(to top, rgba(20,20,30,0.9), transparent);
+}

@@ -121,4 +121,15 @@ export default {
   lastTrick: 'Last trick',
   wonTrick: 'won the trick',
   liveRound: 'Round',
+
+  // Shuffle / Cut
+  shuffle: 'Shuffle',
+  noShuffle: "Don't shuffle",
+  cut: 'Cut',
+  noCut: "Don't cut",
+  yourTurnShuffle: 'Your turn to shuffle',
+  yourTurnCut: 'Your turn to cut',
+  waitingShuffle: (name) => `Waiting for ${name} to shuffle...`,
+  waitingCut: (name) => `Waiting for ${name} to cut...`,
+  pickCutValue: 'Choose cut position',
 };

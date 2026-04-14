@@ -121,4 +121,15 @@ export default {
   lastTrick: 'Dernier pli',
   wonTrick: 'a remporté le pli',
   liveRound: 'Pli en cours',
+
+  // Mélange / Coupe
+  shuffle: 'Mélanger',
+  noShuffle: 'Ne pas mélanger',
+  cut: 'Couper',
+  noCut: 'Ne pas couper',
+  yourTurnShuffle: 'À vous de mélanger',
+  yourTurnCut: 'À vous de couper',
+  waitingShuffle: (name) => `${name} choisit de mélanger...`,
+  waitingCut: (name) => `${name} choisit de couper...`,
+  pickCutValue: 'Choisissez la coupe',
 };

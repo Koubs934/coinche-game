@@ -4,7 +4,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 
 const rm = require('./roomManager');
-const { scheduleBotTurns, scheduleBotConfirms } = require('./botProcessor');
+const { scheduleBotTurns, scheduleBotConfirms, scheduleBotShuffleCut } = require('./botProcessor');
 
 const app = express();
 const httpServer = createServer(app);
@@ -62,6 +62,8 @@ function broadcastGame(room) {
   broadcast(room);
   if (room.phase === 'ROUND_OVER') {
     scheduleBotConfirms(room.code, broadcastGame);
+  } else if (room.phase === 'SHUFFLE' || room.phase === 'CUT') {
+    scheduleBotShuffleCut(room.code, broadcastGame);
   } else {
     scheduleBotTurns(room.code, broadcastGame);
   }
@@ -213,6 +215,31 @@ io.on('connection', socket => {
   // ── Play card ────────────────────────────────────────────────────────────
   socket.on('playCard', ({ code, card }) => {
     const result = rm.playCard(code, userId, card);
+    if (result.error) return emitError(socket, result.error);
+    broadcastGame(result.room);
+  });
+
+  // ── Shuffle / Cut ────────────────────────────────────────────────────────
+  socket.on('shuffleDeck', ({ code }) => {
+    const result = rm.shuffleDeck(code, userId);
+    if (result.error) return emitError(socket, result.error);
+    broadcastGame(result.room);
+  });
+
+  socket.on('skipShuffle', ({ code }) => {
+    const result = rm.skipShuffle(code, userId);
+    if (result.error) return emitError(socket, result.error);
+    broadcastGame(result.room);
+  });
+
+  socket.on('cutDeck', ({ code, n }) => {
+    const result = rm.doCutDeck(code, userId, n);
+    if (result.error) return emitError(socket, result.error);
+    broadcastGame(result.room);
+  });
+
+  socket.on('skipCut', ({ code }) => {
+    const result = rm.skipCut(code, userId);
     if (result.error) return emitError(socket, result.error);
     broadcastGame(result.room);
   });

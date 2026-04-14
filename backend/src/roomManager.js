@@ -1,4 +1,4 @@
-const { deal } = require('./game/deck');
+const { createDeck, shuffle: shuffleArr, buildDeckFromTricks, cutDeck: cutDeckArr, dealFrom } = require('./game/deck');
 const { getTrickWinner, getValidCards } = require('./game/rules');
 const { calculateRoundScore } = require('./game/scoring');
 
@@ -44,6 +44,8 @@ function publicRoom(room) {
     paused: room.paused || false,
     pendingJoins: (room.pendingJoins || []).map(({ userId, username }) => ({ userId, username })),
     nextRoundReady: room.nextRoundReady || [],
+    shuffleDealer: room.shuffleDealer ?? null,
+    cutPlayer: room.cutPlayer ?? null,
   };
 }
 
@@ -178,14 +180,29 @@ function startGame(code, creatorId) {
   t1[1].position = 3;
 
   room.scores = [0, 0];
-  _startRound(room, 0);
+  room.deck = createDeck();
+  _beginShuffle(room, 0);
   return { room };
 }
 
 // ─── Round management ──────────────────────────────────────────────────────
 
+function _beginShuffle(room, dealer) {
+  room.nextDealer    = dealer;
+  room.shuffleDealer = dealer;
+  room.cutPlayer     = null;
+  room.phase         = 'SHUFFLE';
+  room.nextRoundReady = [];
+}
+
+function _beginCut(room) {
+  room.cutPlayer = (room.nextDealer + 3) % 4; // player to the left of dealer
+  room.phase     = 'CUT';
+}
+
 function _startRound(room, dealer) {
-  const hands = deal();
+  const firstPlayer = (dealer + 1) % 4;
+  const hands = dealFrom(room.deck, firstPlayer);
   room.phase = 'PLAYING';
   room.game = {
     dealer,
@@ -224,7 +241,7 @@ function confirmNextRound(code, userId) {
 
   if (allConfirmed) {
     const nextDealer = (room.game.dealer + 1) % 4;
-    _startRound(room, nextDealer);
+    _beginShuffle(room, nextDealer);
     return { room, started: true };
   }
 
@@ -283,8 +300,8 @@ function passBid(code, userId) {
   if (room.game.consecutivePasses >= 3 && room.game.currentBid) {
     _startPlaying(room);
   } else if (room.game.consecutivePasses >= 4 && !room.game.currentBid) {
-    // All passed — redeal, rotate dealer
-    _startRound(room, (room.game.dealer + 1) % 4);
+    // All passed — go through shuffle/cut with new dealer
+    _beginShuffle(room, (room.game.dealer + 1) % 4);
   }
 
   return { room };
@@ -429,9 +446,59 @@ function _finishRound(room) {
   room.scores[0] += scores[0];
   room.scores[1] += scores[1];
 
+  // Rebuild deck from tricks for the next round
+  const contractTeam = g.currentBid.team;
+  const winningTeam = contractMade ? contractTeam : 1 - contractTeam;
+  room.deck = buildDeckFromTricks(g.tricks, winningTeam);
+
   if (room.scores[0] >= room.targetScore || room.scores[1] >= room.targetScore) {
     room.phase = 'GAME_OVER';
   }
+}
+
+// ─── Shuffle / Cut ────────────────────────────────────────────────────────
+
+function shuffleDeck(code, userId) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+  if (room.phase !== 'SHUFFLE') return { error: 'Not in shuffle phase' };
+  const position = getPosition(room, userId);
+  if (position !== room.shuffleDealer) return { error: 'Not your turn to shuffle' };
+  room.deck = shuffleArr(room.deck);
+  _beginCut(room);
+  return { room };
+}
+
+function skipShuffle(code, userId) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+  if (room.phase !== 'SHUFFLE') return { error: 'Not in shuffle phase' };
+  const position = getPosition(room, userId);
+  if (position !== room.shuffleDealer) return { error: 'Not your turn to shuffle' };
+  _beginCut(room);
+  return { room };
+}
+
+function doCutDeck(code, userId, n) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+  if (room.phase !== 'CUT') return { error: 'Not in cut phase' };
+  const position = getPosition(room, userId);
+  if (position !== room.cutPlayer) return { error: 'Not your turn to cut' };
+  if (typeof n !== 'number' || n < 1 || n > 31) return { error: 'Invalid cut value' };
+  room.deck = cutDeckArr(room.deck, n);
+  _startRound(room, room.nextDealer);
+  return { room };
+}
+
+function skipCut(code, userId) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+  if (room.phase !== 'CUT') return { error: 'Not in cut phase' };
+  const position = getPosition(room, userId);
+  if (position !== room.cutPlayer) return { error: 'Not your turn to cut' };
+  _startRound(room, room.nextDealer);
+  return { room };
 }
 
 // ─── Leave room ────────────────────────────────────────────────────────────
@@ -496,7 +563,7 @@ function creatorJoin(code, { userId, username, socketId }) {
 function requestJoin(code, { userId, username, socketId }) {
   const room = rooms.get(code);
   if (!room) return { error: 'Room not found' };
-  if (!['PLAYING', 'ROUND_OVER', 'GAME_OVER'].includes(room.phase)) {
+  if (!['PLAYING', 'ROUND_OVER', 'GAME_OVER', 'SHUFFLE', 'CUT'].includes(room.phase)) {
     return { error: 'Use joinRoom for lobby rooms' };
   }
   if (room.players.find(p => p.userId === userId)) return { error: 'Already in this game' };
@@ -564,7 +631,7 @@ function removePlayer(code, creatorId, targetUserId) {
   const removedSocketId = room.players[playerIdx].socketId;
   room.players.splice(playerIdx, 1);
   // Only pause for in-game phases; lobby needs no pause
-  if (['PLAYING', 'ROUND_OVER', 'GAME_OVER'].includes(room.phase)) room.paused = true;
+  if (['PLAYING', 'ROUND_OVER', 'GAME_OVER', 'SHUFFLE', 'CUT'].includes(room.phase)) room.paused = true;
 
   return { room, removedSocketId };
 }
@@ -586,7 +653,7 @@ function handleDisconnect(socketId) {
     const player = room.players.find(p => p.socketId === socketId);
     if (player) {
       player.connected = false;
-      if (['PLAYING', 'ROUND_OVER'].includes(room.phase)) {
+      if (['PLAYING', 'ROUND_OVER', 'SHUFFLE', 'CUT'].includes(room.phase)) {
         room.paused = true;
       }
       return { code: room.code, room, player };
@@ -650,6 +717,10 @@ module.exports = {
   surcoinche,
   playCard,
   confirmNextRound,
+  shuffleDeck,
+  skipShuffle,
+  doCutDeck,
+  skipCut,
   leaveRoom,
   creatorJoin,
   requestJoin,
