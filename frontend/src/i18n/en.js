@@ -133,4 +133,8 @@ export default {
   waitingShuffle: (name) => `Waiting for ${name} to shuffle...`,
   waitingCut: (name) => `Waiting for ${name} to cut...`,
   pickCutValue: 'Choose cut position',
+  deckShuffled:    'Deck was shuffled',
+  deckNotShuffled: 'Deck was not shuffled',
+  deckCut:         'Deck was cut',
+  deckNotCut:      'Deck was not cut',
 };

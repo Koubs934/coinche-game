@@ -133,4 +133,8 @@ export default {
   waitingShuffle: (name) => `${name} choisit de mélanger...`,
   waitingCut: (name) => `${name} choisit de couper...`,
   pickCutValue: 'Choisissez la coupe',
+  deckShuffled:    'Le paquet a été mélangé',
+  deckNotShuffled: 'Le paquet n\'a pas été mélangé',
+  deckCut:         'Le paquet a été coupé',
+  deckNotCut:      'Le paquet n\'a pas été coupé',
 };

@@ -1659,6 +1659,19 @@ a      { color: var(--accent); }
   max-width: 200px;
 }
 
+/* Shuffle / Cut action feedback banner (shown to all players after action) */
+.scc-announce {
+  font-size: 0.88em;
+  font-weight: 700;
+  color: rgba(255,255,255,0.92);
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 20px;
+  padding: 5px 16px;
+  text-align: center;
+  animation: belote-pop 0.2s ease-out;
+}
+
 /* Centering wrapper for shuffle / cut controls inside board-hand */
 .deal-controls {
   display: flex;

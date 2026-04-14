@@ -375,6 +375,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const [beloteDecisionCard, setBeloteDecisionCard] = useState(null);
   // beloteAnnounce: 'belote' | 'rebelote' | null — table message after declaration
   const [beloteAnnounce, setBeloteAnnounce] = useState(null);
+  // shuffleCutMsg: translated string shown on table after a shuffle/cut action; null when hidden
+  const [shuffleCutMsg, setShuffleCutMsg] = useState(null);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const prevTricksLenRef = useRef(0);
@@ -386,12 +388,13 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const startXYRef       = useRef(null);   // pointer position at pointerdown
   const wasDragRef       = useRef(false);  // suppress click after drag completes
   const handElRef        = useRef(null);   // ref on .my-hand div
-  const prevDealerMRef   = useRef(game.dealer); // for detecting new round
-  const prevRoomPhaseRef = useRef(room.phase);  // for CUT→PLAYING deal animation
-  const prevBeloteRef    = useRef({ declared: game.beloteInfo?.declared ?? null, rebeloteDone: game.beloteInfo?.rebeloteDone ?? false });
+  const prevDealerMRef      = useRef(game.dealer); // for detecting new round
+  const prevRoomPhaseRef    = useRef(room.phase);  // for CUT→PLAYING deal animation
+  const prevBeloteRef       = useRef({ declared: game.beloteInfo?.declared ?? null, rebeloteDone: game.beloteInfo?.rebeloteDone ?? false });
+  const prevSCActionRef     = useRef(room.lastShuffleCutAction ?? null); // for shuffle/cut feedback
 
   // ── Derived ────────────────────────────────────────────────────────────────
-  const { players, scores, targetScore, paused, shuffleDealer, cutPlayer } = room;
+  const { players, scores, targetScore, paused, shuffleDealer, cutPlayer, lastShuffleCutAction } = room;
   const {
     phase, currentTrick, currentPlayer, biddingTurn,
     trumpSuit, currentBid, hands, handCounts, beloteInfo, tricks,
@@ -550,6 +553,23 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
     }
     prevBeloteRef.current = { declared, rebeloteDone };
   }, [beloteInfo?.declared, beloteInfo?.rebeloteDone]);
+
+  // ── Effect: show shuffle/cut action feedback to all players ──────────────
+  useEffect(() => {
+    if (lastShuffleCutAction && lastShuffleCutAction !== prevSCActionRef.current) {
+      const msgKey = {
+        shuffled:    'deckShuffled',
+        notShuffled: 'deckNotShuffled',
+        cut:         'deckCut',
+        notCut:      'deckNotCut',
+      }[lastShuffleCutAction];
+      if (msgKey) {
+        setShuffleCutMsg(t[msgKey]);
+        timerRef.current.push(setTimeout(() => setShuffleCutMsg(null), 2500));
+      }
+    }
+    prevSCActionRef.current = lastShuffleCutAction ?? null;
+  }, [lastShuffleCutAction]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   function playCard(card, declareBelote = false) {
@@ -891,6 +911,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
             <div className={`belote-announce ba-${beloteAnnounce}`}>
               {beloteAnnounce === 'belote' ? t.belote : t.rebelote} !
             </div>
+          )}
+
+          {/* Shuffle / Cut action feedback — shown to all players */}
+          {shuffleCutMsg && (
+            <div className="scc-announce">{shuffleCutMsg}</div>
           )}
 
           {/* Shuffle / Cut status — shown on the table when preparing next deal */}
