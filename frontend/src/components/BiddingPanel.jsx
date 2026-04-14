@@ -4,10 +4,13 @@ import { useLang } from '../context/LanguageContext';
 const BID_VALUES = [80, 90, 100, 110, 120, 130, 140, 150, 160, 'capot'];
 const SUITS = ['S', 'H', 'D', 'C'];
 
-export default function BiddingPanel({ socket, roomCode, game, myPosition, myTeam }) {
+export default function BiddingPanel({ socket, roomCode, game, myPosition, myTeam, sortMode }) {
   const { t } = useLang();
   const [selectedValue, setSelectedValue] = useState(null);
-  const [selectedSuit, setSelectedSuit] = useState('H');
+  // Default to the sort candidate suit when Trier is ON; fall back to 'H' otherwise.
+  const [selectedSuit, setSelectedSuit] = useState(
+    sortMode && sortMode !== 'manual' ? sortMode : 'H'
+  );
 
   const isMyTurn = game.biddingTurn === myPosition;
   const currentBid = game.currentBid;

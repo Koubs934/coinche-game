@@ -907,6 +907,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           <BiddingPanel
             socket={socket} roomCode={roomCode}
             game={game} myPosition={myPosition} myTeam={myTeam}
+            sortMode={sortMode}
           />
         )}
 
