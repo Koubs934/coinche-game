@@ -54,44 +54,13 @@ function computeLivePoints(tricks, trump) {
 function bestSuitForHand(hand) {
   if (!hand?.length) return 'S';
   let best = 'S', bestScore = -1, bestCount = -1;
-
-  // ── DEBUG: temporary scoring log ──────────────────────────────────────────
-  const dbg = {};
   for (const suit of ['S', 'H', 'D', 'C']) {
-    const cards = hand.filter(c => c.suit === suit);
-    dbg[suit] = {
-      cards: cards.map(c => c.value + c.suit).join(' ') || '—',
-      score: cards.reduce((s, c) => s + (TRUMP_PTS[c.value] ?? 0), 0),
-      count: cards.length,
-    };
-  }
-  // ─────────────────────────────────────────────────────────────────────────
-
-  for (const suit of ['S', 'H', 'D', 'C']) {
-    const { score, count } = dbg[suit];
+    const score = hand.reduce((s, c) => c.suit === suit ? s + (TRUMP_PTS[c.value] ?? 0) : s, 0);
+    const count = hand.filter(c => c.suit === suit).length;
     if (score > bestScore || (score === bestScore && count > bestCount)) {
       bestScore = score; bestCount = count; best = suit;
     }
   }
-
-  // ── DEBUG: log result ──────────────────────────────────────────────────────
-  const tieScores = Object.values(dbg).filter(d => d.score === bestScore);
-  const tieBoth   = tieScores.filter(d => d.count === bestCount);
-  const reason =
-    tieBoth.length   > 1 ? 'tie on score+count → canonical S→H→D→C' :
-    tieScores.length > 1 ? `tie on score (${bestScore}) → picked by count (${bestCount})` :
-                           `clear winner (score=${bestScore}, count=${bestCount})`;
-  console.log(
-    '[bestSuitForHand]',
-    `hand: ${hand.map(c => c.value + c.suit).join(' ')}`,
-    `\n  S: score=${dbg.S.score} count=${dbg.S.count} cards=[${dbg.S.cards}]`,
-    `\n  H: score=${dbg.H.score} count=${dbg.H.count} cards=[${dbg.H.cards}]`,
-    `\n  D: score=${dbg.D.score} count=${dbg.D.count} cards=[${dbg.D.cards}]`,
-    `\n  C: score=${dbg.C.score} count=${dbg.C.count} cards=[${dbg.C.cards}]`,
-    `\n  → best=${best} (${reason})`
-  );
-  // ─────────────────────────────────────────────────────────────────────────
-
   return best;
 }
 
@@ -572,6 +541,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
       ? [trumpSuit, 'manual']
       : ['S', 'H', 'D', 'C', 'manual'];
     setSortMode(prev => {
+      // When turning sort back ON from manual (no trump yet), jump to the
+      // best candidate suit rather than defaulting to the hardcoded 'S'.
+      if (prev === 'manual' && !trumpSuit) return bestSuitForHand(myHand);
       const idx = cycle.indexOf(prev);
       return cycle[idx === -1 ? 0 : (idx + 1) % cycle.length];
     });
