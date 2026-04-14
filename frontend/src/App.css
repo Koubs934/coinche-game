@@ -909,114 +909,88 @@ a      { color: var(--accent); }
 .game-over-section h3 { font-size: 1.3em; color: var(--accent); }
 .game-over-section p  { color: var(--success); font-size: 1.05em; margin-top: 4px; }
 
-/* ─── Trick replay overlay ───────────────────────────────────────────────── */
-.replay-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.72);
-  z-index: 350;
+/* ─── Top area: header + inline replay ──────────────────────────────────── */
+
+/* Header row sitting above the seat grid */
+.ta-header {
   display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.replay-panel {
-  background: var(--ui-card);
-  border-radius: 14px;
-  padding: 16px 14px 14px;
-  width: min(94vw, 420px);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-}
-.replay-header {
-  display: flex;
-  align-items: center;
   justify-content: space-between;
-}
-.replay-title { font-weight: bold; font-size: 1em; }
-
-/* Table layout for the 4 cards */
-.replay-table {
-  display: grid;
-  grid-template-areas:
-    ". top ."
-    "left . right"
-    ". bottom .";
-  grid-template-columns: 1fr auto 1fr;
-  grid-template-rows: auto auto auto;
-  gap: 6px;
-  place-items: center;
+  align-items: center;
   width: 100%;
+  padding: 0 2px 4px;
 }
-.replay-slot-top    { grid-area: top; }
-.replay-slot-left   { grid-area: left; justify-self: end; }
-.replay-slot-right  { grid-area: right; justify-self: start; }
-.replay-slot-bottom { grid-area: bottom; }
-.replay-slot-empty  { width: 54px; height: 74px; }
+.ta-mode-label {
+  font-size: 0.72em;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.ta-btn {
+  font-size: 0.78em;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+}
+.ta-btn-pri { background: var(--accent); color: #000; }
+.ta-btn-sec { background: rgba(255,255,255,0.1); color: var(--text); border: 1px solid rgba(255,255,255,0.2); }
 
-.replay-card {
+/* Card shown inside each seat during replay mode */
+.ta-card {
   background: var(--card-bg);
   color: var(--black);
   border: 2px solid var(--card-border);
-  border-radius: 7px;
-  width: 54px;
-  min-height: 74px;
+  border-radius: 6px;
+  min-width: 34px;
+  padding: 3px 5px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 4px 2px;
+  gap: 1px;
 }
-.replay-card.red   { color: var(--red); }
-.replay-card.replay-win {
+.ta-card.red  { color: var(--red); }
+.ta-card.ta-win {
   border-color: #f0a500;
-  box-shadow: 0 0 10px rgba(240,165,0,0.5);
+  box-shadow: 0 0 8px rgba(240,165,0,0.45);
 }
-.replay-cf { font-size: 1.05em; font-weight: 800; letter-spacing: 0.02em; }
-.replay-cp { font-size: 0.6em; color: #555; white-space: nowrap; max-width: 50px; overflow: hidden; text-overflow: ellipsis; }
-.replay-lead {
+.ta-cf { font-size: 0.92em; font-weight: 800; letter-spacing: 0.02em; }
+.ta-lead {
   font-size: 0.55em;
   font-weight: 700;
   color: var(--accent);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   line-height: 1;
 }
+.ta-card-empty { min-width: 34px; min-height: 42px; }
 
-/* Trick info section */
-.replay-info {
-  background: rgba(0,0,0,0.22);
-  border-radius: 8px;
-  padding: 10px 14px;
+/* Trick info panel — replaces felt oval during replay */
+.ta-trick-info {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 4px;
+  margin: 4px 2px;
 }
-.replay-winner-line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.replay-winner-badge {
-  font-size: 0.9em;
+.ta-winner-badge {
+  font-size: 0.68em;
   font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 10px;
+  padding: 2px 7px;
+  border-radius: 8px;
+  white-space: nowrap;
 }
-.rw-team0 { background: rgba(126,200,227,0.18); color: #7ec8e3; border: 1px solid #7ec8e3; }
-.rw-team1 { background: rgba(244,162,97,0.18);  color: #f4a261; border: 1px solid #f4a261; }
-.replay-trickpts { font-size: 0.9em; font-weight: 600; color: var(--text); }
-.replay-dixdeder { font-size: 0.72em; color: var(--muted); }
-.replay-cumul { font-size: 0.88em; display: flex; align-items: center; gap: 4px; }
+.twb-team0 { background: rgba(126,200,227,0.18); color: #7ec8e3; border: 1px solid #7ec8e3; }
+.twb-team1 { background: rgba(244,162,97,0.18);  color: #f4a261; border: 1px solid #f4a261; }
+.ta-pts  { font-size: 0.68em; font-weight: 600; color: var(--text); }
+.ta-ddd  { font-size: 0.6em;  color: var(--muted); }
+.ta-cumul { font-size: 0.7em; display: flex; align-items: center; gap: 3px; }
 .rcu-t0  { color: #7ec8e3; }
 .rcu-t1  { color: #f4a261; }
 .rcu-sep { color: var(--muted); }
-
-/* Nav button row */
-.replay-nav { display: flex; justify-content: center; }
 
 /* Auction recap — first-to-speak badge */
 .ar-first-badge {

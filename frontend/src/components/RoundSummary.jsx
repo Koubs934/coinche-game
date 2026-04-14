@@ -9,15 +9,21 @@ function cardPts(card, trump) {
   return ((card.suit === trump) ? TRUMP_PTS : NON_TRUMP_PTS)[card.value] || 0;
 }
 
-// ─── Mini auction table recap ─────────────────────────────────────────────────
+// ─── Unified top area: auction recap ↔ trick replay ──────────────────────────
+//
+// replayStep -1  → auction recap mode
+// replayStep 0+  → trick replay mode, showing tricks[replayStep]
 
-function AuctionRecap({ biddingHistory, currentBid, players, myPosition, t }) {
-  const perPlayer = { 0: [], 1: [], 2: [], 3: [] };
-  for (const entry of (biddingHistory || [])) {
-    if (perPlayer[entry.position]) perPlayer[entry.position].push(entry);
-  }
+function TopArea({
+  biddingHistory, currentBid,
+  tricks, trumpSuit,
+  players, myPosition,
+  replayStep, onStartReplay, onNextTrick, onEndReplay,
+  t,
+}) {
+  const isReplaying = replayStep >= 0;
+  const hasTricks   = tricks?.length > 0;
 
-  const firstBidderPos = (biddingHistory || [])[0]?.position ?? null;
   const topPos   = (myPosition + 2) % 4;
   const leftPos  = (myPosition + 3) % 4;
   const rightPos = (myPosition + 1) % 4;
@@ -26,146 +32,141 @@ function AuctionRecap({ biddingHistory, currentBid, players, myPosition, t }) {
     return players.find(p => p.position === pos)?.username || '?';
   }
 
-  function PlayerStack({ pos }) {
+  // ── Auction data ────────────────────────────────────────────────────────────
+  const perPlayer = { 0: [], 1: [], 2: [], 3: [] };
+  for (const entry of (biddingHistory || [])) {
+    if (perPlayer[entry.position]) perPlayer[entry.position].push(entry);
+  }
+  const firstBidderPos = (biddingHistory || [])[0]?.position ?? null;
+
+  // ── Replay data ─────────────────────────────────────────────────────────────
+  const trick      = isReplaying ? tricks[replayStep] : null;
+  const isLastTrick = isReplaying && replayStep === tricks.length - 1;
+  const leaderId   = trick?.cards[0]?.playerIndex ?? null;
+  const winTeam    = trick ? trick.winner % 2 : null;
+  const winnerName = trick ? (players.find(p => p.position === trick.winner)?.username || '?') : null;
+
+  let trickPts = 0;
+  const cumul  = [0, 0];
+  if (isReplaying) {
+    trickPts = trick.cards.reduce((s, { card }) => s + cardPts(card, trumpSuit), 0);
+    if (isLastTrick) trickPts += 10;
+    for (let i = 0; i <= replayStep; i++) {
+      const team = tricks[i].winner % 2;
+      for (const { card } of tricks[i].cards) cumul[team] += cardPts(card, trumpSuit);
+    }
+    if (isLastTrick) cumul[trick.winner % 2] += 10;
+  }
+
+  // ── Per-seat content (switches with mode) ───────────────────────────────────
+  function SeatContent({ pos }) {
+    if (isReplaying) {
+      const entry = trick.cards.find(({ playerIndex }) => playerIndex === pos);
+      if (!entry) return <div className="ta-card-empty" />;
+      const isWin  = entry.playerIndex === trick.winner;
+      const isLead = entry.playerIndex === leaderId;
+      const isRed  = entry.card.suit === 'H' || entry.card.suit === 'D';
+      return (
+        <div className={`ta-card${isRed ? ' red' : ''}${isWin ? ' ta-win' : ''}`}>
+          {isLead && <span className="ta-lead">{t.trickLead}</span>}
+          <span className="ta-cf">{entry.card.value}{SUIT_SYM[entry.card.suit]}</span>
+        </div>
+      );
+    }
+
+    // Auction mode
+    const isFirst = pos === firstBidderPos;
     const actions = [...perPlayer[pos]].reverse();
-    if (!actions.length) return null;
     return (
-      <div className="ar-stack">
-        {actions.map((entry, i) => {
-          const isWinningBid =
-            entry.type === 'bid' &&
-            pos === currentBid?.playerIndex &&
-            entry.value === currentBid?.value &&
-            entry.suit  === currentBid?.suit;
-          const isRed = entry.suit === 'H' || entry.suit === 'D';
-
-          let label;
-          if      (entry.type === 'pass')        label = t.pass;
-          else if (entry.type === 'coinche')     label = t.coinched;
-          else if (entry.type === 'surcoinche')  label = t.surcoinched;
-          else label = entry.value === 'capot' ? t.capot : `${entry.value} ${SUIT_SYM[entry.suit]}`;
-
-          let cls = 'ar-action';
-          if      (entry.type === 'surcoinche')  cls += ' ar-surcoinche';
-          else if (entry.type === 'coinche')     cls += ' ar-coinche';
-          else if (isWinningBid)                 cls += ` ar-win${isRed ? ' red' : ''}`;
-          else if (entry.type === 'pass')        cls += ' ar-pass';
-          else if (i === 0)                      cls += ` ar-latest${isRed ? ' red' : ''}`;
-          else                                   cls += ' ar-old';
-
-          return <span key={i} className={cls}>{label}</span>;
-        })}
-      </div>
+      <>
+        {isFirst && <span className="ar-first-badge">{t.firstToSpeak}</span>}
+        {actions.length > 0 && (
+          <div className="ar-stack">
+            {actions.map((entry, i) => {
+              const isWinningBid =
+                entry.type === 'bid' &&
+                pos === currentBid?.playerIndex &&
+                entry.value === currentBid?.value &&
+                entry.suit  === currentBid?.suit;
+              const isRed = entry.suit === 'H' || entry.suit === 'D';
+              let label;
+              if      (entry.type === 'pass')        label = t.pass;
+              else if (entry.type === 'coinche')     label = t.coinched;
+              else if (entry.type === 'surcoinche')  label = t.surcoinched;
+              else label = entry.value === 'capot' ? t.capot : `${entry.value} ${SUIT_SYM[entry.suit]}`;
+              let cls = 'ar-action';
+              if      (entry.type === 'surcoinche')  cls += ' ar-surcoinche';
+              else if (entry.type === 'coinche')     cls += ' ar-coinche';
+              else if (isWinningBid)                 cls += ` ar-win${isRed ? ' red' : ''}`;
+              else if (entry.type === 'pass')        cls += ' ar-pass';
+              else if (i === 0)                      cls += ` ar-latest${isRed ? ' red' : ''}`;
+              else                                   cls += ' ar-old';
+              return <span key={i} className={cls}>{label}</span>;
+            })}
+          </div>
+        )}
+      </>
     );
   }
 
   function Seat({ pos, isMe }) {
-    const isFirst = pos === firstBidderPos;
     return (
       <div className="ar-seat">
         <span className="ar-name">{nameAt(pos)}{isMe ? ` (${t.you})` : ''}</span>
-        {isFirst && <span className="ar-first-badge">{t.firstToSpeak}</span>}
-        <PlayerStack pos={pos} />
+        <SeatContent pos={pos} />
       </div>
     );
   }
 
+  // ── Header button ───────────────────────────────────────────────────────────
+  const btnLabel  = !isReplaying  ? t.replayBtn
+                  : isLastTrick   ? t.replayEnd
+                  :                 `${t.replayNext} ▶`;
+  const btnAction = !isReplaying  ? onStartReplay
+                  : isLastTrick   ? onEndReplay
+                  :                 onNextTrick;
+  const btnCls    = (!isReplaying || isLastTrick) ? 'ta-btn ta-btn-sec' : 'ta-btn ta-btn-pri';
+
   return (
     <div className="auction-recap">
+
+      {/* Mode label + action button */}
+      <div className="ta-header">
+        <span className="ta-mode-label">
+          {isReplaying
+            ? `${t.trick} ${replayStep + 1} / ${tricks.length}`
+            : t.biddingPhase}
+        </span>
+        {hasTricks && (
+          <button className={btnCls} onClick={btnAction}>{btnLabel}</button>
+        )}
+      </div>
+
+      {/* Seats */}
       <div className="ar-top-row"><Seat pos={topPos} /></div>
       <div className="ar-mid-row">
         <Seat pos={leftPos} />
-        <div className="ar-table-felt" />
+
+        {/* Center: felt in auction mode, trick info in replay mode */}
+        {isReplaying ? (
+          <div className="ta-trick-info">
+            <span className={`ta-winner-badge twb-team${winTeam}`}>✓ {winnerName}</span>
+            <span className="ta-pts">{trickPts} pts</span>
+            {isLastTrick && <span className="ta-ddd">{t.dixDeDer}</span>}
+            <div className="ta-cumul">
+              <span className="rcu-t0"><strong>{cumul[0]}</strong></span>
+              <span className="rcu-sep"> – </span>
+              <span className="rcu-t1"><strong>{cumul[1]}</strong></span>
+            </div>
+          </div>
+        ) : (
+          <div className="ar-table-felt" />
+        )}
+
         <Seat pos={rightPos} />
       </div>
       <div className="ar-bot-row"><Seat pos={myPosition} isMe /></div>
-    </div>
-  );
-}
 
-// ─── Step-by-step trick replay overlay ───────────────────────────────────────
-
-function TrickReplayOverlay({ tricks, currentStep, myPosition, players, trumpSuit, t, onNext, onClose }) {
-  const trick  = tricks[currentStep];
-  const isLast = currentStep === tricks.length - 1;
-  const leaderId = trick.cards[0]?.playerIndex;
-
-  // Trick points (card values + dix de der on last trick)
-  const rawPts  = trick.cards.reduce((s, { card }) => s + cardPts(card, trumpSuit), 0);
-  const trickPts = isLast ? rawPts + 10 : rawPts;
-
-  // Cumulative score for tricks 0..currentStep
-  const cumul = [0, 0];
-  for (let i = 0; i <= currentStep; i++) {
-    const team = tricks[i].winner % 2;
-    for (const { card } of tricks[i].cards) cumul[team] += cardPts(card, trumpSuit);
-  }
-  if (isLast) cumul[tricks[currentStep].winner % 2] += 10;
-
-  const winTeam    = trick.winner % 2;
-  const winnerName = players.find(p => p.position === trick.winner)?.username || '?';
-
-  function getArea(pos) {
-    return ['bottom', 'right', 'top', 'left'][((pos - myPosition) + 4) % 4];
-  }
-
-  return (
-    <div className="replay-overlay" onClick={onClose}>
-      <div className="replay-panel" onClick={e => e.stopPropagation()}>
-
-        {/* Header */}
-        <div className="replay-header">
-          <span className="replay-title">{t.trick} {currentStep + 1} / {tricks.length}</span>
-          <button className="btn-close" onClick={onClose}>✕</button>
-        </div>
-
-        {/* 4-card table layout */}
-        <div className="replay-table">
-          {['top', 'left', 'right', 'bottom'].map(area => {
-            const entry  = trick.cards.find(({ playerIndex }) => getArea(playerIndex) === area);
-            const player = entry ? players.find(p => p.position === entry.playerIndex) : null;
-            const isWin  = entry?.playerIndex === trick.winner;
-            const isLead = entry?.playerIndex === leaderId;
-            const isRed  = entry?.card.suit === 'H' || entry?.card.suit === 'D';
-            return (
-              <div key={area} className={`replay-slot replay-slot-${area}`}>
-                {entry ? (
-                  <div className={`replay-card${isRed ? ' red' : ''}${isWin ? ' replay-win' : ''}`}>
-                    {isLead && <span className="replay-lead">{t.trickLead}</span>}
-                    <span className="replay-cf">{entry.card.value}{SUIT_SYM[entry.card.suit]}</span>
-                    <span className="replay-cp">{player?.username}</span>
-                  </div>
-                ) : (
-                  <div className="replay-slot-empty" />
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Trick result info */}
-        <div className="replay-info">
-          <div className="replay-winner-line">
-            <span className={`replay-winner-badge rw-team${winTeam}`}>✓ {winnerName}</span>
-            <span className="replay-trickpts">{trickPts} pts</span>
-          </div>
-          {isLast && <div className="replay-dixdeder">{t.dixDeDer}</div>}
-          <div className="replay-cumul">
-            <span className="rcu-t0">{t.team1}: <strong>{cumul[0]}</strong></span>
-            <span className="rcu-sep"> — </span>
-            <span className="rcu-t1">{t.team2}: <strong>{cumul[1]}</strong></span>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <div className="replay-nav">
-          {!isLast
-            ? <button className="btn-primary btn-large" onClick={onNext}>{t.replayNext} ▶</button>
-            : <button className="btn-secondary btn-large" onClick={onClose}>{t.replayEnd}</button>
-          }
-        </div>
-
-      </div>
     </div>
   );
 }
@@ -204,16 +205,24 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
   const readyCount    = nextRoundReady.length;
   const totalPlayers  = players.length;
 
+  const showTopArea = (biddingHistory?.length > 0) || (tricks?.length > 0);
+
   return (
     <div className="round-summary">
 
-      {/* ── Auction recap ───────────────────────────────────────────────────── */}
-      {biddingHistory?.length > 0 && (
-        <AuctionRecap
+      {/* ── Top area: auction recap ↔ trick replay ──────────────────────────── */}
+      {showTopArea && (
+        <TopArea
           biddingHistory={biddingHistory}
           currentBid={currentBid}
+          tricks={tricks}
+          trumpSuit={trumpSuit}
           players={players}
           myPosition={myPosition}
+          replayStep={replayStep}
+          onStartReplay={() => setReplayStep(0)}
+          onNextTrick={() => setReplayStep(s => s + 1)}
+          onEndReplay={() => setReplayStep(-1)}
           t={t}
         />
       )}
@@ -365,29 +374,8 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
           )
         )}
 
-        {/* Replay button — always shown when tricks exist */}
-        {tricks?.length > 0 && (
-          <button className="btn-secondary btn-large" onClick={() => setReplayStep(0)}>
-            {t.replayBtn}
-          </button>
-        )}
-
         <button className="btn-leave" onClick={leaveGame}>{t.leaveTable}</button>
       </div>
-
-      {/* ── Step-by-step trick replay ────────────────────────────────────────── */}
-      {replayStep >= 0 && tricks?.length > 0 && (
-        <TrickReplayOverlay
-          tricks={tricks}
-          currentStep={replayStep}
-          myPosition={myPosition}
-          players={players}
-          trumpSuit={trumpSuit}
-          t={t}
-          onNext={() => setReplayStep(s => s + 1)}
-          onClose={() => setReplayStep(-1)}
-        />
-      )}
     </div>
   );
 }
