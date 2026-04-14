@@ -1,17 +1,23 @@
 import { useState } from 'react';
 import { useLang } from '../context/LanguageContext';
 
-const SUIT_SYM = { S: '♠', H: '♥', D: '♦', C: '♣' };
+const SUIT_SYM      = { S: '♠', H: '♥', D: '♦', C: '♣' };
+const TRUMP_PTS     = { J: 20, '9': 14, A: 11, '10': 10, K: 4, Q: 3, '8': 0, '7': 0 };
+const NON_TRUMP_PTS = { A: 11, '10': 10, K: 4, Q: 3, J: 2, '9': 0, '8': 0, '7': 0 };
+
+function cardPts(card, trump) {
+  return ((card.suit === trump) ? TRUMP_PTS : NON_TRUMP_PTS)[card.value] || 0;
+}
 
 // ─── Mini auction table recap ─────────────────────────────────────────────────
 
 function AuctionRecap({ biddingHistory, currentBid, players, myPosition, t }) {
-  // Group all actions by player position, keeping chronological order
   const perPlayer = { 0: [], 1: [], 2: [], 3: [] };
   for (const entry of (biddingHistory || [])) {
     if (perPlayer[entry.position]) perPlayer[entry.position].push(entry);
   }
 
+  const firstBidderPos = (biddingHistory || [])[0]?.position ?? null;
   const topPos   = (myPosition + 2) % 4;
   const leftPos  = (myPosition + 3) % 4;
   const rightPos = (myPosition + 1) % 4;
@@ -20,7 +26,6 @@ function AuctionRecap({ biddingHistory, currentBid, players, myPosition, t }) {
     return players.find(p => p.position === pos)?.username || '?';
   }
 
-  // Vertical stack of actions for one player, latest at top
   function PlayerStack({ pos }) {
     const actions = [...perPlayer[pos]].reverse();
     if (!actions.length) return null;
@@ -55,9 +60,11 @@ function AuctionRecap({ biddingHistory, currentBid, players, myPosition, t }) {
   }
 
   function Seat({ pos, isMe }) {
+    const isFirst = pos === firstBidderPos;
     return (
       <div className="ar-seat">
         <span className="ar-name">{nameAt(pos)}{isMe ? ` (${t.you})` : ''}</span>
+        {isFirst && <span className="ar-first-badge">{t.firstToSpeak}</span>}
         <PlayerStack pos={pos} />
       </div>
     );
@@ -65,16 +72,99 @@ function AuctionRecap({ biddingHistory, currentBid, players, myPosition, t }) {
 
   return (
     <div className="auction-recap">
-      <div className="ar-top-row">
-        <Seat pos={topPos} />
-      </div>
+      <div className="ar-top-row"><Seat pos={topPos} /></div>
       <div className="ar-mid-row">
         <Seat pos={leftPos} />
         <div className="ar-table-felt" />
         <Seat pos={rightPos} />
       </div>
-      <div className="ar-bot-row">
-        <Seat pos={myPosition} isMe />
+      <div className="ar-bot-row"><Seat pos={myPosition} isMe /></div>
+    </div>
+  );
+}
+
+// ─── Step-by-step trick replay overlay ───────────────────────────────────────
+
+function TrickReplayOverlay({ tricks, currentStep, myPosition, players, trumpSuit, t, onNext, onClose }) {
+  const trick  = tricks[currentStep];
+  const isLast = currentStep === tricks.length - 1;
+  const leaderId = trick.cards[0]?.playerIndex;
+
+  // Trick points (card values + dix de der on last trick)
+  const rawPts  = trick.cards.reduce((s, { card }) => s + cardPts(card, trumpSuit), 0);
+  const trickPts = isLast ? rawPts + 10 : rawPts;
+
+  // Cumulative score for tricks 0..currentStep
+  const cumul = [0, 0];
+  for (let i = 0; i <= currentStep; i++) {
+    const team = tricks[i].winner % 2;
+    for (const { card } of tricks[i].cards) cumul[team] += cardPts(card, trumpSuit);
+  }
+  if (isLast) cumul[tricks[currentStep].winner % 2] += 10;
+
+  const winTeam    = trick.winner % 2;
+  const winnerName = players.find(p => p.position === trick.winner)?.username || '?';
+
+  function getArea(pos) {
+    return ['bottom', 'right', 'top', 'left'][((pos - myPosition) + 4) % 4];
+  }
+
+  return (
+    <div className="replay-overlay" onClick={onClose}>
+      <div className="replay-panel" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="replay-header">
+          <span className="replay-title">{t.trick} {currentStep + 1} / {tricks.length}</span>
+          <button className="btn-close" onClick={onClose}>✕</button>
+        </div>
+
+        {/* 4-card table layout */}
+        <div className="replay-table">
+          {['top', 'left', 'right', 'bottom'].map(area => {
+            const entry  = trick.cards.find(({ playerIndex }) => getArea(playerIndex) === area);
+            const player = entry ? players.find(p => p.position === entry.playerIndex) : null;
+            const isWin  = entry?.playerIndex === trick.winner;
+            const isLead = entry?.playerIndex === leaderId;
+            const isRed  = entry?.card.suit === 'H' || entry?.card.suit === 'D';
+            return (
+              <div key={area} className={`replay-slot replay-slot-${area}`}>
+                {entry ? (
+                  <div className={`replay-card${isRed ? ' red' : ''}${isWin ? ' replay-win' : ''}`}>
+                    {isLead && <span className="replay-lead">{t.trickLead}</span>}
+                    <span className="replay-cf">{entry.card.value}{SUIT_SYM[entry.card.suit]}</span>
+                    <span className="replay-cp">{player?.username}</span>
+                  </div>
+                ) : (
+                  <div className="replay-slot-empty" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Trick result info */}
+        <div className="replay-info">
+          <div className="replay-winner-line">
+            <span className={`replay-winner-badge rw-team${winTeam}`}>✓ {winnerName}</span>
+            <span className="replay-trickpts">{trickPts} pts</span>
+          </div>
+          {isLast && <div className="replay-dixdeder">{t.dixDeDer}</div>}
+          <div className="replay-cumul">
+            <span className="rcu-t0">{t.team1}: <strong>{cumul[0]}</strong></span>
+            <span className="rcu-sep"> — </span>
+            <span className="rcu-t1">{t.team2}: <strong>{cumul[1]}</strong></span>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <div className="replay-nav">
+          {!isLast
+            ? <button className="btn-primary btn-large" onClick={onNext}>{t.replayNext} ▶</button>
+            : <button className="btn-secondary btn-large" onClick={onClose}>{t.replayEnd}</button>
+          }
+        </div>
+
       </div>
     </div>
   );
@@ -84,14 +174,17 @@ function AuctionRecap({ biddingHistory, currentBid, players, myPosition, t }) {
 
 export default function RoundSummary({ socket, roomCode, room, game, myPosition }) {
   const { t } = useLang();
-  const [showTrickReview, setShowTrickReview] = useState(false);
+  const [replayStep, setReplayStep] = useState(-1);
 
   function leaveGame() {
     if (!window.confirm(t.leaveConfirmGame)) return;
     socket.emit('leaveRoom', { code: roomCode });
   }
 
-  const { roundScores, contractMade, trickPoints, currentBid, beloteInfo, tricks, biddingHistory } = game;
+  const {
+    roundScores, contractMade, trickPoints, currentBid, beloteInfo,
+    tricks, biddingHistory, trumpSuit,
+  } = game;
   const { scores, players } = room;
 
   function getTeamLabel(teamIdx) {
@@ -99,24 +192,22 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
     return members.join(' & ');
   }
 
-  // Derived scoring values
-  const isCapot = currentBid?.value === 'capot';
+  const isCapot      = currentBid?.value === 'capot';
   const contractTeam = currentBid != null ? currentBid.playerIndex % 2 : null;
   const opposingTeam = contractTeam != null ? 1 - contractTeam : null;
-  const multiplier = currentBid?.surcoinched ? 4 : currentBid?.coinched ? 2 : 1;
+  const multiplier   = currentBid?.surcoinched ? 4 : currentBid?.coinched ? 2 : 1;
 
-  // Per-player confirmation state
-  const myPlayer = players.find(p => p.position === myPosition);
-  const myUserId = myPlayer?.userId;
+  const myPlayer      = players.find(p => p.position === myPosition);
+  const myUserId      = myPlayer?.userId;
   const nextRoundReady = room.nextRoundReady || [];
-  const myConfirmed = myUserId ? nextRoundReady.includes(myUserId) : false;
-  const readyCount = nextRoundReady.length;
-  const totalPlayers = players.length;
+  const myConfirmed   = myUserId ? nextRoundReady.includes(myUserId) : false;
+  const readyCount    = nextRoundReady.length;
+  const totalPlayers  = players.length;
 
   return (
     <div className="round-summary">
 
-      {/* ── Auction recap — fills the green area above the score card ───────── */}
+      {/* ── Auction recap ───────────────────────────────────────────────────── */}
       {biddingHistory?.length > 0 && (
         <AuctionRecap
           biddingHistory={biddingHistory}
@@ -154,7 +245,6 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
           </thead>
           <tbody>
 
-            {/* ── CAPOT (flat score, no trick breakdown) ──────────────────── */}
             {isCapot && currentBid && (() => {
               const winTeam = contractMade ? contractTeam : opposingTeam;
               const capotBase = 500;
@@ -179,7 +269,6 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
               );
             })()}
 
-            {/* ── SUCCESSFUL normal/coinché/surcoinché contract ────────────── */}
             {!isCapot && contractMade && currentBid && (
               <>
                 {trickPoints && (
@@ -213,7 +302,6 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
               </>
             )}
 
-            {/* ── FAILED normal/coinché/surcoinché contract ────────────────── */}
             {!isCapot && !contractMade && currentBid && (
               <>
                 {trickPoints && (
@@ -242,7 +330,6 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
               </>
             )}
 
-            {/* ── Round score & cumulative total (always shown) ────────────── */}
             <tr className="round-final">
               <td className="score-label">{t.roundScore}</td>
               <td className={roundScores[0] > roundScores[1] ? 'winner-score' : ''}>{roundScores[0]}</td>
@@ -264,69 +351,42 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
         {room.phase === 'GAME_OVER' ? (
           <div className="game-over-section">
             <h3>{t.gameOver}</h3>
-            <p>
-              {scores[0] > scores[1] ? getTeamLabel(0) : getTeamLabel(1)} {t.wins}
-            </p>
+            <p>{scores[0] > scores[1] ? getTeamLabel(0) : getTeamLabel(1)} {t.wins}</p>
           </div>
         ) : (
-          <>
-            {myConfirmed ? (
-              <button className="btn-primary btn-large" disabled>
-                {t.readyCount(readyCount, totalPlayers)}
-              </button>
-            ) : (
-              <button className="btn-primary btn-large" onClick={() => socket.emit('confirmNextRound', { code: roomCode })}>
-                {t.nextRound}
-              </button>
-            )}
-            {tricks?.length > 0 && (
-              <button className="btn-secondary btn-large" onClick={() => setShowTrickReview(true)}>
-                {t.seeAllTricks}
-              </button>
-            )}
-          </>
+          myConfirmed ? (
+            <button className="btn-primary btn-large" disabled>
+              {t.readyCount(readyCount, totalPlayers)}
+            </button>
+          ) : (
+            <button className="btn-primary btn-large" onClick={() => socket.emit('confirmNextRound', { code: roomCode })}>
+              {t.nextRound}
+            </button>
+          )
         )}
 
-        <button className="btn-leave" onClick={leaveGame}>
-          {t.leaveTable}
-        </button>
+        {/* Replay button — always shown when tricks exist */}
+        {tricks?.length > 0 && (
+          <button className="btn-secondary btn-large" onClick={() => setReplayStep(0)}>
+            {t.replayBtn}
+          </button>
+        )}
+
+        <button className="btn-leave" onClick={leaveGame}>{t.leaveTable}</button>
       </div>
 
-      {/* ── Trick review modal ────────────────────────────────────────────── */}
-      {showTrickReview && tricks?.length > 0 && (
-        <div className="trick-review-overlay" onClick={() => setShowTrickReview(false)}>
-          <div className="trick-review-panel" onClick={e => e.stopPropagation()}>
-            <div className="trick-review-header">
-              <span className="trick-review-title">{t.allTricks}</span>
-              <button className="btn-close" onClick={() => setShowTrickReview(false)}>✕</button>
-            </div>
-            <div className="trick-review-list">
-              {tricks.map((trick, i) => {
-                const winner = players.find(p => p.position === trick.winner);
-                return (
-                  <div key={i} className="tri-item">
-                    <div className="tri-header">
-                      {t.trick} {i + 1} — <span className="tri-winner-name">{winner?.username}</span>
-                    </div>
-                    <div className="tri-cards">
-                      {trick.cards.map(({ card, playerIndex }) => {
-                        const player = players.find(p => p.position === playerIndex);
-                        const isRed = card.suit === 'H' || card.suit === 'D';
-                        const isWinner = playerIndex === trick.winner;
-                        return (
-                          <div key={playerIndex} className={`tri-card${isRed ? ' red' : ''}${isWinner ? ' tri-card-won' : ''}`}>
-                            <span className="tri-card-face">{card.value}{SUIT_SYM[card.suit]}</span>
-                            <span className="tri-card-player">{player?.username}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+      {/* ── Step-by-step trick replay ────────────────────────────────────────── */}
+      {replayStep >= 0 && tricks?.length > 0 && (
+        <TrickReplayOverlay
+          tricks={tricks}
+          currentStep={replayStep}
+          myPosition={myPosition}
+          players={players}
+          trumpSuit={trumpSuit}
+          t={t}
+          onNext={() => setReplayStep(s => s + 1)}
+          onClose={() => setReplayStep(-1)}
+        />
       )}
     </div>
   );
