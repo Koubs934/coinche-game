@@ -52,30 +52,51 @@ function computeLivePoints(tricks, trump) {
 const TRUMP_ORDER     = ['J', '9', 'A', '10', 'K', 'Q', '8', '7'];
 const NON_TRUMP_ORDER = ['A', '10', 'K', 'Q', 'J', '9', '8', '7'];
 const SUIT_COLOR      = { S: 'B', C: 'B', H: 'R', D: 'R' };
+// Canonical tie-break order: S < H < D < C (lowest index = preferred)
+const CANONICAL_SUITS = ['S', 'H', 'D', 'C'];
 
-// Build non-trump suit order that alternates colors (R,B,R or B,R,B).
-// With no trump, returns the one perfect 4-suit alternating sequence S,H,C,D (B,R,B,R).
-function buildNonTrumpOrder(trump) {
-  if (!trump) return ['S', 'H', 'C', 'D']; // B R B R — perfect alternation
-  const all = ['S', 'H', 'D', 'C'];
-  const others = all.filter(s => s !== trump);
-  const trumpColor = SUIT_COLOR[trump];
-  const diff = others.filter(s => SUIT_COLOR[s] !== trumpColor); // 2 suits
-  const same = others.filter(s => SUIT_COLOR[s] === trumpColor); // 1 suit
-  // Sandwich: diff[0], same[0], diff[1] → always alternates (R,B,R or B,R,B)
-  return [diff[0], same[0], diff[1]];
+function permutations(arr) {
+  if (arr.length <= 1) return [arr.slice()];
+  return arr.flatMap((s, i) =>
+    permutations(arr.filter((_, j) => j !== i)).map(p => [s, ...p])
+  );
+}
+
+// Pick the non-trump suit order that minimises same-colour adjacencies.
+// leftColor: colour of the suit group immediately to the left (trump, if present).
+// Ties broken by canonical suit order for stability.
+function bestNonTrumpOrder(suits, leftColor) {
+  if (suits.length <= 1) return [...suits];
+  let bestPerm = null, bestScore = Infinity, bestKey = Infinity;
+  for (const perm of permutations(suits)) {
+    let score = 0;
+    if (leftColor && SUIT_COLOR[perm[0]] === leftColor) score++;
+    for (let i = 0; i < perm.length - 1; i++) {
+      if (SUIT_COLOR[perm[i]] === SUIT_COLOR[perm[i + 1]]) score++;
+    }
+    const key = perm.reduce((n, s) => n * 4 + CANONICAL_SUITS.indexOf(s), 0);
+    if (score < bestScore || (score === bestScore && key < bestKey)) {
+      bestPerm = perm; bestScore = score; bestKey = key;
+    }
+  }
+  return bestPerm;
 }
 
 function sortHand(hand, trump) {
   if (!hand?.length) return hand || [];
-  const nonTrumpOrder = buildNonTrumpOrder(trump);
+  const presentSuits  = [...new Set(hand.map(c => c.suit))];
+  const trumpInHand   = trump && presentSuits.includes(trump);
+  const nonTrumpSuits = presentSuits.filter(s => s !== trump);
+  const leftColor     = trumpInHand ? SUIT_COLOR[trump] : null;
+  const suitOrder     = [
+    ...(trumpInHand ? [trump] : []),
+    ...bestNonTrumpOrder(nonTrumpSuits, leftColor),
+  ];
   return [...hand].sort((a, b) => {
-    const aT = a.suit === trump, bT = b.suit === trump;
-    if (aT && !bT) return -1;
-    if (!aT && bT) return  1;
-    if (aT)  return TRUMP_ORDER.indexOf(a.value) - TRUMP_ORDER.indexOf(b.value);
-    const sd = nonTrumpOrder.indexOf(a.suit) - nonTrumpOrder.indexOf(b.suit);
-    return sd !== 0 ? sd : NON_TRUMP_ORDER.indexOf(a.value) - NON_TRUMP_ORDER.indexOf(b.value);
+    const ai = suitOrder.indexOf(a.suit), bi = suitOrder.indexOf(b.suit);
+    if (ai !== bi) return ai - bi;
+    const order = a.suit === trump ? TRUMP_ORDER : NON_TRUMP_ORDER;
+    return order.indexOf(a.value) - order.indexOf(b.value);
   });
 }
 
