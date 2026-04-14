@@ -795,7 +795,6 @@ a      { color: var(--accent); }
 .contract-result.made   { background: #1a5e2a; color: var(--success); }
 .contract-result.failed { background: #5e1a1a; color: #e05050; }
 .summary-contract { font-size: 0.9em; color: var(--muted); }
-.belote-note { font-size: 0.85em; color: var(--accent); }
 
 .score-table {
   width: 100%;
@@ -813,6 +812,7 @@ a      { color: var(--accent); }
 .total-row td     { font-size: 1.1em; font-weight: bold; background: rgba(0,0,0,0.2); }
 .winner-score     { color: var(--success); }
 .leader-score     { color: var(--accent); }
+.row-informational td { opacity: 0.45; font-style: italic; }
 
 .team-names-row {
   display: flex;

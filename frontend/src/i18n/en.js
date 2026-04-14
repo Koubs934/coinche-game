@@ -106,6 +106,7 @@ export default {
   // Misc
   coincheBonus: 'Coinche',
   surcoinchBonus: 'Surcoinche',
+  chutePenalty: 'Penalty base',
   coinched: 'Coinched',
   surcoinched: 'Surcoinched',
   dixDeDer: '+10 (dix de der)',

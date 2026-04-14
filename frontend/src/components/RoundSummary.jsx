@@ -20,6 +20,12 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
     return members.join(' & ');
   }
 
+  // Derived scoring values
+  const isCapot = currentBid?.value === 'capot';
+  const contractTeam = currentBid != null ? currentBid.playerIndex % 2 : null;
+  const opposingTeam = contractTeam != null ? 1 - contractTeam : null;
+  const multiplier = currentBid?.surcoinched ? 4 : currentBid?.coinched ? 2 : 1;
+
   // Per-player confirmation state
   const myPlayer = players.find(p => p.position === myPosition);
   const myUserId = myPlayer?.userId;
@@ -39,16 +45,10 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
 
         {currentBid && (
           <div className="summary-contract">
-            {t.contract}: {currentBid.value === 'capot' ? t.capot : currentBid.value}
+            {t.contract}: {isCapot ? t.capot : currentBid.value}
             {' '}{t.suitSymbol[currentBid.suit]}
             {currentBid.surcoinched && <span className="badge badge-sur"> — {t.surcoinched}</span>}
             {currentBid.coinched && !currentBid.surcoinched && <span className="badge badge-coin"> — {t.coinched}</span>}
-          </div>
-        )}
-
-        {beloteInfo?.complete && (
-          <div className="belote-note">
-            {t.belote}/{t.rebelote}: +20 pts ({t.team} {(beloteInfo.team === 0 ? '1' : '2')})
           </div>
         )}
 
@@ -61,39 +61,96 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
             </tr>
           </thead>
           <tbody>
-            {trickPoints && (
-              <tr>
-                <td className="score-label">{t.trickPoints}</td>
-                <td>{trickPoints[0]}</td>
-                <td>{trickPoints[1]}</td>
-              </tr>
-            )}
-            {currentBid && (() => {
-              const contractTeam = currentBid.playerIndex % 2;
-              const val = currentBid.value === 'capot' ? t.capot : currentBid.value;
+
+            {/* ── CAPOT (flat score, no trick breakdown) ──────────────────── */}
+            {isCapot && currentBid && (() => {
+              const winTeam = contractMade ? contractTeam : opposingTeam;
+              const capotBase = 500;
+              const bonus = capotBase * (multiplier - 1);
               return (
+                <>
+                  <tr>
+                    <td className="score-label">{t.capot} (500)</td>
+                    <td>{winTeam === 0 ? capotBase : 0}</td>
+                    <td>{winTeam === 1 ? capotBase : 0}</td>
+                  </tr>
+                  {multiplier > 1 && (
+                    <tr>
+                      <td className="score-label">
+                        {multiplier === 4 ? t.surcoinchBonus : t.coincheBonus} (+{bonus})
+                      </td>
+                      <td>{winTeam === 0 ? bonus : 0}</td>
+                      <td>{winTeam === 1 ? bonus : 0}</td>
+                    </tr>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* ── SUCCESSFUL normal/coinché/surcoinché contract ────────────── */}
+            {!isCapot && contractMade && currentBid && (
+              <>
+                {trickPoints && (
+                  <tr>
+                    <td className="score-label">{t.trickPoints}</td>
+                    <td>{trickPoints[0]}</td>
+                    <td>{trickPoints[1]}</td>
+                  </tr>
+                )}
+                {beloteInfo?.complete && (
+                  <tr>
+                    <td className="score-label">{t.belote}/{t.rebelote} (+20)</td>
+                    <td>{beloteInfo.team === 0 ? 20 : 0}</td>
+                    <td>{beloteInfo.team === 1 ? 20 : 0}</td>
+                  </tr>
+                )}
                 <tr>
                   <td className="score-label">{t.announcedPoints}</td>
-                  <td>{contractTeam === 0 ? val : 0}</td>
-                  <td>{contractTeam === 1 ? val : 0}</td>
+                  <td>{contractTeam === 0 ? currentBid.value : 0}</td>
+                  <td>{contractTeam === 1 ? currentBid.value : 0}</td>
                 </tr>
-              );
-            })()}
-            {/* Coinche / Surcoinche bonus row — only for successful numeric contracts */}
-            {contractMade && currentBid && typeof currentBid.value === 'number' &&
-              (currentBid.coinched || currentBid.surcoinched) && (() => {
-              const contractTeam = currentBid.playerIndex % 2;
-              const multiplier = currentBid.surcoinched ? 4 : 2;
-              const bonus = currentBid.value * (multiplier - 1);
-              const label = currentBid.surcoinched ? t.surcoinchBonus : t.coincheBonus;
-              return (
+                {multiplier > 1 && (
+                  <tr>
+                    <td className="score-label">
+                      {multiplier === 4 ? t.surcoinchBonus : t.coincheBonus} (+{currentBid.value * (multiplier - 1)})
+                    </td>
+                    <td>{contractTeam === 0 ? currentBid.value * (multiplier - 1) : 0}</td>
+                    <td>{contractTeam === 1 ? currentBid.value * (multiplier - 1) : 0}</td>
+                  </tr>
+                )}
+              </>
+            )}
+
+            {/* ── FAILED normal/coinché/surcoinché contract ────────────────── */}
+            {!isCapot && !contractMade && currentBid && (
+              <>
+                {trickPoints && (
+                  <tr className="row-informational">
+                    <td className="score-label">{t.trickPoints}</td>
+                    <td>{trickPoints[0]}</td>
+                    <td>{trickPoints[1]}</td>
+                  </tr>
+                )}
                 <tr>
-                  <td className="score-label">{label} ({currentBid.value})</td>
-                  <td>{contractTeam === 0 ? bonus : 0}</td>
-                  <td>{contractTeam === 1 ? bonus : 0}</td>
+                  <td className="score-label">{t.chutePenalty} (160)</td>
+                  <td>{opposingTeam === 0 ? 160 : 0}</td>
+                  <td>{opposingTeam === 1 ? 160 : 0}</td>
                 </tr>
-              );
-            })()}
+                <tr>
+                  <td className="score-label">
+                    {multiplier === 4
+                      ? `${t.surcoinchBonus} (${currentBid.value})`
+                      : multiplier === 2
+                      ? `${t.coincheBonus} (${currentBid.value})`
+                      : `${t.announcedPoints} (${currentBid.value})`}
+                  </td>
+                  <td>{opposingTeam === 0 ? currentBid.value * multiplier : 0}</td>
+                  <td>{opposingTeam === 1 ? currentBid.value * multiplier : 0}</td>
+                </tr>
+              </>
+            )}
+
+            {/* ── Round score & cumulative total (always shown) ────────────── */}
             <tr className="round-final">
               <td className="score-label">{t.roundScore}</td>
               <td className={roundScores[0] > roundScores[1] ? 'winner-score' : ''}>{roundScores[0]}</td>
