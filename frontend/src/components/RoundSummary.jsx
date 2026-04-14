@@ -80,7 +80,6 @@ function TopArea({
   tricks, trumpSuit,
   players, myPosition,
   replayStep, onStartReplay, onNextTrick, onPrevTrick, onEndReplay,
-  onShowAllTricks,
   t,
 }) {
   const isReplaying = replayStep >= 0;
@@ -233,10 +232,7 @@ function TopArea({
               </button>
             </>
           ) : (
-            <>
-              <button className="ta-btn ta-btn-sec" onClick={onShowAllTricks}>{t.seeAllTricks}</button>
-              <button className="ta-btn ta-btn-pri ta-btn-replay" onClick={onStartReplay}>{t.replayBtn}</button>
-            </>
+            <button className="ta-btn ta-btn-pri ta-btn-replay" onClick={onStartReplay}>{t.replayBtn}</button>
           )}
         </div>
       )}
@@ -311,7 +307,6 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
           onPrevTrick={() => setReplayStep(s => s - 1)}
           onNextTrick={() => setReplayStep(s => s + 1)}
           onEndReplay={() => setReplayStep(-1)}
-          onShowAllTricks={() => setShowAllTricks(true)}
           t={t}
         />
       )}
@@ -445,6 +440,12 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
           <span>{getTeamLabel(0)}</span>
           <span>{getTeamLabel(1)}</span>
         </div>
+
+        {tricks?.length > 0 && (
+          <button className="btn-secondary btn-large" onClick={() => setShowAllTricks(true)}>
+            {t.seeAllTricks}
+          </button>
+        )}
 
         {room.phase === 'GAME_OVER' ? (
           <div className="game-over-section">
