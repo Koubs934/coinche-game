@@ -9,6 +9,67 @@ function cardPts(card, trump) {
   return ((card.suit === trump) ? TRUMP_PTS : NON_TRUMP_PTS)[card.value] || 0;
 }
 
+// ─── All-tricks view ──────────────────────────────────────────────────────────
+
+function AllTricksView({ tricks, trumpSuit, players, onBack, t }) {
+  function nameAt(pos) {
+    return players.find(p => p.position === pos)?.username || '?';
+  }
+
+  // Pre-compute per-trick points and running cumulative totals
+  let c0 = 0, c1 = 0;
+  const rows = tricks.map((trick, i) => {
+    const isLast = i === tricks.length - 1;
+    const pts = trick.cards.reduce((s, { card }) => s + cardPts(card, trumpSuit), 0)
+      + (isLast ? 10 : 0);
+    if (trick.winner % 2 === 0) c0 += pts; else c1 += pts;
+    return { trick, i, isLast, pts, c0, c1 };
+  });
+
+  return (
+    <div className="atv-wrap">
+      <div className="atv-header">
+        <span className="atv-title">{t.allTricks}</span>
+        <button className="ta-btn ta-btn-sec" onClick={onBack}>◀ {t.replayEnd}</button>
+      </div>
+      {rows.map(({ trick, i, isLast, pts, c0: runC0, c1: runC1 }) => {
+        const leadIdx = trick.cards[0].playerIndex;
+        const winTeam = trick.winner % 2;
+        return (
+          <div className="atv-trick" key={i}>
+            <div className="atv-trick-hdr">
+              <span className="atv-trick-num">{t.trick} {i + 1}</span>
+              <span className={`ta-winner-badge twb-team${winTeam}`}>✓ {nameAt(trick.winner)}</span>
+              <span className="atv-pts">{pts} pts{isLast ? ` (${t.dixDeDer})` : ''}</span>
+              <div className="atv-cumul">
+                <span className="rcu-t0">{runC0}</span>
+                <span className="rcu-sep"> – </span>
+                <span className="rcu-t1">{runC1}</span>
+              </div>
+            </div>
+            <div className="atv-cards">
+              {trick.cards.map(({ card, playerIndex }) => {
+                const isWin  = playerIndex === trick.winner;
+                const isLead = playerIndex === leadIdx;
+                const isRed  = card.suit === 'H' || card.suit === 'D';
+                return (
+                  <div className="atv-card-slot" key={playerIndex}>
+                    <span className="atv-pname">{nameAt(playerIndex)}</span>
+                    <div className={`ta-card${isRed ? ' red' : ''}${isWin ? ' ta-win' : ''}`}>
+                      {isLead && <span className="ta-lead">{t.trickLead}</span>}
+                      <span className="ta-cf">{card.value}{SUIT_SYM[card.suit]}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Unified top area: auction recap ↔ trick replay ──────────────────────────
 //
 // replayStep -1  → auction recap mode
@@ -19,6 +80,7 @@ function TopArea({
   tricks, trumpSuit,
   players, myPosition,
   replayStep, onStartReplay, onNextTrick, onPrevTrick, onEndReplay,
+  onShowAllTricks,
   t,
 }) {
   const isReplaying = replayStep >= 0;
@@ -171,9 +233,10 @@ function TopArea({
               </button>
             </>
           ) : (
-            <button className="ta-btn ta-btn-pri ta-btn-replay" onClick={onStartReplay}>
-              {t.replayBtn}
-            </button>
+            <>
+              <button className="ta-btn ta-btn-sec" onClick={onShowAllTricks}>{t.seeAllTricks}</button>
+              <button className="ta-btn ta-btn-pri ta-btn-replay" onClick={onStartReplay}>{t.replayBtn}</button>
+            </>
           )}
         </div>
       )}
@@ -187,6 +250,7 @@ function TopArea({
 export default function RoundSummary({ socket, roomCode, room, game, myPosition }) {
   const { t } = useLang();
   const [replayStep, setReplayStep] = useState(-1);
+  const [showAllTricks, setShowAllTricks] = useState(false);
 
   function leaveGame() {
     if (!window.confirm(t.leaveConfirmGame)) return;
@@ -221,6 +285,18 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
   return (
     <div className="round-summary">
 
+      {/* ── All-tricks view (replaces normal content while open) ────────────── */}
+      {showAllTricks ? (
+        <AllTricksView
+          tricks={tricks}
+          trumpSuit={trumpSuit}
+          players={players}
+          onBack={() => setShowAllTricks(false)}
+          t={t}
+        />
+      ) : (
+      <>
+
       {/* ── Top area: auction recap ↔ trick replay ──────────────────────────── */}
       {showTopArea && (
         <TopArea
@@ -235,6 +311,7 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
           onPrevTrick={() => setReplayStep(s => s - 1)}
           onNextTrick={() => setReplayStep(s => s + 1)}
           onEndReplay={() => setReplayStep(-1)}
+          onShowAllTricks={() => setShowAllTricks(true)}
           t={t}
         />
       )}
@@ -388,6 +465,9 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
 
         <button className="btn-leave" onClick={leaveGame}>{t.leaveTable}</button>
       </div>
+
+      </>
+      )}
     </div>
   );
 }

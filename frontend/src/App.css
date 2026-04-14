@@ -998,6 +998,33 @@ a      { color: var(--accent); }
 .rcu-t1  { color: #f4a261; }
 .rcu-sep { color: var(--muted); }
 
+/* ─── All-tricks view ────────────────────────────────────────────────────── */
+.atv-wrap { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 8px; }
+.atv-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-bottom: 4px;
+}
+.atv-title {
+  font-size: 0.72em; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.atv-trick {
+  background: var(--ui-card); border-radius: 8px; padding: 8px 10px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.atv-trick-hdr {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.atv-trick-num { font-size: 0.72em; font-weight: 700; color: var(--muted); min-width: 36px; }
+.atv-pts       { font-size: 0.68em; color: var(--text); }
+.atv-cumul     { margin-left: auto; font-size: 0.7em; display: flex; align-items: center; gap: 3px; }
+.atv-cards     { display: flex; gap: 6px; justify-content: space-around; }
+.atv-card-slot { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+.atv-pname {
+  font-size: 0.6em; color: var(--muted); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 70px;
+}
+
 /* Auction recap — first-to-speak badge */
 .ar-first-badge {
   font-size: 0.62em;
