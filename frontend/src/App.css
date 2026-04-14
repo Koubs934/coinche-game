@@ -1212,6 +1212,10 @@ a      { color: var(--accent); }
   background: rgba(240,165,0,0.1);
 }
 
+/* Manual drag mode */
+.my-hand-manual { touch-action: none; user-select: none; }
+.card-dragging  { opacity: 0.55; transform: scale(1.1) translateY(-8px); transition: none; position: relative; z-index: 10; }
+
 /* ─── Bid action chips (per-player bidding status) ──────────────────────── */
 .bid-action-chip {
   font-size: 0.62em;

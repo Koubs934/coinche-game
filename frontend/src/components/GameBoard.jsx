@@ -105,13 +105,32 @@ function winDir(winnerPos, myPos) {
   return ['bottom', 'right', 'top', 'left'][((winnerPos - myPos) + 4) % 4];
 }
 
+// ─── Manual order helpers ──────────────────────────────────────────────────
+
+function cardKey(c) { return `${c.suit}${c.value}`; }
+
+function applyManualOrder(hand, orderKeys) {
+  if (!orderKeys) return hand;
+  const map = Object.fromEntries(hand.map(c => [cardKey(c), c]));
+  const sorted = orderKeys.filter(k => k in map).map(k => map[k]);
+  const unseen = hand.filter(c => !orderKeys.includes(cardKey(c)));
+  return [...sorted, ...unseen];
+}
+
+function reorderArr(arr, from, to) {
+  const a = [...arr];
+  const [item] = a.splice(from, 1);
+  a.splice(to, 0, item);
+  return a;
+}
+
 // ─── Card primitives ───────────────────────────────────────────────────────
 
-function CardFace({ card, onClick, highlight, disabled }) {
+function CardFace({ card, onClick, highlight, disabled, isDragging }) {
   const isRed = card.suit === 'H' || card.suit === 'D';
   return (
     <button
-      className={`card card-face${isRed ? ' red' : ''}${highlight ? ' valid' : ''}${disabled ? ' card-disabled' : ''}`}
+      className={`card card-face${isRed ? ' red' : ''}${highlight ? ' valid' : ''}${disabled ? ' card-disabled' : ''}${isDragging ? ' card-dragging' : ''}`}
       onClick={onClick}
       disabled={disabled}
     >
@@ -260,13 +279,28 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const [showLastTrick, setShowLastTrick] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   // trickOverlay = { cards, winnerPos, animate } | null
-  const [trickOverlay, setTrickOverlay]   = useState(null);
+  const [trickOverlay, setTrickOverlay] = useState(null);
+  // manualOrderKeys: card-key array defining manual hand order; null = server order
+  const [manualOrderKeys, setManualOrderKeys] = useState(() => {
+    try {
+      const s = localStorage.getItem(`coinche-hand-${roomCode}-${game.dealer}`);
+      return s ? JSON.parse(s) : null;
+    } catch { return null; }
+  });
+  // dragVisual: { fromIdx, toIdx } live during a drag gesture
+  const [dragVisual, setDragVisual] = useState(null);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const prevTricksLenRef = useRef(0);
   const prevDealerRef    = useRef(null);
   const prevTrumpRef     = useRef(null);
   const timerRef         = useRef([]);
+  const dragRef          = useRef(null);   // active drag { fromIdx, toIdx }
+  const longPressRef     = useRef(null);   // long-press timer
+  const startXYRef       = useRef(null);   // pointer position at pointerdown
+  const wasDragRef       = useRef(false);  // suppress click after drag completes
+  const handElRef        = useRef(null);   // ref on .my-hand div
+  const prevDealerMRef   = useRef(game.dealer); // for detecting new round
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const { players, scores, targetScore, paused } = room;
@@ -282,7 +316,12 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const isMyBidTurn  = phase === 'BIDDING' && biddingTurn  === myPosition;
   const isMyTurn     = isMyCardTurn || isMyBidTurn;
 
-  const displayHand  = sortActive ? sortHand(myHand, trumpSuit) : myHand;
+  const manualHand   = applyManualOrder(myHand, manualOrderKeys);
+  const displayHand  = sortActive
+    ? sortHand(myHand, trumpSuit)
+    : dragVisual
+      ? reorderArr(manualHand, dragVisual.fromIdx, dragVisual.toIdx)
+      : manualHand;
   const livePoints   = computeLivePoints(tricks, trumpSuit);
   const lastDoneTrick = tricks?.length > 0 ? tricks[tricks.length - 1] : null;
 
@@ -369,9 +408,88 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
     if (!trumpSuit) prevTrumpRef.current = null;
   }, [trumpSuit]);
 
+  // ── Effect: reset manual order on new round ───────────────────────────────
+  useEffect(() => {
+    if (game.dealer !== prevDealerMRef.current) {
+      prevDealerMRef.current = game.dealer;
+      setManualOrderKeys(null);
+      setSortActive(false);
+    }
+  }, [game.dealer]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   function playCard(card) {
     socket.emit('playCard', { code: roomCode, card });
+  }
+
+  // ── Manual drag-to-reorder ────────────────────────────────────────────────
+  const lsKey = `coinche-hand-${roomCode}-${game.dealer}`;
+
+  function saveManualOrder(keys) {
+    setManualOrderKeys(keys);
+    try { localStorage.setItem(lsKey, JSON.stringify(keys)); } catch {}
+  }
+
+  function getDropIdx(clientX) {
+    if (!handElRef.current) return 0;
+    const els = handElRef.current.querySelectorAll('.card-face');
+    for (let i = 0; i < els.length; i++) {
+      const r = els[i].getBoundingClientRect();
+      if (clientX < r.left + r.width / 2) return i;
+    }
+    return Math.max(0, els.length - 1);
+  }
+
+  function handleHandPointerDown(e) {
+    if (sortActive) return;
+    const els = Array.from(handElRef.current.querySelectorAll('.card-face'));
+    const idx = els.findIndex(el => el.contains(e.target));
+    if (idx === -1) return;
+    handElRef.current.setPointerCapture(e.pointerId);
+    startXYRef.current = { x: e.clientX, y: e.clientY };
+    longPressRef.current = setTimeout(() => {
+      dragRef.current = { fromIdx: idx, toIdx: idx };
+      setDragVisual({ fromIdx: idx, toIdx: idx });
+    }, 250);
+  }
+
+  function handleHandPointerMove(e) {
+    if (dragRef.current) {
+      const to = getDropIdx(e.clientX);
+      if (to !== dragRef.current.toIdx) {
+        dragRef.current.toIdx = to;
+        setDragVisual({ fromIdx: dragRef.current.fromIdx, toIdx: to });
+      }
+      return;
+    }
+    // Cancel long-press if finger moved too much
+    if (longPressRef.current && startXYRef.current) {
+      if (Math.abs(e.clientX - startXYRef.current.x) > 8 ||
+          Math.abs(e.clientY - startXYRef.current.y) > 8) {
+        clearTimeout(longPressRef.current);
+        longPressRef.current = null;
+      }
+    }
+  }
+
+  function handleHandPointerUp(e) {
+    clearTimeout(longPressRef.current);
+    longPressRef.current = null;
+    const dr = dragRef.current;
+    dragRef.current = null;
+    setDragVisual(null);
+    if (!dr) return;
+    wasDragRef.current = true;
+    if (dr.fromIdx !== dr.toIdx) {
+      saveManualOrder(reorderArr(manualHand, dr.fromIdx, dr.toIdx).map(cardKey));
+    }
+  }
+
+  function handleHandPointerCancel() {
+    clearTimeout(longPressRef.current);
+    longPressRef.current = null;
+    dragRef.current = null;
+    setDragVisual(null);
   }
 
   // ── Round summary (early exit) ─────────────────────────────────────────────
@@ -672,14 +790,25 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           <button className="btn-leave" onClick={leaveTable}>{t.leaveTable}</button>
         </div>
 
-        <div className="my-hand">
+        <div
+          className={`my-hand${!sortActive ? ' my-hand-manual' : ''}`}
+          ref={handElRef}
+          onPointerDown={handleHandPointerDown}
+          onPointerMove={handleHandPointerMove}
+          onPointerUp={handleHandPointerUp}
+          onPointerCancel={handleHandPointerCancel}
+        >
           {displayHand.map(card => (
             <CardFace
-              key={`${card.suit}${card.value}`}
+              key={cardKey(card)}
               card={card}
-              onClick={() => isMyCardTurn && playCard(card)}
+              onClick={() => {
+                if (wasDragRef.current) { wasDragRef.current = false; return; }
+                if (isMyCardTurn) playCard(card);
+              }}
               highlight={isMyCardTurn}
               disabled={!isMyCardTurn}
+              isDragging={dragVisual != null && cardKey(card) === cardKey(manualHand[dragVisual.fromIdx])}
             />
           ))}
           {myHand.length === 0 && phase === 'PLAYING' && (
