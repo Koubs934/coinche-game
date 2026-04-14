@@ -938,7 +938,7 @@ a      { color: var(--accent); }
 .ta-btn-sec { background: rgba(255,255,255,0.1); color: var(--text); border: 1px solid rgba(255,255,255,0.2); }
 .ta-btn:disabled { opacity: 0.35; cursor: default; }
 
-.ta-nav { display: flex; gap: 8px; width: 100%; padding: 4px 2px 0; justify-content: center; }
+.ta-nav { display: flex; gap: 8px; width: 100%; padding: 4px 2px 0; justify-content: flex-end; }
 .ta-nav.ta-nav-replay { justify-content: stretch; }
 .ta-nav.ta-nav-replay .ta-btn { flex: 1; }
 .ta-btn-replay { padding: 4px 24px; }
