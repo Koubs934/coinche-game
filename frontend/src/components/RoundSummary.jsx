@@ -157,7 +157,7 @@ function TopArea({
 
       {/* Bottom nav: Rejouer in summary mode, Précédent+Suivant in replay mode */}
       {hasTricks && (
-        <div className="ta-nav">
+        <div className={`ta-nav${isReplaying ? ' ta-nav-replay' : ''}`}>
           {isReplaying ? (
             <>
               <button className="ta-btn ta-btn-sec" onClick={replayStep === 0 ? onEndReplay : onPrevTrick}>
