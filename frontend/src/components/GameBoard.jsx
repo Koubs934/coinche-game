@@ -280,6 +280,61 @@ function PlayerSeat({ player, handCount, isActive, isDimmed, direction, isCreato
   );
 }
 
+// ─── Cut picker (drum roulette for the cut phase) ─────────────────────────
+
+const ITEM_H = 64; // must match .cut-drum-item height in CSS
+
+function CutPicker({ onCut, onSkip, t }) {
+  const drumRef    = useRef(null);
+  const [value, setValue] = useState(16);
+  const scrollTimer = useRef(null);
+
+  useEffect(() => {
+    if (drumRef.current) drumRef.current.scrollTop = 15 * ITEM_H;
+  }, []);
+
+  function handleScroll() {
+    clearTimeout(scrollTimer.current);
+    scrollTimer.current = setTimeout(() => {
+      if (!drumRef.current) return;
+      const idx = Math.round(drumRef.current.scrollTop / ITEM_H);
+      setValue(Math.max(1, Math.min(31, idx + 1)));
+    }, 80);
+  }
+
+  function handleCut() {
+    let n = value;
+    if (drumRef.current) {
+      const idx = Math.round(drumRef.current.scrollTop / ITEM_H);
+      n = Math.max(1, Math.min(31, idx + 1));
+    }
+    onCut(n);
+  }
+
+  return (
+    <div className="scp-cut-zone">
+      <p className="scp-cut-label">{t.pickCutValue}</p>
+      <div className="cut-drum-wrap">
+        <div className="cut-drum-overlay top" />
+        <div className="cut-drum-center-bar" />
+        <div className="cut-drum-overlay bot" />
+        <div className="cut-drum" ref={drumRef} onScroll={handleScroll}>
+          <div className="cut-drum-pad" />
+          {Array.from({ length: 31 }, (_, i) => (
+            <div key={i + 1} className="cut-drum-item">{i + 1}</div>
+          ))}
+          <div className="cut-drum-pad" />
+        </div>
+      </div>
+      <p className="scp-cut-selected">{value}</p>
+      <div className="scp-actions">
+        <button className="scp-btn scp-btn-pri" onClick={handleCut}>{t.cut}</button>
+        <button className="scp-btn scp-btn-sec" onClick={onSkip}>{t.noCut}</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main GameBoard ────────────────────────────────────────────────────────
 
 export default function GameBoard({ socket, roomCode, room, game, myPosition }) {
@@ -309,6 +364,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   });
   // dragVisual: { fromIdx, toIdx } live during a drag gesture
   const [dragVisual, setDragVisual] = useState(null);
+  // dealAnimCounts: [c0,c1,c2,c3] while the 3-2-3 deal plays out; null = show all
+  const [dealAnimCounts, setDealAnimCounts] = useState(null);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const prevTricksLenRef = useRef(0);
@@ -321,9 +378,10 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const wasDragRef       = useRef(false);  // suppress click after drag completes
   const handElRef        = useRef(null);   // ref on .my-hand div
   const prevDealerMRef   = useRef(game.dealer); // for detecting new round
+  const prevRoomPhaseRef = useRef(room.phase);  // for CUT→PLAYING deal animation
 
   // ── Derived ────────────────────────────────────────────────────────────────
-  const { players, scores, targetScore, paused } = room;
+  const { players, scores, targetScore, paused, shuffleDealer, cutPlayer } = room;
   const {
     phase, currentTrick, currentPlayer, biddingTurn,
     trumpSuit, currentBid, hands, handCounts, beloteInfo, tricks,
@@ -343,7 +401,10 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
       ? reorderArr(manualHand, dragVisual.fromIdx, dragVisual.toIdx)
       : manualHand;
   const livePoints   = computeLivePoints(tricks, trumpSuit);
-  const lastDoneTrick = tricks?.length > 0 ? tricks[tricks.length - 1] : null;
+  const lastDoneTrick  = tricks?.length > 0 ? tricks[tricks.length - 1] : null;
+  const animatedHand   = dealAnimCounts != null
+    ? displayHand.slice(0, dealAnimCounts[myPosition])
+    : displayHand;
 
   // For active/dim states on opponent seats
   const isActiveTurnPhase = phase === 'BIDDING' || phase === 'PLAYING';
@@ -363,12 +424,21 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const coincheBy    = contractData ? ([...biddingHistory].reverse().find(e => e.type === 'coinche')?.position   ?? null) : null;
   const surcoincheBy = contractData ? ([...biddingHistory].reverse().find(e => e.type === 'surcoinche')?.position ?? null) : null;
 
+  // ── Shuffle / Cut derived ──────────────────────────────────────────────────
+  const isShuffleCut    = room.phase === 'SHUFFLE' || room.phase === 'CUT';
+  const isMyShuffleTurn = room.phase === 'SHUFFLE' && shuffleDealer === myPosition;
+  const isMyCutTurn     = room.phase === 'CUT'     && cutPlayer     === myPosition;
+  const scActorPos  = room.phase === 'SHUFFLE' ? shuffleDealer : cutPlayer;
+  const scActorName = scActorPos != null
+    ? (players.find(p => p.position === scActorPos)?.username || '?')
+    : '?';
+
   function seatData(offset) {
     const pos    = (myPosition + offset + 4) % 4;
     const player = players.find(p => p.position === pos);
     return {
       player,
-      handCount: handCounts[pos],
+      handCount: dealAnimCounts ? dealAnimCounts[pos] : handCounts[pos],
       isActive:  isActiveTurnPhase && pos === activeTurnPos,
       isDimmed:  isActiveTurnPhase && pos !== activeTurnPos,
     };
@@ -442,6 +512,18 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
       setSortMode(prev => prev === 'manual' ? 'manual' : bestSuitForHand(myHand));
     }
   }, [game.dealer]);
+
+  // ── Effect: 3-2-3 deal animation when CUT → PLAYING ────────────────────────
+  useEffect(() => {
+    if (prevRoomPhaseRef.current === 'CUT' && room.phase === 'PLAYING') {
+      setDealAnimCounts([0, 0, 0, 0]);
+      const t1 = setTimeout(() => setDealAnimCounts([3, 3, 3, 3]), 400);
+      const t2 = setTimeout(() => setDealAnimCounts([5, 5, 5, 5]), 800);
+      const t3 = setTimeout(() => setDealAnimCounts(null), 1200);
+      timerRef.current.push(t1, t2, t3);
+    }
+    prevRoomPhaseRef.current = room.phase;
+  }, [room.phase]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   function playCard(card) {
@@ -764,6 +846,16 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
               )}
             </div>
           )}
+
+          {/* Shuffle / Cut status — shown on the table when preparing next deal */}
+          {isShuffleCut && (
+            <div className="scc-status">
+              {isMyShuffleTurn ? t.yourTurnShuffle
+                : isMyCutTurn  ? t.yourTurnCut
+                : room.phase === 'SHUFFLE' ? t.waitingShuffle(scActorName)
+                : t.waitingCut(scActorName)}
+            </div>
+          )}
         </div>
 
         <div className="board-right">
@@ -810,17 +902,42 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           />
         )}
 
+        {/* Shuffle controls */}
+        {room.phase === 'SHUFFLE' && isMyShuffleTurn && (
+          <div className="deal-controls">
+            <button className="scp-btn scp-btn-pri" onClick={() => socket.emit('shuffleDeck', { code: roomCode })}>
+              {t.shuffle}
+            </button>
+            <button className="scp-btn scp-btn-sec" onClick={() => socket.emit('skipShuffle', { code: roomCode })}>
+              {t.noShuffle}
+            </button>
+          </div>
+        )}
+
+        {/* Cut controls */}
+        {room.phase === 'CUT' && isMyCutTurn && (
+          <div className="deal-controls">
+            <CutPicker
+              onCut={n => socket.emit('cutDeck', { code: roomCode, n })}
+              onSkip={() => socket.emit('skipCut', { code: roomCode })}
+              t={t}
+            />
+          </div>
+        )}
+
         {/* Toolbar row: sort toggle + admin manage + leave */}
         <div className="hand-toolbar">
-          <button
-            className={`btn-sort${sortMode !== 'manual' ? ' sort-on' : ''}${sortMode === 'H' || sortMode === 'D' ? ' sort-red' : ''}`}
-            onClick={cycleSortMode}
-            title={t.sortHand}
-          >
-            {sortMode === 'manual'
-              ? `⇅ ${t.sortManual}`
-              : `${SUIT_SYM[sortMode]} ${t.sortHand}`}
-          </button>
+          {!isShuffleCut && (
+            <button
+              className={`btn-sort${sortMode !== 'manual' ? ' sort-on' : ''}${sortMode === 'H' || sortMode === 'D' ? ' sort-red' : ''}`}
+              onClick={cycleSortMode}
+              title={t.sortHand}
+            >
+              {sortMode === 'manual'
+                ? `⇅ ${t.sortManual}`
+                : `${SUIT_SYM[sortMode]} ${t.sortHand}`}
+            </button>
+          )}
           {isCreator && (
             <button className="btn-manage" onClick={() => setShowAdminPanel(true)} title={t.managePlayersTitle}>
               ⚙ {t.managePlayers}
@@ -837,7 +954,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           onPointerUp={handleHandPointerUp}
           onPointerCancel={handleHandPointerCancel}
         >
-          {displayHand.map(card => (
+          {animatedHand.map(card => (
             <CardFace
               key={cardKey(card)}
               card={card}
@@ -850,7 +967,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
               isDragging={dragVisual != null && cardKey(card) === cardKey(manualHand[dragVisual.fromIdx])}
             />
           ))}
-          {myHand.length === 0 && phase === 'PLAYING' && (
+          {myHand.length === 0 && phase === 'PLAYING' && !dealAnimCounts && (
             <span className="muted">—</span>
           )}
         </div>

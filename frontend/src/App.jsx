@@ -6,9 +6,18 @@ import Auth from './components/Auth';
 import Header from './components/Header';
 import Lobby from './components/Lobby';
 import GameBoard from './components/GameBoard';
-import ShuffleCutPanel from './components/ShuffleCutPanel';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+
+// Stable fallback used when game is null (SHUFFLE/CUT before first deal, or loading)
+const EMPTY_GAME = {
+  dealer: 0, phase: null, currentBid: null, biddingTurn: null,
+  consecutivePasses: 0, biddingActions: [null, null, null, null],
+  biddingHistory: [], tricks: [], currentTrick: [], currentPlayer: null,
+  trumpSuit: null, beloteInfo: { playerIndex: null, complete: false },
+  roundScores: [0, 0], contractMade: null, trickPoints: null,
+  hands: [[], [], [], []], handCounts: [0, 0, 0, 0],
+};
 
 export default function App() {
   const { user, username, loading } = useAuth();
@@ -132,19 +141,12 @@ export default function App() {
         <div className="toast-info">{t.reconnecting}</div>
       )}
 
-      {inGame && (roomState.phase === 'SHUFFLE' || roomState.phase === 'CUT') ? (
-        <ShuffleCutPanel
-          socket={socketRef.current}
-          roomCode={roomState.code}
-          room={roomState}
-          myPosition={myPosition}
-        />
-      ) : inGame && gameState ? (
+      {inGame ? (
         <GameBoard
           socket={socketRef.current}
           roomCode={roomState.code}
           room={roomState}
-          game={gameState}
+          game={gameState ?? EMPTY_GAME}
           myPosition={myPosition}
         />
       ) : (
