@@ -117,6 +117,7 @@ export default {
   surcoinched: 'Surcoinché',
   dixDeDer: '+10 (dix de der)',
   sortHand: 'Trier',
+  sortManual: 'Manuel',
   lastTrick: 'Dernier pli',
   wonTrick: 'a remporté le pli',
   liveRound: 'Pli en cours',

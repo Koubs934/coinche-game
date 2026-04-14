@@ -1211,6 +1211,11 @@ a      { color: var(--accent); }
   border-color: var(--accent);
   background: rgba(240,165,0,0.1);
 }
+.btn-sort.sort-red {
+  color: var(--red);
+  border-color: var(--red);
+  background: rgba(210,50,50,0.1);
+}
 
 /* Manual drag mode */
 .my-hand-manual { touch-action: none; user-select: none; }

@@ -48,6 +48,17 @@ function computeLivePoints(tricks, trump) {
   return pts;
 }
 
+// Return the suit that maximises total hand value if it were trump (deterministic)
+function bestSuitForHand(hand) {
+  if (!hand?.length) return 'S';
+  let best = 'S', bestScore = -1;
+  for (const suit of ['S', 'H', 'D', 'C']) {
+    const score = hand.reduce((s, c) => s + cardPts(c, suit), 0);
+    if (score > bestScore) { bestScore = score; best = suit; }
+  }
+  return best;
+}
+
 // ─── Hand sorting ──────────────────────────────────────────────────────────
 const TRUMP_ORDER     = ['J', '9', 'A', '10', 'K', 'Q', '8', '7'];
 const NON_TRUMP_ORDER = ['A', '10', 'K', 'Q', 'J', '9', '8', '7'];
@@ -275,7 +286,16 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const { t } = useLang();
 
   // ── State ──────────────────────────────────────────────────────────────────
-  const [sortActive, setSortActive] = useState(false);
+  // sortMode: 'S'|'H'|'D'|'C' = sort as if that suit were trump; 'manual' = drag order
+  const [sortMode, setSortMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`coinche-sortmode-${roomCode}`);
+      if (saved === 'manual') return 'manual';
+    } catch {}
+    if (game.trumpSuit) return game.trumpSuit;
+    const hand = game.hands?.[myPosition] || [];
+    return bestSuitForHand(hand);
+  });
   const [showLastTrick, setShowLastTrick] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   // trickOverlay = { cards, winnerPos, animate } | null
@@ -317,8 +337,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const isMyTurn     = isMyCardTurn || isMyBidTurn;
 
   const manualHand   = applyManualOrder(myHand, manualOrderKeys);
-  const displayHand  = sortActive
-    ? sortHand(myHand, trumpSuit)
+  const displayHand  = sortMode !== 'manual'
+    ? sortHand(myHand, sortMode)
     : dragVisual
       ? reorderArr(manualHand, dragVisual.fromIdx, dragVisual.toIdx)
       : manualHand;
@@ -399,27 +419,44 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   // Cleanup on unmount
   useEffect(() => () => timerRef.current.forEach(clearTimeout), []);
 
-  // ── Effect: auto-sort when trump is first revealed ─────────────────────────
+  // ── Effect: persist sortMode preference across rounds ─────────────────────
+  useEffect(() => {
+    try { localStorage.setItem(`coinche-sortmode-${roomCode}`, sortMode); } catch {}
+  }, [sortMode]);
+
+  // ── Effect: when trump is revealed, switch to it (unless in manual) ────────
   useEffect(() => {
     if (trumpSuit && trumpSuit !== prevTrumpRef.current) {
       prevTrumpRef.current = trumpSuit;
-      setSortActive(true);
+      setSortMode(prev => prev === 'manual' ? 'manual' : trumpSuit);
     }
     if (!trumpSuit) prevTrumpRef.current = null;
   }, [trumpSuit]);
 
-  // ── Effect: reset manual order on new round ───────────────────────────────
+  // ── Effect: reset on new round; carry forward manual preference ───────────
   useEffect(() => {
     if (game.dealer !== prevDealerMRef.current) {
       prevDealerMRef.current = game.dealer;
       setManualOrderKeys(null);
-      setSortActive(false);
+      // sortMode still holds previous round's value here
+      setSortMode(prev => prev === 'manual' ? 'manual' : bestSuitForHand(myHand));
     }
   }, [game.dealer]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   function playCard(card) {
     socket.emit('playCard', { code: roomCode, card });
+  }
+
+  // ── Sort mode cycle ────────────────────────────────────────────────────────
+  function cycleSortMode() {
+    const cycle = trumpSuit
+      ? [trumpSuit, 'manual']
+      : ['S', 'H', 'D', 'C', 'manual'];
+    setSortMode(prev => {
+      const idx = cycle.indexOf(prev);
+      return cycle[idx === -1 ? 0 : (idx + 1) % cycle.length];
+    });
   }
 
   // ── Manual drag-to-reorder ────────────────────────────────────────────────
@@ -441,7 +478,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   }
 
   function handleHandPointerDown(e) {
-    if (sortActive) return;
+    if (sortMode !== 'manual') return;
     const els = Array.from(handElRef.current.querySelectorAll('.card-face'));
     const idx = els.findIndex(el => el.contains(e.target));
     if (idx === -1) return;
@@ -776,11 +813,13 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
         {/* Toolbar row: sort toggle + admin manage + leave */}
         <div className="hand-toolbar">
           <button
-            className={`btn-sort${sortActive ? ' sort-on' : ''}`}
-            onClick={() => setSortActive(v => !v)}
+            className={`btn-sort${sortMode !== 'manual' ? ' sort-on' : ''}${sortMode === 'H' || sortMode === 'D' ? ' sort-red' : ''}`}
+            onClick={cycleSortMode}
             title={t.sortHand}
           >
-            {sortActive ? '♠♥♦♣' : '⇅'} {t.sortHand}
+            {sortMode === 'manual'
+              ? `⇅ ${t.sortManual}`
+              : `${SUIT_SYM[sortMode]} ${t.sortHand}`}
           </button>
           {isCreator && (
             <button className="btn-manage" onClick={() => setShowAdminPanel(true)} title={t.managePlayersTitle}>
@@ -791,7 +830,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
         </div>
 
         <div
-          className={`my-hand${!sortActive ? ' my-hand-manual' : ''}`}
+          className={`my-hand${sortMode === 'manual' ? ' my-hand-manual' : ''}`}
           ref={handElRef}
           onPointerDown={handleHandPointerDown}
           onPointerMove={handleHandPointerMove}

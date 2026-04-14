@@ -117,6 +117,7 @@ export default {
   surcoinched: 'Surcoinched',
   dixDeDer: '+10 (dix de der)',
   sortHand: 'Sort',
+  sortManual: 'Manual',
   lastTrick: 'Last trick',
   wonTrick: 'won the trick',
   liveRound: 'Round',
