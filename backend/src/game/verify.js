@@ -1,10 +1,11 @@
 /**
- * Standalone verification script for rules and scoring logic.
+ * Standalone verification script for rules, scoring, and bot bidding logic.
  * Run with: node backend/src/game/verify.js
  */
 
 const { getValidCards, getTrickWinner, TRUMP_RANK } = require('./rules');
 const { calculateRoundScore } = require('./scoring');
+const { bestOpeningBid, computeSuitFeatures } = require('./botBidding');
 
 let passed = 0;
 let failed = 0;
@@ -553,6 +554,188 @@ function makeTricks(winner0count, winner1count, trumpSuit) {
   assert(contractMade === true, 'S11: surcoinched success — contractMade is true');
   assert(scores[0] === expectedContractTeam, `S11: surcoinched success — contract team gets tricks + contract×4 = ${expectedContractTeam}, got ${scores[0]}`);
   assert(scores[1] === expectedDefending,    `S11: surcoinched success — defending team gets tricks only = ${expectedDefending}, got ${scores[1]}`);
+}
+
+// ─── BOT OPENING BIDS ────────────────────────────────────────────────────────
+//
+// Convention (V1):
+//   pass → < 2 Aces AND no qualifying trump suit
+//   80   → 2+ Aces, no qualifying trump suit  — bid in suit with highest trump potential
+//   90   → petit jeu  (J+3rd  OR  9+4th + outside Ace)
+//   100  → maître à l'atout  (J + 9 + A in suit)
+//   110  → maître + 1 outside Ace
+//   120  → bicolore  (maître + exploitable side suit)
+
+console.log('\n=== Bot Opening Bids ===\n');
+
+// ── B1: Pass — 0 Aces, no trump strength ────────────────────────────────────
+// K♠ Q♠ 8♥ 7♥ 9♦ 8♦ J♣ 7♣
+// No Ace anywhere. Clubs has J but only 2 cards (needs 3+). Diamonds has 9 but only 2 (needs 4+).
+{
+  const hand = [
+    card('K','S'), card('Q','S'),
+    card('8','H'), card('7','H'),
+    card('9','D'), card('8','D'),
+    card('J','C'), card('7','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid === null, 'B1: 0 Aces + no trump strength → pass');
+}
+
+// ── B2: Pass — 1 Ace only, no trump strength ────────────────────────────────
+// A♠ K♠ Q♥ 8♥ 10♦ 7♦ 8♣ 7♣
+// Spades has A but not J or 9 for any trump pattern. Total Aces = 1 < 2 → no 80 fallback.
+{
+  const hand = [
+    card('A','S'), card('K','S'),
+    card('Q','H'), card('8','H'),
+    card('10','D'), card('7','D'),
+    card('8','C'), card('7','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid === null, 'B2: 1 Ace + no trump strength → pass');
+}
+
+// ── B3: 80 — 2 Aces, no qualifying trump suit ───────────────────────────────
+// A♠ 8♠  A♥ Q♥  K♦ 7♦  7♣ 8♣
+// trumpPtsSum: ♠=11, ♥=14 (A+Q), ♦=4, ♣=0  →  bid 80 in ♥ (highest potential)
+{
+  const hand = [
+    card('A','S'), card('8','S'),
+    card('A','H'), card('Q','H'),
+    card('K','D'), card('7','D'),
+    card('7','C'), card('8','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid?.value === 80,  'B3: 2 Aces, no trump strength → 80');
+  assert(bid?.suit  === 'H', 'B3: 80 in ♥ — highest trump potential (A+Q=14 vs A=11)');
+}
+
+// ── B4: 90 — petit jeu via Jack-third ───────────────────────────────────────
+// J♠ K♠ 8♠  A♥ Q♥  9♦ 7♦  7♣
+// Spades: J + 2 others = Jack-third → petit jeu. No master anywhere.
+{
+  const hand = [
+    card('J','S'), card('K','S'), card('8','S'),
+    card('A','H'), card('Q','H'),
+    card('9','D'), card('7','D'),
+    card('7','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid?.value === 90,  'B4: Jack-third → petit jeu 90');
+  assert(bid?.suit  === 'S', 'B4: petit jeu in ♠');
+}
+
+// ── B5: 90 — petit jeu via 9-fourth + outside Ace ───────────────────────────
+// 9♠ K♠ 8♠ 7♠  A♥ Q♥  J♦  8♣
+// Spades: 9 + 3 others = 9-fourth; outsideAces = 1 (A♥) → petit jeu.
+{
+  const hand = [
+    card('9','S'), card('K','S'), card('8','S'), card('7','S'),
+    card('A','H'), card('Q','H'),
+    card('J','D'),
+    card('8','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid?.value === 90,  'B5: 9-fourth + outside Ace → petit jeu 90');
+  assert(bid?.suit  === 'S', 'B5: petit jeu in ♠');
+}
+
+// ── B5b: 90 does NOT fire when 9-fourth but NO outside Ace ──────────────────
+// 9♠ K♠ 8♠ 7♠  Q♥ J♥  K♦  8♣
+// Spades: 9-fourth but outsideAces = 0.  No other suit qualifies.
+// Total Aces = 0 → pass.
+{
+  const hand = [
+    card('9','S'), card('K','S'), card('8','S'), card('7','S'),
+    card('Q','H'), card('J','H'),
+    card('K','D'),
+    card('8','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid === null, 'B5b: 9-fourth but 0 outside Aces → pass (not petit jeu)');
+}
+
+// ── B6: 100 — maître (J+9+A), no outside Ace, no exploitable side suit ──────
+// J♠ 9♠ A♠ K♠  Q♥ 8♥  7♦  7♣
+// Spades: master. Hearts: Q+8 (count=2, no Ace → not exploitable). outsideAces=0 → 100.
+{
+  const hand = [
+    card('J','S'), card('9','S'), card('A','S'), card('K','S'),
+    card('Q','H'), card('8','H'),
+    card('7','D'),
+    card('7','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid?.value === 100, 'B6: maître, no outside Ace → 100');
+  assert(bid?.suit  === 'S', 'B6: maître in ♠');
+}
+
+// ── B7: 110 — maître + isolated outside Ace (not exploitable as side suit) ───
+// J♠ 9♠ A♠ K♠  A♥ 8♥  7♦  7♣
+// Spades: master. Hearts: A+8 (count=2, hasA=true, but 8∉HONORS → not exploitable).
+// outsideAces=1 (A♥) but no bicolore → 110.
+{
+  const hand = [
+    card('J','S'), card('9','S'), card('A','S'), card('K','S'),
+    card('A','H'), card('8','H'),
+    card('7','D'),
+    card('7','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid?.value === 110, 'B7: maître + outside Ace (no exploitable side) → 110');
+  assert(bid?.suit  === 'S', 'B7: 110 in ♠');
+  // Verify hearts is NOT exploitable (A+8 with 8∉HONORS, count=2)
+  const hFeatures = computeSuitFeatures(hand, 'H');
+  assert(hFeatures.isExploitable === false, 'B7: A+8♥ not exploitable (8 is not an honour)');
+}
+
+// ── B8a: 120 — bicolore via Ace + honour in side suit ───────────────────────
+// J♠ 9♠ A♠ K♠  A♥ K♥ Q♥  7♣
+// Spades: master. Hearts: A+K+Q (count=3, hasA=true, K∈HONORS → exploitable) → bicolore.
+{
+  const hand = [
+    card('J','S'), card('9','S'), card('A','S'), card('K','S'),
+    card('A','H'), card('K','H'), card('Q','H'),
+    card('7','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid?.value === 120, 'B8a: bicolore (maître ♠ + A+K+Q♥) → 120');
+  assert(bid?.suit  === 'S', 'B8a: bicolore opening in ♠');
+  const hFeatures = computeSuitFeatures(hand, 'H');
+  assert(hFeatures.isExploitable === true, 'B8a: A+K+Q♥ is exploitable (A+honour, count=3)');
+}
+
+// ── B8b: 120 — bicolore via 4+ cards in side suit (no Ace needed) ───────────
+// J♠ 9♠ A♠  K♥ Q♥ 8♥ 7♥  7♣
+// Spades: master (count=3). Hearts: K+Q+8+7 (count=4 → exploitable, no Ace needed) → bicolore.
+{
+  const hand = [
+    card('J','S'), card('9','S'), card('A','S'),
+    card('K','H'), card('Q','H'), card('8','H'), card('7','H'),
+    card('7','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid?.value === 120, 'B8b: bicolore (maître ♠ + 4-card ♥) → 120');
+  assert(bid?.suit  === 'S', 'B8b: bicolore opening in ♠');
+  const hFeatures = computeSuitFeatures(hand, 'H');
+  assert(hFeatures.isExploitable === true, 'B8b: 4-card ♥ is exploitable (length)');
+}
+
+// ── B9: Tie-break — two suits at same level, higher trumpPtsSum wins ─────────
+// J♠ 9♠ A♠  J♥ 9♥ A♥  7♦  7♣
+// Both ♠ and ♥ are master (trumpPtsSum=45 each). Each suit's partner (the other) has
+// J+9+A → isExploitable (hasA+hasHonor). Both reach 120. Canonical tie-break: ♠ < ♥ → ♠.
+{
+  const hand = [
+    card('J','S'), card('9','S'), card('A','S'),
+    card('J','H'), card('9','H'), card('A','H'),
+    card('7','D'),
+    card('7','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid?.value === 120, 'B9: two bicolore suits → 120');
+  assert(bid?.suit  === 'S', 'B9: tie-break by canonical order → ♠ over ♥');
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────

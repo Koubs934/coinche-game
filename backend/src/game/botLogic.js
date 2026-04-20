@@ -1,4 +1,5 @@
 const { getValidCards, getTrickWinner } = require('./rules');
+const { bestOpeningBid } = require('./botBidding');
 
 const TRUMP_RANK     = { J: 8, '9': 7, A: 6, '10': 5, K: 4, Q: 3, '8': 2, '7': 1 };
 const NON_TRUMP_RANK = { A: 8, '10': 7, K: 6, Q: 5, J: 4, '9': 3, '8': 2, '7': 1 };
@@ -18,24 +19,27 @@ function lowest(cards, trump) {
   return cards.reduce((b, c) => sortKey(c, trump) < sortKey(b, trump) ? c : b, cards[0]);
 }
 
-// Find the suit the bot has the most cards in (for bidding)
-function longestSuit(hand) {
-  const counts = {};
-  for (const c of hand) counts[c.suit] = (counts[c.suit] || 0) + 1;
-  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-}
 
 /**
  * Returns { type: 'bid', value, suit } or { type: 'pass' }.
  *
- * Strategy: bid 80 in the longest suit if no contract exists yet
- * (guarantees the game always has a contract to play).
- * If a bid already exists, always pass — bots don't compete over contracts.
+ * V1 — opening logic only.
+ * If there is already a bid on the table the bot passes unconditionally;
+ * partner-response and competitive layers will be added in a later version.
+ *
+ * Opening tiers (see botBidding.js for full convention):
+ *   pass → fewer than 2 Aces and no qualifying trump suit
+ *   80   → 2+ Aces, no qualifying trump suit  (information opening)
+ *   90   → petit jeu  (J+3rd  OR  9+4th + outside Ace)
+ *   100  → maître à l'atout  (J + 9 + A)
+ *   110  → maître + 1 outside Ace
+ *   120  → bicolore  (maître + exploitable side suit)
  */
 function getBotBidAction(game, position) {
-  if (!game.currentBid) {
-    return { type: 'bid', value: 80, suit: longestSuit(game.hands[position]) };
-  }
+  if (game.currentBid) return { type: 'pass' };
+
+  const bid = bestOpeningBid(game.hands[position]);
+  if (bid) return { type: 'bid', value: bid.value, suit: bid.suit };
   return { type: 'pass' };
 }
 
