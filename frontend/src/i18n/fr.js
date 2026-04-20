@@ -152,6 +152,26 @@ export default {
   // Les clés sont immuables (définies dans backend/src/training/reasonTags.json)
   // et ne doivent pas être renommées sans gérer la migration des données existantes.
   training: {
+    panel: {
+      title:                     'Pourquoi ce choix ?',
+      actionLabel:               'Action jouée',
+      notePlaceholderOptional:   'Facultatif — qu’est-ce qui vous a fait pencher vers ce choix ?',
+      notePlaceholderRequired:   'Obligatoire — quel raisonnement n’est pas capté par les tags ?',
+      noteLabel:                 'Note',
+      submit:                    'Valider',
+      helperEmpty:               'Choisir au moins un tag ou écrire une note',
+      helperOther:               '« Autre » exige une note',
+      changeAction:              'Changer mon action',
+      // Action-display prefixes
+      youBid:                    'Vous avez annoncé',
+      youPassed:                 'Vous avez passé',
+      youCoinched:               'Vous avez coinché',
+      youSurcoinched:            'Vous avez surcoinché',
+      youPlayed:                 'Vous avez joué',
+      // Mock-only — not shown outside the mock harness
+      mockHarnessHeading:        'Mode démo — panneau de raisonnement',
+      mockSwitcherLabel:         'Type d’action',
+    },
     actions: {
       bid:         'Annonce',
       pass:        'Passer',

@@ -6,6 +6,8 @@ import Auth from './components/Auth';
 import Header from './components/Header';
 import Lobby from './components/Lobby';
 import GameBoard from './components/GameBoard';
+import ReasonPanelMock from './training/ReasonPanelMock';
+import { cleanupOldDrafts } from './training/noteDraft';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
@@ -21,9 +23,28 @@ const EMPTY_GAME = {
   hands: [[], [], [], []], handCounts: [0, 0, 0, 0],
 };
 
+// Mock-harness short-circuit: ?mock=training-panel renders the reason-panel
+// preview (no auth, no sockets). Used to review UX in isolation before wiring.
+const MOCK_MODE = typeof window !== 'undefined'
+  ? new URLSearchParams(window.location.search).get('mock')
+  : null;
+
 export default function App() {
   const { user, username, loading } = useAuth();
   const { lang, toggleLang, t } = useLang();
+
+  // Mock short-circuit BEFORE any hooks below — static URL param, stable across
+  // a single session, so hooks-count invariant holds.
+  if (MOCK_MODE === 'training-panel') {
+    return (
+      <>
+        <div className="lang-toggle-fixed">
+          <button className="btn-lang" onClick={toggleLang}>{lang.toUpperCase()}</button>
+        </div>
+        <ReasonPanelMock />
+      </>
+    );
+  }
 
   const socketRef = useRef(null);
   const [socketReady, setSocketReady] = useState(false);
@@ -42,6 +63,10 @@ export default function App() {
   const myPositionRef = useRef(null);
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
   useEffect(() => { myPositionRef.current = myPosition; }, [myPosition]);
+
+  // Housekeeping — drop any reason-panel drafts from localStorage older than
+  // 24 h. Cheap, runs once per page load.
+  useEffect(() => { cleanupOldDrafts(); }, []);
 
   // ── Socket setup ────────────────────────────────────────────────────────
   useEffect(() => {

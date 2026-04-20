@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "_comment": "Source of truth for training-mode reasoning tags. Keys are kebab-case and IMMUTABLE once shipped (renaming a key corrupts older annotations — add a new key and deprecate instead). Display strings live in frontend/src/i18n/{en,fr}.js under training.tags.groups.<group-key> and training.tags.<action>.<tag-key>. The `description` field is developer documentation only, never shown to the user — for tags that are easy to confuse with a neighbour, the description is phrased as a disambiguator rather than a standalone definition. Validator rules (not in this file): `other` requires a non-empty note; zero tags AND empty note is rejected.",
+
+  "groups": {
+    "hand-claim":    { "labelPath": "training.tags.groups.hand-claim" },
+    "tactical":      { "labelPath": "training.tags.groups.tactical" },
+    "partner-signal":{ "labelPath": "training.tags.groups.partner-signal" },
+    "defensive":     { "labelPath": "training.tags.groups.defensive" },
+    "situational":   { "labelPath": "training.tags.groups.situational" },
+    "uncertainty":   { "labelPath": "training.tags.groups.uncertainty" },
+    "other":         { "labelPath": "training.tags.groups.other" }
+  },
+
+  "actions": {
+    "bid": {
+      "groupOrder": ["hand-claim", "tactical", "situational", "uncertainty", "other"],
+      "tags": [
+        { "key": "conventional-opening",              "group": "hand-claim",  "description": "Standard opening per the 80/90/100/110/120 convention with nothing tactical layered on top. Use when the bid is exactly what the convention prescribes for the hand." },
+        { "key": "maitre-claim",                      "group": "hand-claim",  "description": "Convention's 100: holds J+9+A in the bid suit. Not J-third or 9-fourth — that's petit-jeu-claim. Not J+9+A plus a second suit — that's bicolore-claim." },
+        { "key": "petit-jeu-claim",                   "group": "hand-claim",  "description": "Convention's 90: J-third or 9-fourth + outside Ace. Not J+9+A — that's maitre-claim." },
+        { "key": "information-80",                    "group": "hand-claim",  "description": "Convention's 80: 2+ Aces with no qualifying trump holding. An information bid to partner, not a trump claim. Not petit-jeu-claim — petit-jeu requires a trump shape." },
+        { "key": "bicolore-claim",                    "group": "hand-claim",  "description": "Convention's 120: maitre (J+9+A) plus an exploitable second suit. Strictly stronger than maitre-claim; requires a second suit usable for tricks." },
+        { "key": "supporting-partner",                "group": "hand-claim",  "description": "Raising partner's suit because my hand adds tricks via Ace contributions. Paired with switching-to-own-suit — here I stay in partner's suit rather than redirect." },
+        { "key": "switching-to-own-suit",             "group": "hand-claim",  "description": "My own suit is better than partner's; I redirect the contract. Paired with supporting-partner — here I reject the redirect." },
+
+        { "key": "forcing-overcall-to-setup-coinche", "group": "tactical",    "description": "Bidding above opponent to draw a raise from their partner, so I can coinche the return. Paired with blocking-bid — here I want opponents to bid more, not less." },
+        { "key": "blocking-bid",                      "group": "tactical",    "description": "Bidding to deny opponents the level they want to reach; not claiming this contract myself. Paired with forcing-overcall-to-setup-coinche — here I want opponents to stop bidding." },
+        { "key": "competitive-real-claim",            "group": "tactical",    "description": "Real hand but contested — I'd pass in clear air; I bid here because auction pressure forced it. Paired with speculative-raise — here the claim is sound even if compressed." },
+        { "key": "speculative-raise",                 "group": "tactical",    "description": "Raising partner without full conventional support, betting on shape or distribution. Paired with competitive-real-claim — here the hand does not meet the convention." },
+        { "key": "punishing-overreach",               "group": "tactical",    "description": "Bidding over opponents who stretched beyond their hand to block us. Shared key with coinche and surcoinche — same concept, different stages of the auction." },
+
+        { "key": "stretching-for-rubber",             "group": "situational", "description": "Running score changes the bid: we need these points, so I take a thinner contract than I would in isolation. Use only when game-state would change the decision; otherwise it's just a real claim." },
+        { "key": "avoiding-misleading-bid",           "group": "situational", "description": "Convention allows a bid but it would signal a shape I don't have. Under-bidding or passing to avoid poisoning partner's read." },
+
+        { "key": "judgment-call",                     "group": "uncertainty", "description": "Convention permits more than one choice; I picked one and could defend either." },
+        { "key": "not-sure",                          "group": "uncertainty", "description": "Guessing; flag for review. Combinable with any other tag — e.g. petit-jeu-claim + not-sure = 'I played the convention but am guessing about a specific detail.'" },
+
+        { "key": "other",                             "group": "other",       "description": "No existing tag fits — note required. Picking this triggers a tag-vocabulary review." }
+      ]
+    },
+
+    "pass": {
+      "groupOrder": ["hand-claim", "tactical", "situational", "uncertainty", "other"],
+      "tags": [
+        { "key": "hand-too-weak",                "group": "hand-claim",  "description": "Below any convention threshold — no claim available." },
+        { "key": "nothing-to-add",               "group": "hand-claim",  "description": "Partner's bid is well-supported by the auction; my hand cannot contribute tricks. Paired with partner-well-placed — nothing-to-add is about MY hand, partner-well-placed is about the AUCTION state." },
+
+        { "key": "trap-letting-opponent-commit", "group": "tactical",    "description": "I could bid but want opponent to reach further and fail; passing baits them into overreach." },
+        { "key": "partner-well-placed",          "group": "tactical",    "description": "Partner's bid is the peak our side should take; raising costs more than it earns. Paired with nothing-to-add — this is an auction-state judgment, not a hand-strength one." },
+        { "key": "avoiding-misleading-bid",      "group": "tactical",    "description": "Any legal bid would misrepresent my shape; passing avoids poisoning partner's read." },
+
+        { "key": "conserving-for-coinche",       "group": "situational", "description": "Passing even though I could bid, preserving the option to coinche if opponents commit." },
+
+        { "key": "judgment-call",                "group": "uncertainty", "description": "Could justify bidding or passing; passed this time." },
+        { "key": "not-sure",                     "group": "uncertainty", "description": "Guessing; flag for review." },
+
+        { "key": "other",                        "group": "other",       "description": "No existing tag fits — note required." }
+      ]
+    },
+
+    "coinche": {
+      "groupOrder": ["hand-claim", "partner-signal", "tactical", "uncertainty", "other"],
+      "tags": [
+        { "key": "confident-defeat",           "group": "hand-claim",     "description": "My hand alone tells me opponents fail to make their contract. Paired with shape-based-defeat — confident-defeat is about raw points, shape-based-defeat is about distribution. Not confident-contract-makes — that's the surcoinche mirror and lives only in surcoinche." },
+        { "key": "shape-based-defeat",         "group": "hand-claim",     "description": "My shape (void, singleton, long trump) combined with the auction tells me opponents fail. Paired with confident-defeat — raw-points defeat vs distribution-based defeat." },
+
+        { "key": "partner-signalled-strength", "group": "partner-signal", "description": "Partner's prior actions tell me they have extra; my coinche counts on their contribution." },
+
+        { "key": "tactical-doubling",          "group": "tactical",       "description": "Doubling for score or pressure, not certainty of defeat. Use when the coinche is a pot-odds move, not a conviction move." },
+        { "key": "punishing-overreach",        "group": "tactical",       "description": "Opponents stretched to block; coinche catches them at a level they cannot make. Shared key with bid and surcoinche — same concept, coinche stage." },
+
+        { "key": "judgment-call",              "group": "uncertainty",    "description": "Borderline — chose to coinche but it is close." },
+        { "key": "not-sure",                   "group": "uncertainty",    "description": "Coinching on feel more than calculation." },
+
+        { "key": "other",                      "group": "other",          "description": "No existing tag fits — note required." }
+      ]
+    },
+
+    "surcoinche": {
+      "groupOrder": ["hand-claim", "partner-signal", "tactical", "uncertainty", "other"],
+      "tags": [
+        { "key": "confident-contract-makes",      "group": "hand-claim",     "description": "Mirror of confident-defeat from the attacker's side: I'm confident my side makes this contract despite the coinche. Paired with shape-based-contract-makes — confident-contract-makes is about raw points, shape-based-contract-makes is about distribution. Surcoinche-only; does not appear in coinche — the semantics invert across actions and a shared key would silently corrupt rule extraction." },
+        { "key": "shape-based-contract-makes",    "group": "hand-claim",     "description": "Mirror of shape-based-defeat from the attacker's side: my shape (void, singleton, long trump) combined with the auction tells me we make the contract. Paired with confident-contract-makes — raw-points making vs distribution-based making. Surcoinche-only for the same semantic-inversion reason as confident-contract-makes." },
+
+        { "key": "partner-signalled-strength", "group": "partner-signal", "description": "Partner's prior actions tell me they have extra; the surcoinche counts on that contribution." },
+
+        { "key": "tactical-doubling",          "group": "tactical",       "description": "Surcoinching for score or pressure, not certainty of making. Use when it's a pot-odds move rather than a conviction move." },
+        { "key": "punishing-overreach",        "group": "tactical",       "description": "Opponent coinched on a stretched read; surcoinche punishes the overreach. Shared key with bid and coinche — same concept, surcoinche stage." },
+
+        { "key": "judgment-call",              "group": "uncertainty",    "description": "Borderline — chose to surcoinche but it is close." },
+        { "key": "not-sure",                   "group": "uncertainty",    "description": "Surcoinching on feel more than calculation." },
+
+        { "key": "other",                      "group": "other",          "description": "No existing tag fits — note required." }
+      ]
+    },
+
+    "play-card": {
+      "groupOrder": ["hand-claim", "partner-signal", "defensive", "tactical", "situational", "uncertainty", "other"],
+      "tags": [
+        { "key": "cashing-winner-before-cut",  "group": "hand-claim",     "description": "Playing my winner while the suit is live — opponents haven't cut it yet." },
+        { "key": "drawing-trump",              "group": "hand-claim",     "description": "Leading trump myself to flush opponents' trump out of the way. Paired with forcing-opponent-to-trump — drawing-trump is leading trump; forcing-opponent-to-trump is leading a NON-trump into a known void to make an opponent spend a trump." },
+
+        { "key": "promoting-partners-card",    "group": "partner-signal", "description": "Playing so partner's remaining cards become master in this suit. Paired with letting-partner-win — promoting is about making partner's FUTURE cards master; letting-partner-win is about giving up THIS specific trick." },
+        { "key": "letting-partner-win",        "group": "partner-signal", "description": "Deliberately playing too low to win even though I could, letting partner take this trick instead. Paired with promoting-partners-card — that one is about future tricks in a suit. Paired with non-default-winner-choice — that one is about WHICH winner when winning; letting-partner-win is about whether to win at all." },
+        { "key": "signalling-suit-to-partner", "group": "partner-signal", "description": "Card choice communicates which suit partner should lead back. Paired with appel-direct and appel-indirect — those are specific conventions (lead-based and discard-based); signalling-suit-to-partner is the general case when neither specific convention fits." },
+        { "key": "belote-order-signal",        "group": "partner-signal", "description": "K/Q order when declaring Belote signals trump count to partner. Q-first declaration = 3 or more trumps (Q, K, and at least one more). K-first declaration = exactly 2 trumps (just K+Q). Fires only when declaring Belote. Active convention signal — not a byproduct of which card is playable." },
+        { "key": "appel-direct",               "group": "partner-signal", "description": "Leading a non-top card in a suit to request partner return it when they next win. Signal: I'm not cashing the top; I'm asking for access to partner's higher holding in this suit. Typical case is a middling non-trump card." },
+        { "key": "appel-indirect",             "group": "partner-signal", "description": "Communicating suit preference via discard — when forced to dump off-suit, the suit I throw away carries information ('not this suit'), pointing partner toward another suit by elimination. Paired with appel-direct — direct is a lead-based request, indirect is a discard-based one." },
+
+        { "key": "protecting-high-card",       "group": "defensive",      "description": "Holding my A/10/trump-J so it doesn't get trumped or stolen." },
+        { "key": "saving-trump-for-later",     "group": "defensive",      "description": "Not trumping now because a higher-value trick later needs this trump." },
+        { "key": "dumping-garbage",            "group": "defensive",      "description": "Shedding a valueless card when I can't win or contribute. Paired with shedding-to-create-ruff — dumping-garbage has no strategic intent; shedding-to-create-ruff is an engineered void to set up a future trump." },
+        { "key": "forced-only-legal-card",     "group": "defensive",      "description": "No choice — rules force this card (must follow, must overtrump, only card left)." },
+
+        { "key": "non-default-winner-choice",  "group": "tactical",       "description": "Deliberately picked a different winner than the obvious one — either bigger (for points) or smaller (to save value). The direction is recoverable from game state; the tag flags that the choice was deliberate. Paired with letting-partner-win — non-default-winner-choice is about WHICH winner when winning; letting-partner-win is about not winning at all." },
+        { "key": "shedding-to-create-ruff",    "group": "tactical",       "description": "Deliberately voiding a suit now so I can trump it on a later lead. Paired with dumping-garbage — dumping-garbage is shedding without strategic intent; shedding-to-create-ruff is the engineered void that sets up a future trump trick." },
+        { "key": "forcing-opponent-to-trump",  "group": "tactical",       "description": "Leading a suit I know a specific opponent is void in, to force them to spend a trump. Inference-driven — relies on known voids from prior tricks or the auction. Paired with drawing-trump — drawing-trump is leading trump myself to flush theirs; forcing-opponent-to-trump is leading a non-trump to make them burn one of theirs." },
+
+        { "key": "endgame-positioning",        "group": "situational",    "description": "Tricks 6-7 specifically — trump counts known, short hands, positioning for dix-de-der. Distinct decision mode from mid-round play. Paired with last-trick-dix-de-der — endgame-positioning covers the lead-up, last-trick-dix-de-der fires only on trick 8." },
+        { "key": "last-trick-dix-de-der",      "group": "situational",    "description": "Playing for the +10 dix-de-der on the final trick. Paired with endgame-positioning — dix-de-der is trick 8; endgame-positioning is tricks 6-7." },
+
+        { "key": "judgment-call",              "group": "uncertainty",    "description": "Two plays were defensible; picked one." },
+        { "key": "not-sure",                   "group": "uncertainty",    "description": "Playing on feel; flag for review." },
+
+        { "key": "other",                      "group": "other",          "description": "No existing tag fits — note required." }
+      ]
+    }
+  }
+}

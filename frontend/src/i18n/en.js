@@ -152,6 +152,26 @@ export default {
   // Keys are immutable (defined in backend/src/training/reasonTags.json)
   // and must not be renamed without migrating stored annotation records.
   training: {
+    panel: {
+      title:                     'Why this choice?',
+      actionLabel:               'Action taken',
+      notePlaceholderOptional:   'Optional — what pushed you toward this choice?',
+      notePlaceholderRequired:   "Required — what reasoning isn't captured by the tags?",
+      noteLabel:                 'Note',
+      submit:                    'Submit',
+      helperEmpty:               'Pick at least one tag or write a note',
+      helperOther:               "'Other' requires a note",
+      changeAction:              'Change my action',
+      // Action-display prefixes
+      youBid:                    'You bid',
+      youPassed:                 'You passed',
+      youCoinched:               'You coinched',
+      youSurcoinched:            'You surcoinched',
+      youPlayed:                 'You played',
+      // Mock-only — not shown outside the mock harness
+      mockHarnessHeading:        'Mock mode — reason panel preview',
+      mockSwitcherLabel:         'Action type',
+    },
     actions: {
       bid:         'Bid',
       pass:        'Pass',
