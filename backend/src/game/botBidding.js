@@ -11,10 +11,7 @@
 // Openings are capped at 120 in V1.
 // Response / competitive / coinche layers are not yet implemented.
 
-const SUITS  = ['S', 'H', 'D', 'C']; // canonical order used for tie-breaking
-
-// Trump point potential per card value (mirrors rules.js TRUMP_POINTS)
-const TRUMP_PTS = { J: 20, '9': 14, A: 11, '10': 10, K: 4, Q: 3, '8': 0, '7': 0 };
+const { SUITS, TRUMP_POINTS: TRUMP_PTS } = require('./constants');
 
 // Values that count as an "honour" for the bicolore side-suit test (J/Q/K/10)
 const HONORS = new Set(['J', 'Q', 'K', '10']);
@@ -235,7 +232,36 @@ function partnerResponseBid(hand, partnerBid) {
   return null; // pass
 }
 
+// ─── Public entry point for the bot bid action ─────────────────────────────
+
+/**
+ * Returns { type: 'bid', value, suit } or { type: 'pass' }.
+ *
+ * Decision flow:
+ *   1. Coinched bid → always pass (only surcoinche is legal, which is a separate event).
+ *   2. Partner is highest bidder → partner-response logic.
+ *   3. Opponent's bid, or no bid yet → opening logic or pass.
+ */
+function getBotBidAction(game, position) {
+  const partnerPos = (position + 2) % 4;
+
+  if (game.currentBid) {
+    if (game.currentBid.coinched) return { type: 'pass' };
+    if (game.currentBid.playerIndex === partnerPos) {
+      const r = partnerResponseBid(game.hands[position], game.currentBid);
+      if (r) return { type: 'bid', value: r.value, suit: r.suit };
+      return { type: 'pass' };
+    }
+    return { type: 'pass' };
+  }
+
+  const bid = bestOpeningBid(game.hands[position]);
+  if (bid) return { type: 'bid', value: bid.value, suit: bid.suit };
+  return { type: 'pass' };
+}
+
 module.exports = {
   bestOpeningBid, computeSuitFeatures, suitBidLevel,
   partnerResponseBid, myContributionToPartner, bestSwitchBid,
+  getBotBidAction,
 };

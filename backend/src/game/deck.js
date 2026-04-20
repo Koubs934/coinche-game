@@ -1,5 +1,5 @@
-const SUITS  = ['S', 'H', 'D', 'C'];
-const VALUES = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+const crypto = require('crypto');
+const { SUITS, VALUES } = require('./constants');
 
 function createDeck() {
   const deck = [];
@@ -12,7 +12,7 @@ function createDeck() {
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = crypto.randomInt(0, i + 1);
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;

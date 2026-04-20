@@ -5,12 +5,24 @@ const cors = require('cors');
 
 const rm = require('./roomManager');
 const { scheduleBotTurns, scheduleBotConfirms, scheduleBotShuffleCut } = require('./botProcessor');
+const rateLimit = require('./rateLimit');
+const persistence = require('./persistence');
+// Event payload contract for every socket.on / socket.emit below:
+// see socketEvents.js. Update both sides (FE + BE) when changing a payload.
+require('./socketEvents');
 
 const app = express();
 const httpServer = createServer(app);
 
-// Support comma-separated origins so LAN IPs can be added without changing production config
-// e.g. FRONTEND_URL=http://localhost:5173,http://192.168.1.42:5173
+// ─── CORS origins ──────────────────────────────────────────────────────────
+// FRONTEND_URL is comma-separated so multiple frontends can share the backend
+// without a redeploy. In dev, set localhost + your LAN IP so a phone on Wi-Fi
+// can hit the dev server. In prod on Railway, set to the Vercel URL (and any
+// staging URLs). When adding a new frontend, update the env var and restart.
+//
+// Example:
+//   FRONTEND_URL=http://localhost:5173,http://192.168.1.42:5173
+//   FRONTEND_URL=https://coinche.vercel.app,https://coinche-staging.vercel.app
 const FRONTEND_ORIGINS = (process.env.FRONTEND_URL || 'http://localhost:5173')
   .split(',')
   .map(u => u.trim());
@@ -50,6 +62,8 @@ function broadcast(room) {
       });
     }
   }
+  // Persist after broadcast. Fire-and-forget; in-memory Map stays authoritative.
+  persistence.saveRoom(room);
 }
 
 function emitError(socket, message) {
@@ -74,6 +88,18 @@ function broadcastGame(room) {
 io.on('connection', socket => {
   const { userId, username } = socket;
 
+  // Rate-limit every event from this socket. Normal play emits ~1 event/sec;
+  // 30/sec is well above that and still stops a spammy client from wedging
+  // the server or triggering bot cascades.
+  socket.use((packet, next) => {
+    const event = packet[0];
+    if (!rateLimit.allow(`${socket.id}:${event}`, 30, 1000)) {
+      emitError(socket, 'Too many requests — slow down');
+      return; // drop the packet
+    }
+    next();
+  });
+
   // ── Create room ──────────────────────────────────────────────────────────
   socket.on('createRoom', () => {
     // Leave any existing room
@@ -87,6 +113,7 @@ io.on('connection', socket => {
       game: rm.publicGame(room, 0),
       myPosition: 0,
     });
+    persistence.saveRoom(room);
   });
 
   // ── Join room ────────────────────────────────────────────────────────────
@@ -271,6 +298,7 @@ io.on('connection', socket => {
     socket.emit('leftRoom');
     // result.room is null only if the lobby was deleted (no human players remain)
     if (result.room) broadcast(result.room);
+    if (result.deleted) persistence.deleteRoom(code);
   });
 
   // ── Remove player (creator only) ─────────────────────────────────────────
@@ -312,6 +340,7 @@ io.on('connection', socket => {
 
   // ── Disconnect ───────────────────────────────────────────────────────────
   socket.on('disconnect', () => {
+    rateLimit.clearSocket(socket.id);
     const result = rm.handleDisconnect(socket.id);
     if (result) broadcast(result.room);
   });
@@ -320,6 +349,20 @@ io.on('connection', socket => {
 // ─── Start ─────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
-  console.log(`Coinche server listening on port ${PORT}`);
+
+async function start() {
+  // Try to hydrate from Redis before accepting connections. If Redis is
+  // unavailable we continue in-memory only.
+  await persistence.connect();
+  const persistedRooms = await persistence.loadAllRooms();
+  rm.hydrateRooms(persistedRooms);
+
+  httpServer.listen(PORT, () => {
+    console.log(`Coinche server listening on port ${PORT}`);
+  });
+}
+
+start().catch((err) => {
+  console.error('Startup failed:', err);
+  process.exit(1);
 });

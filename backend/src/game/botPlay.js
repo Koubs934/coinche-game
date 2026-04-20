@@ -1,7 +1,8 @@
-const { getValidCards, getTrickWinner, cardPoints, TRUMP_RANK } = require('./rules');
-const { bestOpeningBid, partnerResponseBid } = require('./botBidding');
+// Card-play strategy for bots. Does not know about the bidding convention —
+// only reads biddingHistory for the lead heuristic (partnerBidSuit).
 
-const NON_TRUMP_RANK = { A: 8, '10': 7, K: 6, Q: 5, J: 4, '9': 3, '8': 2, '7': 1 };
+const { getValidCards, getTrickWinner, cardPoints } = require('./rules');
+const { TRUMP_RANK, NON_TRUMP_RANK } = require('./constants');
 
 // ─── Dump-priority score ───────────────────────────────────────────────────
 // Lower score = dump first. Tiers:
@@ -41,7 +42,6 @@ function dumpScore(card, trump) {
   return 5;
 }
 
-// Simulate playing card: would this card win the trick from position?
 function wouldWin(card, position, trick, trump) {
   const sim = [...trick, { card, playerIndex: position }];
   return getTrickWinner(sim, trump) === position;
@@ -53,16 +53,13 @@ function cheapestWinner(cards, trump) {
   const sorted = [...cards].sort((a, b) => {
     const pa = cardPoints(a, trump), pb = cardPoints(b, trump);
     if (pa !== pb) return pa - pb;
-    // prefer non-trump
     const ta = a.suit === trump ? 1 : 0, tb = b.suit === trump ? 1 : 0;
     if (ta !== tb) return ta - tb;
-    // lower rank first
     const ra = a.suit === trump ? TRUMP_RANK[a.value] : NON_TRUMP_RANK[a.value];
     const rb = b.suit === trump ? TRUMP_RANK[b.value] : NON_TRUMP_RANK[b.value];
     return ra - rb;
   });
   const best = sorted[0];
-  // Hard guard: avoid trump J if any other trump can win
   if (best && best.suit === trump && best.value === 'J') {
     const cheaper = sorted.find(c => !(c.suit === trump && c.value === 'J'));
     if (cheaper) return cheaper;
@@ -80,7 +77,6 @@ function cheapestLoser(cards, trump) {
   })[0];
 }
 
-// Derive all trick context variables needed for role assignment.
 function computeTrickContext(game, position) {
   const { currentBid, currentTrick, trumpSuit, tricks } = game;
   const contractTeam   = currentBid.team;
@@ -108,7 +104,8 @@ function computeTrickContext(game, position) {
   };
 }
 
-// Light bidding awareness: find the suit partner declared (non-trump only).
+// Read-only probe of bidding history — only to pick a lead suit.
+// Does not depend on botBidding's convention logic.
 function partnerBidSuit(game, position) {
   const { biddingHistory, trumpSuit } = game;
   if (!biddingHistory?.length) return null;
@@ -142,7 +139,6 @@ function chooseLead(game, position) {
   // A: cash a non-trump Ace early
   const myAces = nonTrumps.filter(c => c.value === 'A');
   if (myAces.length > 0 && tricksPlayed < 5) {
-    // Prefer Ace in partner's bid suit if available
     const partnerAce = suggestedSuit ? myAces.find(c => c.suit === suggestedSuit) : null;
     return partnerAce || myAces[0];
   }
@@ -166,64 +162,11 @@ function chooseLead(game, position) {
 }
 
 /**
- * Returns { type: 'bid', value, suit } or { type: 'pass' }.
- *
- * Decision flow:
- *   1. Coinched bid → always pass (only surcoinche is legal, which is a separate event).
- *   2. Partner is highest bidder → partner-response logic (V1).
- *   3. Opponent's bid, or no bid yet but falls through → opening logic or pass.
- *
- * Opening tiers (see botBidding.js for full convention):
- *   pass → fewer than 2 Aces and no qualifying trump suit
- *   80   → 2+ Aces, no qualifying trump suit  (information opening)
- *   90   → petit jeu  (J+3rd  OR  9+4th + outside Ace)
- *   100  → maître à l'atout  (J + 9 + A)
- *   110  → maître + 1 outside Ace
- *   120  → bicolore  (maître + exploitable side suit)
- *
- * Partner-response tiers (V1, capped at 120):
- *   support in partner's suit → partnerBid.value + outsideAces×10 (+ trump Ace bonus for 90)
- *   switch to own suit        → own opening bid when its value > partner's bid value
- *   pass                      → no Ace contribution and no valid switch
- *
- * Competitive / coinche / surcoinche layers: not yet implemented.
- */
-function getBotBidAction(game, position) {
-  const partnerPos = (position + 2) % 4;
-
-  if (game.currentBid) {
-    // After coinche only surcoinche is legal — that is a separate socket event,
-    // not a placeBid call, so the bot simply passes here.
-    if (game.currentBid.coinched) return { type: 'pass' };
-
-    // Partner is currently the highest bidder → try to respond.
-    if (game.currentBid.playerIndex === partnerPos) {
-      const r = partnerResponseBid(game.hands[position], game.currentBid);
-      if (r) return { type: 'bid', value: r.value, suit: r.suit };
-      return { type: 'pass' };
-    }
-
-    // Opponent's bid (competitive layer: future) → pass.
-    return { type: 'pass' };
-  }
-
-  // No bid yet → opening logic.
-  const bid = bestOpeningBid(game.hands[position]);
-  if (bid) return { type: 'bid', value: bid.value, suit: bid.suit };
-  return { type: 'pass' };
-}
-
-/**
- * Returns { card, declareBelote }.
- *
  * Role-based strategy:
  *  LEAD    — first to act; uses chooseLead priority (B→A→C→D)
  *  WIN     — can win and it's worth it; plays cheapestWinner
- *  SUPPORT — partner already winning; plays cheapestLoser (dump garbage)
- *  ABANDON — cannot win, or winning costs more than the trick is worth; plays cheapestLoser
- *
- * Protection philosophy: cheapestLoser uses dumpScore tiers that strongly
- * protect Aces, 10s, trump Jack, trump 9 — these are last resorts to dump.
+ *  SUPPORT — partner already winning; plays cheapestLoser
+ *  ABANDON — cannot win, or winning costs more than the trick is worth
  *
  * Belote: bot always declares when playing the first of its K+Q of trump.
  */
@@ -243,12 +186,10 @@ function getBotCardAction(game, position) {
 
     let role;
     if (ctx.partnerIsWinning) {
-      // Partner is taking this trick — no need to fight
       role = 'SUPPORT';
     } else if (canWin) {
       const win     = cheapestWinner(winningCards, trumpSuit);
       const winCost = cardPoints(win, trumpSuit);
-      // Don't burn a high-value card to win a worthless trick
       if (ctx.effectiveTrickValue === 0 && winCost >= 10) {
         role = 'ABANDON';
       } else {
@@ -263,7 +204,6 @@ function getBotCardAction(game, position) {
       : cheapestLoser(valid, trumpSuit);
   }
 
-  // Belote declaration: true if this is the first of the bot's K+Q of trump pair
   let declareBelote = false;
   if (trumpSuit && card.suit === trumpSuit && (card.value === 'K' || card.value === 'Q')) {
     if (!beloteInfo || beloteInfo.declared === null) {
@@ -277,4 +217,4 @@ function getBotCardAction(game, position) {
   return { card, declareBelote };
 }
 
-module.exports = { getBotBidAction, getBotCardAction };
+module.exports = { getBotCardAction };

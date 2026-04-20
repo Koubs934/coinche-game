@@ -28,12 +28,20 @@ export default function App() {
   const socketRef = useRef(null);
   const [socketReady, setSocketReady] = useState(false);
   const [socketError, setSocketError] = useState('');
+  const [socketInfo, setSocketInfo] = useState(''); // transient info toast (reconnect, etc.)
+  const wasDisconnectedRef = useRef(false);
 
   // Game state synced from server
   const [roomState, setRoomState] = useState(null); // public room info
   const [gameState, setGameState] = useState(null); // filtered game info
   const [myPosition, setMyPosition] = useState(null);
   const [pendingRoom, setPendingRoom] = useState(null); // code when waiting for admin approval
+
+  // Ref mirrors so the socket handler closure sees current state without re-subscribing
+  const gameStateRef = useRef(null);
+  const myPositionRef = useRef(null);
+  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+  useEffect(() => { myPositionRef.current = myPosition; }, [myPosition]);
 
   // ── Socket setup ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -57,10 +65,25 @@ export default function App() {
       if (savedCode) {
         socket.emit('rejoinRoom', { code: savedCode });
       }
+
+      // If this is a reconnect (not the initial connect), show a transient
+      // confirmation — mention the turn explicitly if the player was mid-action.
+      if (wasDisconnectedRef.current) {
+        wasDisconnectedRef.current = false;
+        const g = gameStateRef.current;
+        const myPos = myPositionRef.current;
+        const myTurn = g && (
+          (g.phase === 'BIDDING' && g.biddingTurn === myPos) ||
+          (g.phase === 'PLAYING' && g.currentPlayer === myPos)
+        );
+        setSocketInfo(myTurn ? t.reconnectedYourTurn : t.reconnected);
+        setTimeout(() => setSocketInfo(''), 3000);
+      }
     });
 
     socket.on('disconnect', () => {
       setSocketReady(false);
+      wasDisconnectedRef.current = true;
     });
 
     socket.on('connect_error', (err) => {
@@ -141,6 +164,10 @@ export default function App() {
 
       {!socketReady && user && (
         <div className="toast-info">{t.reconnecting}</div>
+      )}
+
+      {socketReady && socketInfo && (
+        <div className="toast-info">{socketInfo}</div>
       )}
 
       {inGame ? (

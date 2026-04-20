@@ -93,6 +93,8 @@ export default {
   playerDisconnected: (name) => `${name} s'est déconnecté. En attente de reconnexion...`,
   gamePaused: 'Partie en pause — une place est libre',
   reconnecting: 'Reconnexion...',
+  reconnected: 'Reconnecté',
+  reconnectedYourTurn: 'Reconnecté — à vous de jouer',
 
   // Suits
   suitName: { S: 'Pique', H: 'Cœur', D: 'Carreau', C: 'Trèfle' },
@@ -140,4 +142,8 @@ export default {
 
   // Annuler
   undoAction: 'Annuler',
+
+  // Validation
+  invalidRoomCode: 'Le code doit comporter 6 lettres ou chiffres',
+  usernameTooShort: 'Le nom doit comporter au moins 2 caractères',
 };

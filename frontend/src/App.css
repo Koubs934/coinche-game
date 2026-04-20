@@ -263,6 +263,8 @@ a      { color: var(--accent); }
   margin-top: 4px;
 }
 .code-input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+.code-input.input-invalid { border-color: #e04a4a; }
+.code-input.input-invalid:focus { outline-color: #e04a4a; }
 
 .teams-container {
   display: grid;

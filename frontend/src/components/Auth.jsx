@@ -23,12 +23,13 @@ export default function Auth() {
       const { error } = await signIn(email, password);
       if (error) setError(error.message);
     } else {
-      if (!username.trim()) {
-        setError('Username is required');
+      const cleanUsername = username.trim();
+      if (cleanUsername.length < 2) {
+        setError(t.usernameTooShort);
         setLoading(false);
         return;
       }
-      const { error } = await signUp(email, password, username.trim());
+      const { error } = await signUp(email, password, cleanUsername);
       if (error) setError(error.message);
       else setSuccess('Account created! Check your email to confirm, then sign in.');
     }

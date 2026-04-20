@@ -93,6 +93,8 @@ export default {
   playerDisconnected: (name) => `${name} disconnected. Waiting for reconnection...`,
   gamePaused: 'Game paused — a seat is open',
   reconnecting: 'Reconnecting...',
+  reconnected: 'Reconnected',
+  reconnectedYourTurn: 'Reconnected — your turn',
 
   // Suits
   suitName: { S: 'Spades', H: 'Hearts', D: 'Diamonds', C: 'Clubs' },
@@ -140,4 +142,8 @@ export default {
 
   // Undo
   undoAction: 'Undo',
+
+  // Input validation
+  invalidRoomCode: 'Room code must be 6 letters or digits',
+  usernameTooShort: 'Username must be at least 2 characters',
 };

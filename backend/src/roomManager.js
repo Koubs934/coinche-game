@@ -1,6 +1,30 @@
+const crypto = require('crypto');
 const { createDeck, shuffle: shuffleArr, buildDeckFromTricks, cutDeck: cutDeckArr, dealFrom } = require('./game/deck');
 const { getTrickWinner, getValidCards } = require('./game/rules');
 const { calculateRoundScore } = require('./game/scoring');
+const { VALID_BID_VALUES } = require('./game/constants');
+
+// ─── Room state machine ────────────────────────────────────────────────────
+//
+// Each room moves through these phases (room.phase, plus game.phase inside a round):
+//
+//   LOBBY ──startGame()──▶ SHUFFLE ──shuffleDeck()/skipShuffle()──▶ CUT
+//                                                                    │
+//                    ┌───────────────────────────────────────────────┘
+//                    ▼ cutDeck()/skipCut()
+//                 PLAYING (game.phase = BIDDING → PLAYING)
+//                    │                                 │
+//                    │ 3 passes after bid              │ 8th trick done
+//                    │     ─ or ─                      │
+//                    │ 4 passes, no bid  ◀─── reset ───┤
+//                    ▼                                 ▼
+//                 SHUFFLE (next dealer)          ROUND_OVER
+//                                                      │
+//                                                      ▼ confirmNextRound()
+//                                       SHUFFLE (next dealer) → or GAME_OVER
+//
+// Undo: pushHistorySnapshot() is called BEFORE every mutating action; undoLastAction()
+// pops the last snapshot and bumps room.actionNonce so pending bot callbacks abort.
 
 const rooms = new Map(); // code -> room
 
@@ -10,7 +34,7 @@ function generateCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code;
   do {
-    code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    code = Array.from({ length: 6 }, () => chars[crypto.randomInt(0, chars.length)]).join('');
   } while (rooms.has(code));
   return code;
 }
@@ -28,6 +52,20 @@ function getTeamByPosition(position) {
 function getTeamByUserId(room, userId) {
   const p = room.players.find(p => p.userId === userId);
   return p ? p.team : -1;
+}
+
+// ─── Guard helpers (reduce repetition in public API functions) ─────────────
+
+function requireRoom(code) {
+  const room = rooms.get(code);
+  return room ? { room } : { error: 'Room not found' };
+}
+
+function requireCreator(code, userId) {
+  const r = requireRoom(code);
+  if (r.error) return r;
+  if (r.room.creatorId !== userId) return { error: 'Only the room creator can perform this action' };
+  return r;
 }
 
 // ─── History / Undo ───────────────────────────────────────────────────────
@@ -303,8 +341,6 @@ function confirmNextRound(code, userId) {
 
 // ─── Bidding ───────────────────────────────────────────────────────────────
 
-const VALID_BID_VALUES = [80, 90, 100, 110, 120, 130, 140, 150, 160, 'capot'];
-
 function placeBid(code, userId, value, suit) {
   const room = rooms.get(code);
   if (!room || !room.game || room.game.phase !== 'BIDDING') return { error: 'Not in bidding phase' };
@@ -418,6 +454,42 @@ function _startPlaying(room) {
 }
 
 // ─── Card play ─────────────────────────────────────────────────────────────
+//
+// Belote / Rebelote state machine on game.beloteInfo:
+//   { playerIndex: 0-3 | null,  // declarer, once Belote chosen
+//     declared: 'yes'|'no'|null,// answer to the first-of-pair prompt
+//     rebeloteDone: boolean,    // second of pair has been played
+//     complete: boolean }       // both halves played — ready for scoring
+//
+// Transitions, from fresh (all null/false) when a player plays K or Q of trump:
+//   1. first-of-pair, hand still has the other half  → require declareBelote ∈ {true,false}
+//      declared := 'yes'|'no' ; if 'yes' playerIndex := position
+//   2. first-of-pair, hand does NOT have the other half → no prompt, nothing to declare
+//   3. second-of-pair, declarer announced 'yes'        → rebeloteDone=true, complete=true
+
+// Returns one of:
+//   'prompt'  (caller must re-emit with declareBelote)
+//   'declare' (first of pair, declareBelote provided — apply)
+//   'complete' (second of pair — apply rebelote)
+//   'none' (no belote interaction)
+function classifyBelotePlay(hand, card, beloteInfo, trumpSuit, position, declareBelote) {
+  if (!trumpSuit) return 'none';
+  if (card.suit !== trumpSuit) return 'none';
+  if (card.value !== 'K' && card.value !== 'Q') return 'none';
+
+  if (beloteInfo.declared === null) {
+    const otherValue = card.value === 'K' ? 'Q' : 'K';
+    const hasOther = hand.some(c => c.suit === trumpSuit && c.value === otherValue);
+    if (!hasOther) return 'none';
+    if (typeof declareBelote !== 'boolean') return 'prompt';
+    return 'declare';
+  }
+
+  const isDeclarerSecond = beloteInfo.declared === 'yes' &&
+                           beloteInfo.playerIndex === position &&
+                           !beloteInfo.rebeloteDone;
+  return isDeclarerSecond ? 'complete' : 'none';
+}
 
 function playCard(code, userId, card, declareBelote) {
   const room = rooms.get(code);
@@ -436,42 +508,22 @@ function playCard(code, userId, card, declareBelote) {
     return { error: 'That card cannot be played right now' };
   }
 
-  // ── Belote / Rebelote declaration ─────────────────────────────────────────
-  // Check for the belote prompt BEFORE pushing the snapshot, so a
-  // beloteDecisionRequired early-return doesn't leave a spurious history entry.
+  // Belote classification runs BEFORE pushHistorySnapshot so a 'prompt' return
+  // doesn't leave a spurious history entry that the client can't undo back through.
   const { trumpSuit, beloteInfo } = room.game;
-  const isTrumpRoyale = trumpSuit && card.suit === trumpSuit &&
-                        (card.value === 'K' || card.value === 'Q');
-  if (isTrumpRoyale && beloteInfo.declared === null) {
-    const otherValue = card.value === 'K' ? 'Q' : 'K';
-    const hasOther = hand.some(c => c.suit === trumpSuit && c.value === otherValue);
-    if (hasOther && typeof declareBelote !== 'boolean') {
-      return { error: 'beloteDecisionRequired' };
-    }
-  }
+  const beloteAction = classifyBelotePlay(hand, card, beloteInfo, trumpSuit, position, declareBelote);
+  if (beloteAction === 'prompt') return { error: 'beloteDecisionRequired' };
 
   pushHistorySnapshot(room);
 
-  // Apply belote / rebelote state (re-derive after snapshot is safely taken)
-  if (isTrumpRoyale) {
-    if (beloteInfo.declared === null) {
-      const otherValue = card.value === 'K' ? 'Q' : 'K';
-      const hasOther = hand.some(c => c.suit === trumpSuit && c.value === otherValue);
-      if (hasOther) {
-        beloteInfo.declared = declareBelote ? 'yes' : 'no';
-        if (declareBelote) beloteInfo.playerIndex = position;
-      }
-    } else if (beloteInfo.declared === 'yes' &&
-               beloteInfo.playerIndex === position &&
-               !beloteInfo.rebeloteDone) {
-      // Second of the pair → Rebelote!
-      beloteInfo.rebeloteDone = true;
-      beloteInfo.complete = true;
-    }
+  if (beloteAction === 'declare') {
+    beloteInfo.declared = declareBelote ? 'yes' : 'no';
+    if (declareBelote) beloteInfo.playerIndex = position;
+  } else if (beloteAction === 'complete') {
+    beloteInfo.rebeloteDone = true;
+    beloteInfo.complete = true;
   }
-  // ─────────────────────────────────────────────────────────────────────────
 
-  // Remove from hand and add to trick
   hand.splice(cardIdx, 1);
   room.game.currentTrick.push({ card, playerIndex: position });
 
@@ -786,6 +838,16 @@ function getRoom(code) {
   return rooms.get(code) || null;
 }
 
+// ─── Persistence integration ───────────────────────────────────────────────
+
+// Seed the in-memory Map from a previously-persisted snapshot array.
+// Called once at server startup, before the socket server accepts connections.
+function hydrateRooms(roomsArray) {
+  for (const room of roomsArray) {
+    if (room && room.code) rooms.set(room.code, room);
+  }
+}
+
 module.exports = {
   createRoom,
   joinRoom,
@@ -817,4 +879,5 @@ module.exports = {
   publicRoom,
   publicGame,
   getPosition,
+  hydrateRooms,
 };

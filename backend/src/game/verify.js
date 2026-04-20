@@ -7,7 +7,8 @@ const { getValidCards, getTrickWinner, TRUMP_RANK, cardPoints } = require('./rul
 const { calculateRoundScore } = require('./scoring');
 const { bestOpeningBid, computeSuitFeatures,
         partnerResponseBid, myContributionToPartner } = require('./botBidding');
-const { getBotBidAction, getBotCardAction } = require('./botLogic');
+const { getBotBidAction } = require('./botBidding');
+const { getBotCardAction } = require('./botPlay');
 
 let passed = 0;
 let failed = 0;

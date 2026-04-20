@@ -1,5 +1,7 @@
+const crypto = require('crypto');
 const rm = require('./roomManager');
-const { getBotBidAction, getBotCardAction } = require('./game/botLogic');
+const { getBotBidAction } = require('./game/botBidding');
+const { getBotCardAction } = require('./game/botPlay');
 
 const BOT_DELAY_MS = 700;
 const BOT_CONFIRM_DELAY_MS = 2000;
@@ -19,7 +21,9 @@ function isBotTurn(room) {
 /**
  * Schedule the next bot turn for a room.
  * Re-fetches room by code at execution time to use up-to-date state.
- * Captures actionNonce at schedule time — aborts if an undo changed the nonce.
+ * Captures actionNonce at schedule time, then re-verifies inside _execute
+ * just before mutating — covers both scheduling-window and execution-window
+ * races (undo fired while the setTimeout was pending, or mid-callback).
  */
 function scheduleBotTurns(code, broadcastFn) {
   const room0 = rm.getRoom(code);
@@ -27,14 +31,24 @@ function scheduleBotTurns(code, broadcastFn) {
   setTimeout(() => {
     const room = rm.getRoom(code);
     if (!room || room.paused || !isBotTurn(room)) return;
-    if ((room.actionNonce || 0) !== nonce) return; // undo happened — stale callback
-    _execute(room, broadcastFn);
+    if ((room.actionNonce || 0) !== nonce) {
+      console.log(`[bot] stale callback aborted (nonce ${nonce} → ${room.actionNonce})`);
+      return;
+    }
+    _execute(room, nonce, broadcastFn);
   }, BOT_DELAY_MS);
 }
 
-function _execute(room, broadcastFn) {
+function _execute(room, scheduledNonce, broadcastFn) {
   const g = room.game;
   const code = room.code;
+
+  // Re-check nonce at execution time: a player could have undone between the
+  // isBotTurn check above and this mutation (e.g. during any sync work above).
+  if ((room.actionNonce || 0) !== scheduledNonce) {
+    console.log(`[bot] stale execution aborted (nonce ${scheduledNonce} → ${room.actionNonce})`);
+    return;
+  }
 
   if (g.phase === 'BIDDING') {
     const pos    = g.biddingTurn;
@@ -116,7 +130,7 @@ function scheduleBotShuffleCut(code, broadcastFn) {
     } else if (room.phase === 'CUT') {
       const bot = room.players.find(p => p.position === room.cutPlayer && p.isBot);
       if (!bot) return;
-      const n = Math.floor(Math.random() * 31) + 1;
+      const n = crypto.randomInt(1, 32);
       const result = rm.doCutDeck(code, bot.userId, n);
       if (!result.error) broadcastFn(result.room);
     }

@@ -17,10 +17,18 @@ export default function Lobby({ socket, roomState, myPosition, pendingRoom, onCa
     setView('create');
   }
 
+  const ROOM_CODE_RE = /^[A-Z0-9]{6}$/;
+  const trimmedCode = codeInput.trim().toUpperCase();
+  const codeIsValid = ROOM_CODE_RE.test(trimmedCode);
+
   function joinRoom(e) {
     e.preventDefault();
-    if (!codeInput.trim()) return;
-    socket.emit('joinRoom', { code: codeInput.trim().toUpperCase() });
+    if (!codeIsValid) {
+      setError(t.invalidRoomCode);
+      return;
+    }
+    setError('');
+    socket.emit('joinRoom', { code: trimmedCode });
   }
 
   function assignTeam(targetUserId, team) {
@@ -179,15 +187,20 @@ export default function Lobby({ socket, roomState, myPosition, pendingRoom, onCa
               <input
                 type="text"
                 value={codeInput}
-                onChange={e => setCodeInput(e.target.value.toUpperCase())}
+                onChange={e => { setCodeInput(e.target.value.toUpperCase()); if (error) setError(''); }}
                 maxLength={6}
-                className="code-input"
+                className={`code-input${codeInput && !codeIsValid ? ' input-invalid' : ''}`}
                 placeholder="ABC123"
                 autoFocus
+                inputMode="text"
+                autoCapitalize="characters"
+                autoComplete="off"
+                spellCheck={false}
+                pattern="[A-Za-z0-9]{6}"
               />
             </label>
             {error && <p className="error-msg">{error}</p>}
-            <button type="submit" className="btn-primary">{t.join}</button>
+            <button type="submit" className="btn-primary" disabled={!codeIsValid}>{t.join}</button>
           </form>
           <button className="btn-link" onClick={() => setView('home')}>←</button>
         </div>
