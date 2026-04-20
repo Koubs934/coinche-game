@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useLang } from '../context/LanguageContext';
-import { SUIT_SYM } from './gameBoardHelpers';
+import { SUIT_SYM, displayName } from './gameBoardHelpers';
 
 // ─── Card primitives ───────────────────────────────────────────────────────
 
@@ -29,6 +29,7 @@ export function CardBack({ small }) {
 // ─── Trick display (used both in-play and in last-trick panel) ─────────────
 
 export function TrickDisplay({ cards, myPosition, players, animDir, winnerPos }) {
+  const { t } = useLang();
   function getArea(pos) {
     return ['bottom', 'right', 'top', 'left'][((pos - myPosition) + 4) % 4];
   }
@@ -45,7 +46,7 @@ export function TrickDisplay({ cards, myPosition, players, animDir, winnerPos })
               <div className={`trick-card${isRed ? ' red' : ''}${won ? ' trick-winner-card' : ''}`}>
                 <span className="card-value">{played.card.value}</span>
                 <span className="card-suit">{SUIT_SYM[played.card.suit]}</span>
-                <span className="trick-player-name">{player?.username}</span>
+                <span className="trick-player-name">{displayName(player, t)}</span>
               </div>
             ) : (
               <div className="trick-empty" />
@@ -116,7 +117,8 @@ export function CoincheBadge({ type, t }) {
 
 export function PlayerSeat({ player, handCount, isActive, isDimmed, direction, isCreator, onRemove }) {
   const { t } = useLang();
-  const initial = player?.isBot ? '🤖' : (player?.username?.[0]?.toUpperCase() || '?');
+  const name = displayName(player, t);
+  const initial = player?.isBot ? '🤖' : (name[0]?.toUpperCase() || '?');
   return (
     <div className={[
       'player-seat',
@@ -128,11 +130,11 @@ export function PlayerSeat({ player, handCount, isActive, isDimmed, direction, i
         {initial}
       </div>
       <div className="player-name">
-        {player?.username || '?'}
-        {!player?.connected && <span className="dc-indicator"> ⚠</span>}
+        {name}
+        {player && player.connected === false && !player.isScripted && <span className="dc-indicator"> ⚠</span>}
         {isActive && <span className="turn-dot"> ●</span>}
       </div>
-      {isCreator && player && !player.connected && !player.isBot && (
+      {isCreator && player && !player.connected && !player.isBot && !player.isScripted && (
         <button
           className="btn-remove-player"
           onClick={() => {

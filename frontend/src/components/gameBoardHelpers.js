@@ -130,3 +130,19 @@ export function reorderArr(arr, from, to) {
   a.splice(to, 0, item);
   return a;
 }
+
+// ─── Training-mode seat labels ─────────────────────────────────────────────
+// Scripted seats arrive with username=null and a directionKey that tells the
+// UI which role label to display. Real players use their authenticated
+// username as always — we never override it.
+export function displayName(player, t) {
+  if (!player) return '?';
+  if (player.username) return player.username;
+  switch (player.directionKey) {
+    case 'partner': return t.partner;
+    case 'left':    return t.left;
+    case 'right':   return t.right;
+    case 'self':    return t.you;
+    default:        return '?';
+  }
+}

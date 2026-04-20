@@ -2040,3 +2040,168 @@ a      { color: var(--accent); }
   white-space: pre-wrap;
   word-break: break-all;
 }
+
+/* ─── Training: ReasonPanel overlay on the training table ─────────────── */
+.training-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 14, 20, 0.78);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  overflow-y: auto;
+}
+.training-modal-content {
+  width: 100%;
+  max-width: 640px;
+  max-height: 92vh;
+  overflow-y: auto;
+}
+.training-modal-content .training-reason-panel {
+  margin: 0;                 /* backdrop centers it; panel itself no margin */
+}
+
+/* ─── Training: Completion summary ────────────────────────────────────── */
+.training-completion {
+  min-height: 100vh;
+  padding: 20px 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+}
+.training-completion-card {
+  width: 100%;
+  max-width: 520px;
+  padding: 22px 22px 20px;
+  background: var(--ui-card);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.tc-title-row h1 {
+  font-size: 1.2em;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+.tc-section { margin-bottom: 16px; }
+.tc-section-label {
+  font-size: 0.7em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.tc-action {
+  font-size: 1.3em;
+  font-weight: 600;
+  color: var(--text);
+}
+.tc-action.tc-red { color: var(--accent2); }
+.tc-tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.tc-tag {
+  display: inline-flex;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #1a1a1a;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+.tc-note {
+  padding: 10px 12px;
+  background: var(--ui-bg);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.95em;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.tc-empty { color: var(--muted); font-style: italic; font-size: 0.9em; }
+
+.tc-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+.tc-actions .btn-primary,
+.tc-actions .btn-secondary { flex: 1 1 auto; min-width: 140px; }
+
+/* ─── Training: Dev picker (piece-1 test harness) ─────────────────────── */
+.dev-picker {
+  min-height: 100vh;
+  padding: 16px;
+  overflow-y: auto;
+}
+.dev-picker-head {
+  max-width: 640px;
+  margin: 0 auto 10px;
+}
+.dev-picker-head h1 {
+  font-size: 1.05em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  font-weight: 700;
+  margin: 8px 0 6px;
+}
+.dev-picker-section {
+  max-width: 640px;
+  margin: 14px auto;
+}
+.dev-picker-section h2 {
+  font-size: 0.78em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+  margin-bottom: 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.dev-picker-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  background: var(--ui-card);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.dev-picker-item.dev-picker-resume {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.dev-picker-item-main { flex: 1; min-width: 0; }
+.dev-picker-item-title {
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.dev-picker-item-sub {
+  font-size: 0.9em;
+  color: var(--muted);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+.dev-picker-item-sub code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  color: var(--text);
+}
+.dev-picker-item-meta { font-size: 0.78em; }
+.dev-picker-item-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.dev-picker-action {
+  color: var(--text);
+  font-weight: 600;
+}
+.dev-picker-action-red { color: var(--accent2); }

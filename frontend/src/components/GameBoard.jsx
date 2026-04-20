@@ -8,6 +8,7 @@ import {
   buildPerPlayerHistory,
   computeLivePoints, bestSuitForHand,
   sortHand, winDir, cardKey, applyManualOrder, reorderArr,
+  displayName,
 } from './gameBoardHelpers';
 import {
   CardFace, TrickDisplay, BidStack,
@@ -17,7 +18,10 @@ import {
 
 // ─── Main GameBoard ────────────────────────────────────────────────────────
 
-export default function GameBoard({ socket, roomCode, room, game, myPosition }) {
+export default function GameBoard({ socket, roomCode, room, game, myPosition, trainingMode }) {
+  // trainingMode, when provided, is { runId } — gates the handful of behaviors
+  // that differ from normal-game (action emits, abandon confirm, hidden UI
+  // that doesn't apply: undo, admin panel, pending joins).
   const { t } = useLang();
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -135,6 +139,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   const isCreator = room.creatorId === myPlayer?.userId;
 
   function leaveTable() {
+    if (trainingMode) {
+      if (!window.confirm(t.training.abandonConfirm)) return;
+      socket.emit('abandonTrainingScenario', { runId: trainingMode.runId });
+      return;
+    }
     if (!window.confirm(t.leaveConfirmGame)) return;
     socket.emit('leaveRoom', { code: roomCode });
   }
@@ -249,6 +258,13 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   function playCard(card, declareBelote = false) {
+    if (trainingMode) {
+      socket.emit('submitTrainingAction', {
+        runId: trainingMode.runId,
+        action: { type: 'play-card', card, declareBelote },
+      });
+      return;
+    }
     socket.emit('playCard', { code: roomCode, card, declareBelote });
   }
 
@@ -350,7 +366,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
   if (room.phase === 'ROUND_OVER' || room.phase === 'GAME_OVER') {
     return (
       <>
-        {showAdminPanel && isCreator && (
+        {!trainingMode && showAdminPanel && isCreator && (
           <AdminPanel
             players={players} creatorId={room.creatorId} myUserId={myPlayer?.userId}
             phase={room.phase}
@@ -358,7 +374,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           />
         )}
         {paused && <PauseBanner players={players} t={t} />}
-        {room.pendingJoins?.length > 0 && (
+        {!trainingMode && room.pendingJoins?.length > 0 && (
           <div className="pending-joins-panel">
             {isCreator ? (
               <>
@@ -637,9 +653,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
         {/* Self player bar: avatar + name + bid status */}
         <div className="self-player-bar">
           <div className={`player-avatar team${myTeam}-avatar`}>
-            {myPlayer?.isBot ? '🤖' : (myPlayer?.username?.[0]?.toUpperCase() || '?')}
+            {myPlayer?.isBot ? '🤖' : (displayName(myPlayer, t)[0]?.toUpperCase() || '?')}
           </div>
-          <span className="self-name">{myPlayer?.username || '?'}</span>
+          <span className="self-name">{displayName(myPlayer, t)}</span>
           {isBidding && perPlayerHistory[myPosition]?.length > 0 && (
             <BidStack history={perPlayerHistory[myPosition]} t={t} />
           )}
@@ -651,6 +667,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
             socket={socket} roomCode={roomCode}
             game={game} myPosition={myPosition} myTeam={myTeam}
             sortMode={sortMode}
+            trainingMode={trainingMode}
           />
         )}
 
@@ -690,7 +707,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
                 : `${SUIT_SYM[sortMode]} ${t.sortHand}`}
             </button>
           )}
-          {isCreator && (phase === 'BIDDING' || phase === 'PLAYING') && (
+          {!trainingMode && isCreator && (phase === 'BIDDING' || phase === 'PLAYING') && (
             <button
               className="btn-undo"
               onClick={() => socket.emit('undoLastAction', { code: roomCode })}
@@ -700,12 +717,14 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
               ↩ {t.undoAction}
             </button>
           )}
-          {isCreator && (
+          {!trainingMode && isCreator && (
             <button className="btn-manage" onClick={() => setShowAdminPanel(true)} title={t.managePlayersTitle}>
               ⚙ {t.managePlayers}
             </button>
           )}
-          <button className="btn-leave" onClick={leaveTable}>{t.leaveTable}</button>
+          <button className="btn-leave" onClick={leaveTable}>
+            {trainingMode ? t.training.abandonLabel : t.leaveTable}
+          </button>
         </div>
 
         <div

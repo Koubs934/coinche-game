@@ -151,7 +151,46 @@ export default {
   // Le français est la langue canonique; l'anglais est une traduction.
   // Les clés sont immuables (définies dans backend/src/training/reasonTags.json)
   // et ne doivent pas être renommées sans gérer la migration des données existantes.
+  // Intitulé du bouton sur l'écran Lobby
+  lobbyTrainingBtn: 'Entraînement',
+
   training: {
+    // Confirm + button label when the user leaves a training run
+    abandonConfirm: "Abandonner ce scénario ? Votre annotation sera jetée.",
+    abandonLabel:   "Abandonner",
+
+    picker: {
+      title:             'Scénarios d\'entraînement',
+      empty:             'Aucun scénario disponible.',
+      resumableHeading:  'Reprendre une annotation en cours',
+      resumableAgeMin:   (n) => `commencé il y a ${n} min`,
+      actionShown:       "Vous aviez choisi :",
+      resumeBtn:         'Reprendre',
+      discardBtn:        'Jeter',
+      back:              'Retour',
+    },
+
+    completion: {
+      title:        'Scénario terminé',
+      actionLabel:  'Votre action',
+      tagsLabel:    'Tags retenus',
+      noteLabel:    'Votre note',
+      noTags:       '(aucun tag sélectionné)',
+      noNote:       '(aucune note)',
+      backToPicker: 'Retour aux scénarios',
+      nextScenario: 'Scénario suivant',
+    },
+
+    errors: {
+      sessionInterrupted: 'Session interrompue — consultez les scénarios à reprendre.',
+    },
+
+    dev: {
+      heading:  'Démarrage rapide — scénarios (dev)',
+      hint:     'Mode développement : cliquer pour démarrer. Piéce 2 remplacera ceci par un vrai sélecteur.',
+      startBtn: 'Démarrer',
+    },
+
     panel: {
       title:                     'Pourquoi ce choix ?',
       actionLabel:               'Action jouée',

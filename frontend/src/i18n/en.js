@@ -151,7 +151,46 @@ export default {
   // French (fr.js) is the canonical source; these are translations.
   // Keys are immutable (defined in backend/src/training/reasonTags.json)
   // and must not be renamed without migrating stored annotation records.
+  // Lobby screen button label
+  lobbyTrainingBtn: 'Training',
+
   training: {
+    // Confirm + button label when the user leaves a training run
+    abandonConfirm: 'Abandon this scenario? Your annotation will be discarded.',
+    abandonLabel:   'Abandon',
+
+    picker: {
+      title:             'Training scenarios',
+      empty:             'No scenarios available.',
+      resumableHeading:  'Resume an in-progress annotation',
+      resumableAgeMin:   (n) => `started ${n} min ago`,
+      actionShown:       'You had chosen:',
+      resumeBtn:         'Resume',
+      discardBtn:        'Discard',
+      back:              'Back',
+    },
+
+    completion: {
+      title:        'Scenario complete',
+      actionLabel:  'Your action',
+      tagsLabel:    'Tags selected',
+      noteLabel:    'Your note',
+      noTags:       '(no tags selected)',
+      noNote:       '(no note)',
+      backToPicker: 'Back to scenarios',
+      nextScenario: 'Next scenario',
+    },
+
+    errors: {
+      sessionInterrupted: 'Session interrupted — check resumable scenarios.',
+    },
+
+    dev: {
+      heading:  'Quick-start — scenarios (dev)',
+      hint:     'Dev mode: click to start. Piece 2 will replace this with a real picker.',
+      startBtn: 'Start',
+    },
+
     panel: {
       title:                     'Why this choice?',
       actionLabel:               'Action taken',

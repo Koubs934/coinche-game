@@ -7,6 +7,9 @@ import Header from './components/Header';
 import Lobby from './components/Lobby';
 import GameBoard from './components/GameBoard';
 import ReasonPanelMock from './training/ReasonPanelMock';
+import TrainingTable from './training/TrainingTable';
+import CompletionSummary from './training/CompletionSummary';
+import DevTrainingPicker from './training/DevTrainingPicker';
 import { cleanupOldDrafts } from './training/noteDraft';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
@@ -23,11 +26,15 @@ const EMPTY_GAME = {
   hands: [[], [], [], []], handCounts: [0, 0, 0, 0],
 };
 
-// Mock-harness short-circuit: ?mock=training-panel renders the reason-panel
-// preview (no auth, no sockets). Used to review UX in isolation before wiring.
-const MOCK_MODE = typeof window !== 'undefined'
-  ? new URLSearchParams(window.location.search).get('mock')
-  : null;
+// URL flags (read once at module load; don't change during a session):
+//   ?mock=training-panel  → reason-panel UX preview, no auth, no sockets
+//   ?training-dev=1       → on mount after auth, land on the dev picker
+//                           (piece-1 entry point until the real Lobby button ships)
+const URL_PARAMS = typeof window !== 'undefined'
+  ? new URLSearchParams(window.location.search)
+  : new URLSearchParams();
+const MOCK_MODE        = URL_PARAMS.get('mock');
+const TRAINING_DEV_URL = URL_PARAMS.get('training-dev') === '1';
 
 export default function App() {
   const { user, username, loading } = useAuth();
@@ -49,14 +56,22 @@ export default function App() {
   const socketRef = useRef(null);
   const [socketReady, setSocketReady] = useState(false);
   const [socketError, setSocketError] = useState('');
-  const [socketInfo, setSocketInfo] = useState(''); // transient info toast (reconnect, etc.)
+  const [socketInfo, setSocketInfo] = useState('');
   const wasDisconnectedRef = useRef(false);
 
-  // Game state synced from server
-  const [roomState, setRoomState] = useState(null); // public room info
-  const [gameState, setGameState] = useState(null); // filtered game info
+  // Normal-room state
+  const [roomState, setRoomState] = useState(null);
+  const [gameState, setGameState] = useState(null);
   const [myPosition, setMyPosition] = useState(null);
-  const [pendingRoom, setPendingRoom] = useState(null); // code when waiting for admin approval
+  const [pendingRoom, setPendingRoom] = useState(null);
+
+  // Training-mode state (kept entirely separate from normal-room state)
+  const [trainingView,       setTrainingView]       = useState(null); // 'picker' | 'run' | 'complete' | null
+  const [trainingScenarios,  setTrainingScenarios]  = useState([]);
+  const [trainingTags,       setTrainingTags]       = useState(null);
+  const [trainingRun,        setTrainingRun]        = useState(null); // { trainingState, room, game, myPosition }
+  const [trainingAnnotation, setTrainingAnnotation] = useState(null); // set by trainingCompleted
+  const [trainingResumable,  setTrainingResumable]  = useState([]);
 
   // Ref mirrors so the socket handler closure sees current state without re-subscribing
   const gameStateRef = useRef(null);
@@ -91,8 +106,7 @@ export default function App() {
         socket.emit('rejoinRoom', { code: savedCode });
       }
 
-      // If this is a reconnect (not the initial connect), show a transient
-      // confirmation — mention the turn explicitly if the player was mid-action.
+      // Reconnect toast (only on a non-initial connect)
       if (wasDisconnectedRef.current) {
         wasDisconnectedRef.current = false;
         const g = gameStateRef.current;
@@ -104,6 +118,13 @@ export default function App() {
         setSocketInfo(myTurn ? t.reconnectedYourTurn : t.reconnected);
         setTimeout(() => setSocketInfo(''), 3000);
       }
+
+      // Prime training data (cheap, gets cached server-side)
+      socket.emit('getTrainingTags');
+      socket.emit('listTrainingScenarios');
+
+      // Piece-1 dev entry: land on picker automatically if URL requested it
+      if (TRAINING_DEV_URL) setTrainingView(prev => prev ?? 'picker');
     });
 
     socket.on('disconnect', () => {
@@ -115,35 +136,66 @@ export default function App() {
       setSocketError(`Connection error: ${err.message}`);
     });
 
+    // ── Normal-room events ──────────────────────────────────────────────
     socket.on('roomJoined', ({ room, game, myPosition: pos }) => {
-      setRoomState(room);
-      setGameState(game);
-      setMyPosition(pos);
+      setRoomState(room); setGameState(game); setMyPosition(pos);
       sessionStorage.setItem('coinche_room', room.code);
     });
-
     socket.on('roomUpdate', ({ room, game, myPosition: pos }) => {
-      setRoomState(room);
-      setGameState(game);
+      setRoomState(room); setGameState(game);
       if (pos !== undefined) setMyPosition(pos);
     });
-
-    socket.on('error', ({ message }) => {
-      setSocketError(message);
-      setTimeout(() => setSocketError(''), 4000);
-    });
-
     socket.on('joinPending', ({ code }) => {
       setPendingRoom(code);
       sessionStorage.setItem('coinche_room', code);
     });
-
     socket.on('leftRoom', () => {
-      setRoomState(null);
-      setGameState(null);
-      setMyPosition(null);
-      setPendingRoom(null);
+      setRoomState(null); setGameState(null); setMyPosition(null); setPendingRoom(null);
       sessionStorage.removeItem('coinche_room');
+    });
+
+    // ── Training events ────────────────────────────────────────────────
+    socket.on('trainingTags',          ({ tags })      => setTrainingTags(tags));
+    socket.on('trainingScenariosList', ({ scenarios }) => setTrainingScenarios(scenarios));
+    socket.on('trainingResumablePending', ({ partials }) => setTrainingResumable(partials));
+
+    socket.on('trainingStarted', (payload) => {
+      setTrainingRun(payload);
+      setTrainingAnnotation(null);
+      setTrainingView('run');
+    });
+    socket.on('trainingUpdate',         (payload) => setTrainingRun(payload));
+    socket.on('trainingAwaitingReason', (payload) => setTrainingRun(payload));
+    socket.on('trainingCompleted', ({ annotation }) => {
+      setTrainingAnnotation(annotation);
+      setTrainingView('complete');
+    });
+    socket.on('trainingAbandoned', () => {
+      setTrainingRun(null);
+      setTrainingView('picker');
+    });
+
+    // Shared error channel (normal + training).
+    //
+    // Coded errors (see backend/src/socketEvents.js for the registry) are
+    // translated into UX recoveries instead of leaking raw messages into
+    // the UI. Everything else falls through to the generic toast.
+    socket.on('error', ({ message, code }) => {
+      if (code === 'UNKNOWN_TRAINING_RUN') {
+        // The in-memory run is gone (server restarted, or GC'd). The
+        // partial is still on disk if the user had submitted their action,
+        // so route to the picker and refresh the resumable list so they
+        // can pick up where they left off.
+        setTrainingRun(null);
+        setTrainingAnnotation(null);
+        setTrainingView('picker');
+        socket.emit('getResumablePartials');
+        setSocketInfo(t.training.errors.sessionInterrupted);
+        setTimeout(() => setSocketInfo(''), 4500);
+        return;
+      }
+      setSocketError(message);
+      setTimeout(() => setSocketError(''), 4000);
     });
 
     return () => {
@@ -151,6 +203,58 @@ export default function App() {
       socketRef.current = null;
     };
   }, [user]);
+
+  // ── Training control actions (called by child components) ──────────────
+
+  function startTraining(scenarioId) {
+    socketRef.current?.emit('startTrainingScenario', { scenarioId });
+  }
+  function resumeTraining(partialId) {
+    socketRef.current?.emit('resumeTrainingScenario', { partialId });
+  }
+  function discardPartial(partialId) {
+    socketRef.current?.emit('discardPartialTraining', { partialId });
+    setTrainingResumable(list => list.filter(p => p.partialId !== partialId));
+  }
+  function backToPicker() {
+    // If we arrived here from the completion screen we must tell the server
+    // to GC the (COMPLETE-state) in-memory run now that the user is done
+    // with the summary.
+    if (trainingView === 'complete' && trainingRun?.trainingState?.runId) {
+      socketRef.current?.emit('leaveTrainingSummary', { runId: trainingRun.trainingState.runId });
+    }
+    setTrainingRun(null);
+    setTrainingAnnotation(null);
+    setTrainingView('picker');
+  }
+  function goToPickerFromLobby() {
+    setTrainingView('picker');
+  }
+  function exitTraining() {
+    setTrainingRun(null);
+    setTrainingAnnotation(null);
+    setTrainingResumable(list => list); // keep resumable around; user may come back
+    setTrainingView(null);
+  }
+  function nextScenario() {
+    // Pick the next scenario alphabetically by id that isn't the one we just did
+    if (!trainingScenarios?.length) { backToPicker(); return; }
+    const currentId = trainingAnnotation?.scenarioId;
+    const sorted = [...trainingScenarios].sort((a, b) => a.id.localeCompare(b.id));
+    const idx = sorted.findIndex(s => s.id === currentId);
+    const next = idx >= 0 && idx < sorted.length - 1 ? sorted[idx + 1] : null;
+    if (!next) { backToPicker(); return; }
+    setTrainingAnnotation(null);
+    setTrainingRun(null);
+    socketRef.current?.emit('startTrainingScenario', { scenarioId: next.id });
+  }
+
+  const hasNextScenario = (() => {
+    if (!trainingAnnotation || !trainingScenarios?.length) return false;
+    const sorted = [...trainingScenarios].sort((a, b) => a.id.localeCompare(b.id));
+    const idx = sorted.findIndex(s => s.id === trainingAnnotation.scenarioId);
+    return idx >= 0 && idx < sorted.length - 1;
+  })();
 
   // ── Render ──────────────────────────────────────────────────────────────
 
@@ -174,6 +278,50 @@ export default function App() {
   }
 
   const inGame = roomState && ['PLAYING', 'ROUND_OVER', 'GAME_OVER', 'SHUFFLE', 'CUT'].includes(roomState.phase);
+  const inTraining = trainingView !== null;
+
+  // ── Training takes precedence over normal-room surfaces when active ────
+  if (inTraining) {
+    return (
+      <div className="app">
+        {socketError && <div className="toast-error">{socketError}</div>}
+        {!socketReady && <div className="toast-info">{t.reconnecting}</div>}
+
+        {trainingView === 'picker' && (
+          <DevTrainingPicker
+            scenarios={trainingScenarios}
+            resumablePartials={trainingResumable}
+            onStart={startTraining}
+            onResume={resumeTraining}
+            onDiscardPartial={discardPartial}
+            onBack={exitTraining}
+          />
+        )}
+
+        {trainingView === 'run' && trainingRun && (
+          <TrainingTable
+            socket={socketRef.current}
+            runId={trainingRun.trainingState.runId}
+            room={trainingRun.room}
+            game={trainingRun.game}
+            myPosition={trainingRun.myPosition}
+            trainingState={trainingRun.trainingState}
+            tagSchema={trainingTags}
+          />
+        )}
+
+        {trainingView === 'complete' && trainingAnnotation && (
+          <CompletionSummary
+            annotation={trainingAnnotation}
+            tagSchema={trainingTags}
+            onBackToPicker={backToPicker}
+            onNextScenario={nextScenario}
+            hasNextScenario={hasNextScenario}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="app">
@@ -183,17 +331,9 @@ export default function App() {
         targetScore={roomState?.targetScore}
       />
 
-      {socketError && (
-        <div className="toast-error">{socketError}</div>
-      )}
-
-      {!socketReady && user && (
-        <div className="toast-info">{t.reconnecting}</div>
-      )}
-
-      {socketReady && socketInfo && (
-        <div className="toast-info">{socketInfo}</div>
-      )}
+      {socketError && <div className="toast-error">{socketError}</div>}
+      {!socketReady && user && <div className="toast-info">{t.reconnecting}</div>}
+      {socketReady && socketInfo && <div className="toast-info">{socketInfo}</div>}
 
       {inGame ? (
         <GameBoard
@@ -214,6 +354,8 @@ export default function App() {
             setPendingRoom(null);
             sessionStorage.removeItem('coinche_room');
           }}
+          onOpenTraining={goToPickerFromLobby}
+          resumableCount={trainingResumable?.length || 0}
         />
       )}
     </div>

@@ -4,7 +4,7 @@ import { useLang } from '../context/LanguageContext';
 const BID_VALUES = [80, 90, 100, 110, 120, 130, 140, 150, 160, 'capot'];
 const SUITS = ['S', 'H', 'D', 'C'];
 
-export default function BiddingPanel({ socket, roomCode, game, myPosition, myTeam, sortMode }) {
+export default function BiddingPanel({ socket, roomCode, game, myPosition, myTeam, sortMode, trainingMode }) {
   const { t } = useLang();
   const [selectedValue, setSelectedValue] = useState(null);
   // Default to the sort candidate suit when Trier is ON; fall back to 'H' otherwise.
@@ -24,22 +24,46 @@ export default function BiddingPanel({ socket, roomCode, game, myPosition, myTea
     return value === 'capot' || value > currentBid.value;
   }
 
+  // Training mode routes all actions through a single submitTrainingAction
+  // emit with the typed action payload; normal mode uses the per-action
+  // room-scoped events. Every other behaviour (validation, UI state) is
+  // identical.
+  function emitBid(value, suit) {
+    if (trainingMode) {
+      socket.emit('submitTrainingAction', { runId: trainingMode.runId, action: { type: 'bid', value, suit } });
+    } else {
+      socket.emit('placeBid', { code: roomCode, value, suit });
+    }
+  }
+
   function submitBid() {
     if (!selectedValue || !isValidBid(selectedValue)) return;
-    socket.emit('placeBid', { code: roomCode, value: selectedValue, suit: selectedSuit });
+    emitBid(selectedValue, selectedSuit);
     setSelectedValue(null);
   }
 
   function pass() {
-    socket.emit('passBid', { code: roomCode });
+    if (trainingMode) {
+      socket.emit('submitTrainingAction', { runId: trainingMode.runId, action: { type: 'pass' } });
+    } else {
+      socket.emit('passBid', { code: roomCode });
+    }
   }
 
   function doCoinche() {
-    socket.emit('coinche', { code: roomCode });
+    if (trainingMode) {
+      socket.emit('submitTrainingAction', { runId: trainingMode.runId, action: { type: 'coinche' } });
+    } else {
+      socket.emit('coinche', { code: roomCode });
+    }
   }
 
   function doSurcoinche() {
-    socket.emit('surcoinche', { code: roomCode });
+    if (trainingMode) {
+      socket.emit('submitTrainingAction', { runId: trainingMode.runId, action: { type: 'surcoinche' } });
+    } else {
+      socket.emit('surcoinche', { code: roomCode });
+    }
   }
 
   if (!isMyTurn) return null;
