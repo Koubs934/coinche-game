@@ -3,12 +3,12 @@
 // and a template for incremental conversion — each rule/scoring/bot file
 // should grow its own *.test.js sibling over time.
 
-const { describe, it, expect } = require('vitest');
-const { cardPoints, getTrickWinner, getValidCards } = require('../rules');
-const { calculateRoundScore } = require('../scoring');
-const { createDeck, shuffle, cutDeck, dealFrom } = require('../deck');
-const { bestOpeningBid, getBotBidAction } = require('../botBidding');
-const { getBotCardAction } = require('../botPlay');
+import { describe, it, expect } from 'vitest';
+import { cardPoints, getTrickWinner, getValidCards } from '../rules.js';
+import { calculateRoundScore } from '../scoring.js';
+import { createDeck, shuffle, cutDeck, dealFrom } from '../deck.js';
+import { bestOpeningBid, getBotBidAction } from '../botBidding.js';
+import { getBotCardAction } from '../botPlay.js';
 
 const card = (value, suit) => ({ suit, value });
 
