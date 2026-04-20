@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "id": "opening-petit-jeu-first-to-speak",
+  "title": {
+    "en": "Opening — petit jeu, first to speak",
+    "fr": "Ouverture — petit jeu, premier à parler"
+  },
+  "description": {
+    "en": "User is first to bid with a Pattern A petit-jeu hand (J-third in ♠) and no other claim.",
+    "fr": "L'utilisateur parle en premier avec une main petit-jeu Pattern A (J-tiers à ♠) sans autre revendication."
+  },
+  "notes": {
+    "en": "Probes Pattern A of petit-jeu (J-third in ♠: J+10+8). Hand constraint: no qualifying maître suit elsewhere, so the petit-jeu decision is isolated from a maître/bicolore alternative. User has only 1 Ace, which also rules out the information-80 fallback. User speaks first, so no competitive context — clean baseline for the convention's 90-opening.",
+    "fr": "Éprouve le Pattern A du petit jeu (J-tiers à ♠ : J+10+8). Contrainte de main : aucun maître ailleurs, pour isoler la décision petit-jeu de toute alternative maître/bicolore. L'utilisateur n'a qu'un seul As, ce qui écarte aussi le repli 80-informatif. L'utilisateur parle en premier — aucun contexte compétitif — référence propre pour l'ouverture 90 selon la convention."
+  },
+
+  "userSeat": 0,
+  "dealer": 3,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"J"}, {"suit":"S","value":"10"}, {"suit":"S","value":"8"},
+           {"suit":"H","value":"K"}, {"suit":"H","value":"Q"},
+           {"suit":"D","value":"A"},
+           {"suit":"C","value":"8"}, {"suit":"C","value":"7"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"9"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"8"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"8"},
+           {"suit":"C","value":"9"}, {"suit":"C","value":"10"} ],
+    "2": [ {"suit":"S","value":"Q"}, {"suit":"S","value":"K"},
+           {"suit":"H","value":"9"}, {"suit":"H","value":"10"}, {"suit":"H","value":"J"},
+           {"suit":"D","value":"9"}, {"suit":"D","value":"10"},
+           {"suit":"C","value":"J"} ],
+    "3": [ {"suit":"S","value":"A"},
+           {"suit":"H","value":"A"},
+           {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"},
+           {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    { "event": "user-turn" }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "id": "petit-jeu-after-opp-80-spades",
+  "title": {
+    "en": "Petit-jeu hand after opponent opened 80♠",
+    "fr": "Main petit-jeu après ouverture adverse à 80♠"
+  },
+  "description": {
+    "en": "Same petit-jeu hand as the first scenario. Opponent (seat 3) opened 80♠ informative. User must decide to bid 90♠ in the contested suit, switch to a forcing-overcall tactic, or pass.",
+    "fr": "Même main petit-jeu qu'au premier scénario. L'adversaire (siège 3) a ouvert 80♠ informatif. L'utilisateur doit choisir entre annoncer 90♠ dans la couleur contestée, basculer en surenchère de piégeage, ou passer."
+  },
+  "notes": {
+    "en": "Same hand as opening-petit-jeu-first-to-speak. The variable is auction context, not hand strength. Opponent seat 3 holds 3 Aces (A♠+A♥+A♣) and opens 80♠ by the information-80 convention (highest trumpPtsSum in ♠, no petit-jeu/maître). That 80♠ is NOT a claim on ♠ as trump — it's an information bid — so the ♠ suit is structurally still open for a petit-jeu claim from user. Probes: (a) does the convention still say 90♠ here, (b) is this a 'forcing-overcall-to-setup-coinche' case (bid to provoke a raise then coinche), (c) or does the overlap suppress the bid?",
+    "fr": "Même main que opening-petit-jeu-first-to-speak. La variable est le contexte d'enchères, pas la force de main. L'adversaire siège 3 détient 3 As (A♠+A♥+A♣) et ouvre 80♠ selon la convention 80-informatif (couleur ♠ avec le meilleur trumpPtsSum, aucun petit-jeu/maître). Ce 80♠ n'est PAS une revendication de ♠ comme atout — c'est une annonce d'information — donc la couleur ♠ reste structurellement ouverte pour une revendication petit-jeu par l'utilisateur. Éprouve : (a) la convention annonce-t-elle tout de même 90♠ ici, (b) est-ce un cas de 'faire monter pour coincher' (annoncer pour provoquer une relance puis coincher), (c) ou le chevauchement supprime-t-il l'annonce ?"
+  },
+
+  "userSeat": 0,
+  "dealer": 2,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"J"}, {"suit":"S","value":"10"}, {"suit":"S","value":"8"},
+           {"suit":"H","value":"K"}, {"suit":"H","value":"Q"},
+           {"suit":"D","value":"A"},
+           {"suit":"C","value":"8"}, {"suit":"C","value":"7"} ],
+    "1": [ {"suit":"S","value":"Q"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"8"}, {"suit":"H","value":"J"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"Q"},
+           {"suit":"C","value":"9"}, {"suit":"C","value":"10"} ],
+    "2": [ {"suit":"S","value":"K"},
+           {"suit":"H","value":"9"}, {"suit":"H","value":"10"},
+           {"suit":"D","value":"J"}, {"suit":"D","value":"K"},
+           {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"} ],
+    "3": [ {"suit":"S","value":"A"}, {"suit":"S","value":"9"}, {"suit":"S","value":"7"},
+           {"suit":"H","value":"A"},
+           {"suit":"D","value":"8"}, {"suit":"D","value":"9"}, {"suit":"D","value":"10"},
+           {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid", "seat": 3, "value": 80, "suit": "S",
+      "authorIntent": "Information-80 opening: seat 3 holds A♠+A♥+A♣ (3 Aces) and no qualifying trump holding. Suit ♠ is chosen because it has the highest trumpPtsSum among seat 3's suits (A=11, 9=14, 7=0 → 25). This is a signalling bid to partner, not a claim on ♠."
+    },
+    { "event": "user-turn" }
+  ]
+}

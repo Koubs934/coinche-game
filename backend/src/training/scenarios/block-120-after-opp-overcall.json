@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "id": "block-120-after-opp-overcall",
+  "title": {
+    "en": "Partner 80♠, opponent 100♥ — block at 120?",
+    "fr": "Partenaire 80♠, adversaire 100♥ — bloquer à 120 ?"
+  },
+  "description": {
+    "en": "Partner opened 80♠ informative; opponent overcalled 100♥ (maître). User has 100♦ maître in isolation (no exploitable second suit) and must decide: pass, speculate 110/120, or coinche 100♥.",
+    "fr": "Le partenaire a ouvert 80 informatif à ♠ ; l'adversaire a surenchéri 100♥ (maître). L'utilisateur détient un 100♦ maître en isolation (sans seconde couleur exploitable) et doit choisir : passer, spéculer 110/120, ou coincher 100♥."
+  },
+  "notes": {
+    "en": "Partner (seat 2) holds A♠+A♣ (2 Aces, no petit-jeu/maître elsewhere) → info-80 opening at ♠ (highest trumpPtsSum). Opponent (seat 3) holds J♥+9♥+A♥+8♥ → maître in ♥ with no exploitable second suit and no outside Aces → clean 100♥. User holds J♦+9♦+A♦ (maître in ♦) plus K♣+10♣+7♣ (3 clubs, NOT exploitable: count=3 and no A — fails both count≥4 and A+honor tests) plus 7♥+8♠ (singletons). User's hand in isolation would open 100♦ — a real maître claim, but without bicolore, without outside Aces, so exactly 100. To overcall 100♥ the user must bid 110+. Probes: (a) pass (hand does not conventionally justify 110+), (b) speculative-raise 110♦ (trusting trump distribution), (c) blocking-bid 120♦ (pure block, not a real bicolore), (d) coinche 100♥ (needs shape or signal from partner's 80♠ info to defeat). Hand is deliberately 'close but not bicolore' to force differentiation among blocking-bid, speculative-raise, competitive-real-claim, and coinche tags. The user's real claim ceiling (100) is BELOW the minimum legal overcall (110), which is the whole point.",
+    "fr": "Le partenaire (siège 2) détient A♠+A♣ (2 As, aucun petit-jeu/maître ailleurs) → ouverture 80-informatif à ♠ (trumpPtsSum le plus élevé). L'adversaire (siège 3) détient J♥+9♥+A♥+8♥ → maître à ♥ sans seconde couleur exploitable et sans As extérieur → 100♥ propre. L'utilisateur détient J♦+9♦+A♦ (maître à ♦) plus K♣+10♣+7♣ (3 trèfles, NON exploitables : count=3 et pas d'As — échoue aux tests count≥4 et A+honneur) plus 7♥+8♠ (singletons). En isolation la main de l'utilisateur ouvrirait 100♦ — vraie revendication maître, mais sans bicolore, sans As extérieur, donc exactement 100. Pour surenchérir sur 100♥ l'utilisateur doit annoncer 110+. Éprouve : (a) passer (la main ne justifie pas conventionnellement 110+), (b) relance spéculative 110♦ (pari sur la distribution des atouts), (c) annonce de blocage 120♦ (pur blocage, pas un vrai bicolore), (d) coincher 100♥ (demande forme ou signal du 80♠ informatif du partenaire pour faire chuter). La main est délibérément 'à la limite mais pas bicolore' pour forcer la différenciation entre annonce-de-blocage, relance-spéculative, compétitive-réelle et coinche. Le plafond de revendication réel de l'utilisateur (100) est EN DESSOUS de la surenchère minimale légale (110), ce qui est tout l'enjeu."
+  },
+
+  "userSeat": 0,
+  "dealer": 1,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"8"},
+           {"suit":"H","value":"7"},
+           {"suit":"D","value":"J"}, {"suit":"D","value":"9"}, {"suit":"D","value":"A"},
+           {"suit":"C","value":"K"}, {"suit":"C","value":"10"}, {"suit":"C","value":"7"} ],
+    "1": [ {"suit":"S","value":"9"}, {"suit":"S","value":"J"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"K"},
+           {"suit":"H","value":"K"},
+           {"suit":"D","value":"Q"}, {"suit":"D","value":"K"},
+           {"suit":"C","value":"Q"} ],
+    "2": [ {"suit":"S","value":"A"}, {"suit":"S","value":"10"}, {"suit":"S","value":"7"},
+           {"suit":"H","value":"10"}, {"suit":"H","value":"Q"},
+           {"suit":"D","value":"8"},
+           {"suit":"C","value":"A"}, {"suit":"C","value":"8"} ],
+    "3": [ {"suit":"H","value":"J"}, {"suit":"H","value":"9"}, {"suit":"H","value":"A"}, {"suit":"H","value":"8"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"10"},
+           {"suit":"C","value":"9"}, {"suit":"C","value":"J"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid", "seat": 2, "value": 80, "suit": "S",
+      "authorIntent": "Information-80 opening by partner: A♠+A♣ (2 Aces), no petit-jeu/maître. ♠ chosen because it has the highest trumpPtsSum (A=11, 10=10, 7=0 → 21)."
+    },
+    {
+      "event": "bid", "seat": 3, "value": 100, "suit": "H",
+      "authorIntent": "Opponent overcalls with a maître claim in ♥: J♥+9♥+A♥ (plus 8♥). No outside Aces, no exploitable second suit → exactly 100, no 110/120 escalation."
+    },
+    { "event": "user-turn" }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "id": "petit-jeu-after-partner-80-spades",
+  "title": {
+    "en": "Petit-jeu hand after partner opened 80♠",
+    "fr": "Main petit-jeu après ouverture partenaire à 80♠"
+  },
+  "description": {
+    "en": "Same petit-jeu hand as scenarios 1 and 2. Partner (seat 2) opened 80♠ informative; opponent (seat 3) passed. User must decide whether to raise in partner's suit or claim their own petit-jeu (same suit).",
+    "fr": "Même main petit-jeu qu'aux scénarios 1 et 2. Le partenaire (siège 2) a ouvert 80♠ informatif ; l'adversaire (siège 3) a passé. L'utilisateur doit choisir entre relancer dans la couleur du partenaire ou revendiquer son propre petit-jeu (même couleur)."
+  },
+  "notes": {
+    "en": "Same hand as the previous two scenarios. Partner (seat 2) holds 3 Aces (A♠+A♥+A♣) and opens 80♠ by the information-80 convention — identical shape to scenario 2's seat 3, but now it's PARTNER not OPPONENT. User's petit-jeu claim in ♠ overlaps with partner's info-bid suit. Probes: (a) supporting-partner via Ace-contribution (user has 1 outside Ace → 90) vs petit-jeu-claim (user's real 90 in ♠). Same bid (90♠), different reasoning. The tag choice exposes whether the convention treats overlap as confirmation or as a real claim. Seat 3 (opp) passes — weak hand, no claim — part of the setup, not a decision point.",
+    "fr": "Même main qu'aux deux scénarios précédents. Le partenaire (siège 2) détient 3 As (A♠+A♥+A♣) et ouvre 80♠ selon la convention 80-informatif — forme identique au siège 3 du scénario 2, mais cette fois c'est le PARTENAIRE, pas l'adversaire. La revendication petit-jeu de l'utilisateur à ♠ chevauche la couleur info-bid du partenaire. Éprouve : (a) soutien-au-partenaire via contribution As (1 As extérieur → 90) vs petit-jeu-claim (vrai 90 à ♠ de l'utilisateur). Même annonce (90♠), raisonnement différent. Le choix du tag révèle si la convention traite le chevauchement comme une confirmation ou comme une revendication réelle. Siège 3 (adversaire) passe — main faible, aucune revendication — partie du montage, pas un point de décision."
+  },
+
+  "userSeat": 0,
+  "dealer": 1,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"J"}, {"suit":"S","value":"10"}, {"suit":"S","value":"8"},
+           {"suit":"H","value":"K"}, {"suit":"H","value":"Q"},
+           {"suit":"D","value":"A"},
+           {"suit":"C","value":"8"}, {"suit":"C","value":"7"} ],
+    "1": [ {"suit":"S","value":"Q"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"8"}, {"suit":"H","value":"J"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"Q"},
+           {"suit":"C","value":"9"}, {"suit":"C","value":"J"} ],
+    "2": [ {"suit":"S","value":"A"}, {"suit":"S","value":"9"}, {"suit":"S","value":"7"},
+           {"suit":"H","value":"A"},
+           {"suit":"D","value":"8"}, {"suit":"D","value":"9"}, {"suit":"D","value":"10"},
+           {"suit":"C","value":"A"} ],
+    "3": [ {"suit":"S","value":"K"},
+           {"suit":"H","value":"9"}, {"suit":"H","value":"10"},
+           {"suit":"D","value":"J"}, {"suit":"D","value":"K"},
+           {"suit":"C","value":"10"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid", "seat": 2, "value": 80, "suit": "S",
+      "authorIntent": "Information-80 opening by partner: A♠+A♥+A♣ (3 Aces), no petit-jeu/maître. Suit ♠ chosen for highest trumpPtsSum. Signal to user that partner has ≥2 Aces."
+    },
+    {
+      "event": "pass", "seat": 3,
+      "authorIntent": "Weak hand (0 Aces, no trump claim). Seat 3 has no qualifying petit-jeu or maître in any suit and cannot info-80. Passes."
+    },
+    { "event": "user-turn" }
+  ]
+}

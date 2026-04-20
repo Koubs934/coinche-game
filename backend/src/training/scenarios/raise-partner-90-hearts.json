@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "id": "raise-partner-90-hearts",
+  "title": {
+    "en": "Raise partner's 90♥ with 9♥ + one outside Ace",
+    "fr": "Relancer le 90♥ du partenaire avec le 9♥ + un As extérieur"
+  },
+  "description": {
+    "en": "Partner opened 90♥ (petit-jeu Pattern A). User holds the trump 9 and one outside Ace. Probes the 90→100 support decision.",
+    "fr": "Le partenaire a ouvert 90♥ (petit jeu Pattern A). L'utilisateur détient le 9 d'atout et un As extérieur. Éprouve la décision de soutien 90→100."
+  },
+  "notes": {
+    "en": "Partner's 90♥ implies either Pattern A (J+3rd) or Pattern B (9+4th+outside A). User holds 9♥+10♥, which confirms partner's pattern is A and supplies the missing 9 — the textbook reason for a 90→100 same-suit raise under the convention, independent of Ace contribution. The additional outside A♦ reinforces the raise but is not its primary justification. Probes whether user tags missing-trump-honour-plus-aces-raise-in-partner-suit vs a generic supporting-partner when both apply.",
+    "fr": "Le 90♥ du partenaire implique soit le Pattern A (J+3e) soit le Pattern B (9+4e+As extérieur). L'utilisateur détient 9♥+10♥, ce qui confirme que le pattern du partenaire est A et apporte le 9 manquant — raison classique d'une relance 90→100 dans la même couleur selon la convention, indépendamment de la contribution par As. L'As extérieur A♦ additionnel renforce la relance sans en être la justification principale. Éprouve si l'utilisateur étiquette honneur-d'atout-manquant-plus-as-relance-couleur-partenaire contre un soutien-au-partenaire générique lorsque les deux s'appliquent."
+  },
+
+  "userSeat": 0,
+  "dealer": 1,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"K"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"8"},
+           {"suit":"H","value":"9"}, {"suit":"H","value":"10"},
+           {"suit":"D","value":"A"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"8"} ],
+    "1": [ {"suit":"S","value":"J"},
+           {"suit":"H","value":"A"},
+           {"suit":"D","value":"8"}, {"suit":"D","value":"J"}, {"suit":"D","value":"K"},
+           {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"} ],
+    "2": [ {"suit":"S","value":"A"}, {"suit":"S","value":"10"}, {"suit":"S","value":"7"},
+           {"suit":"H","value":"J"}, {"suit":"H","value":"8"}, {"suit":"H","value":"7"},
+           {"suit":"C","value":"A"}, {"suit":"C","value":"K"} ],
+    "3": [ {"suit":"S","value":"9"},
+           {"suit":"H","value":"Q"}, {"suit":"H","value":"K"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"9"}, {"suit":"D","value":"10"}, {"suit":"D","value":"Q"},
+           {"suit":"C","value":"9"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid", "seat": 2, "value": 90, "suit": "H",
+      "authorIntent": "Petit-jeu Pattern A in ♥: partner holds J♥+8♥+7♥ (J-third). No 9♥ (the 9 is with user), no A♥ (with seat 1), so not maître. Partner's only qualifying opening is petit-jeu in ♥ at 90."
+    },
+    {
+      "event": "pass", "seat": 3,
+      "authorIntent": "Seat 3 has no qualifying petit-jeu (4♦ without outside Ace), no maître, 0 Aces. Cannot open. Passes."
+    },
+    { "event": "user-turn" }
+  ]
+}
