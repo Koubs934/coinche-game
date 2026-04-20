@@ -7,6 +7,7 @@ const rm = require('./roomManager');
 const { scheduleBotTurns, scheduleBotConfirms, scheduleBotShuffleCut } = require('./botProcessor');
 const rateLimit = require('./rateLimit');
 const persistence = require('./persistence');
+const { registerTrainingHandlers, runStartupCleanup: trainingStartupCleanup } = require('./training/trainingSocket');
 // Event payload contract for every socket.on / socket.emit below:
 // see socketEvents.js. Update both sides (FE + BE) when changing a payload.
 require('./socketEvents');
@@ -338,6 +339,11 @@ io.on('connection', socket => {
     if (!result.error && result.room) broadcast(result.room);
   });
 
+  // ── Training mode ────────────────────────────────────────────────────────
+  // Parallel subsystem; does not touch rm, botProcessor, or persistence.
+  const training = registerTrainingHandlers(socket);
+  training.surfaceResumableOnConnect();
+
   // ── Disconnect ───────────────────────────────────────────────────────────
   socket.on('disconnect', () => {
     rateLimit.clearSocket(socket.id);
@@ -356,6 +362,9 @@ async function start() {
   await persistence.connect();
   const persistedRooms = await persistence.loadAllRooms();
   rm.hydrateRooms(persistedRooms);
+
+  // Promote stale training partials to abandoned-partial and prime scenario cache.
+  trainingStartupCleanup();
 
   httpServer.listen(PORT, () => {
     console.log(`Coinche server listening on port ${PORT}`);

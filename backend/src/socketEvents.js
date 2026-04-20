@@ -120,7 +120,94 @@
 //   'roomUpdate' : RoomSync
 //   'joinPending': { code }
 //   'leftRoom'   : ()
-//   'error'      : { message }   // including 'Too many requests — slow down' from rate limiter
-//                                //           'beloteDecisionRequired' prompts the client modal
+//   'error'      : { message, code? }
+//                     code is an optional machine-readable sentinel — UI uses
+//                     it to drive recovery flows without string-matching.
+//                     Known codes:
+//                       'UNKNOWN_TRAINING_RUN' — in-memory run not found for
+//                         this socket; client should route to the picker and
+//                         refresh resumable partials via getResumablePartials.
+//                     Also: 'Too many requests — slow down' (rate limiter,
+//                     no code yet); 'beloteDecisionRequired' (prompts modal).
+
+// ─── Training mode ─────────────────────────────────────────────────────────
+// Parallel subsystem — does not share state with normal rooms. Handlers live
+// in backend/src/training/trainingSocket.js. Annotations are persisted to
+// disk under backend/data/training/<userId>/; no Redis involvement.
+//
+// Shared shape for updates emitted during a run (same as RoomSync but with
+// trainingState attached): { trainingState, room, game, myPosition }
+//   trainingState = { runId, scenarioId,
+//                     runState: 'SCRIPT-PLAYING'|'AWAITING-ACTION'|'AWAITING-REASON'|'COMPLETE',
+//                     timelineCursor, totalSteps,
+//                     pendingAction: {type,...}|null }
+//
+// Discovery (C→S):
+//   'getTrainingTags'           ()
+//     → S→C 'trainingTags'          { tags: <full reasonTags.json> }
+//   'listTrainingScenarios'     ()
+//     → S→C 'trainingScenariosList' { scenarios: [{id,title,description,userSeat,dealer}, ...] }
+//   'getResumablePartials'      ()
+//     Explicit refresh of the resumable-partials list. The same payload is
+//     also emitted unsolicited on socket connect; this is for recovering
+//     without a reconnect (e.g. after UNKNOWN_TRAINING_RUN).
+//     → S→C 'trainingResumablePending' { partials }
+//   'getTrainingScenario'       ({ scenarioId })
+//     → S→C 'trainingScenario'      { scenario: <full scenario JSON> }
+//
+// Lifecycle (C→S):
+//   'startTrainingScenario'     ({ scenarioId })
+//     → S→C 'trainingStarted'       { ...trainingSync }            (initial snapshot)
+//     then  'trainingUpdate'        { ...trainingSync }  — one per scripted event
+//     then  'trainingUpdate'        { ...trainingSync, runState='AWAITING-ACTION' }
+//
+//   'submitTrainingAction'      ({ runId, action })
+//     action = { type: 'bid',        value, suit }
+//            | { type: 'pass' }
+//            | { type: 'coinche' }
+//            | { type: 'surcoinche' }
+//            | { type: 'play-card',  card: {suit,value}, declareBelote?: boolean }
+//     → S→C 'trainingAwaitingReason' { ...trainingSync, runState='AWAITING-REASON' }
+//     (server writes partial annotation to disk atomically BEFORE emitting)
+//
+//   'submitTrainingReason'      ({ runId, tags: string[], note: string })
+//     tags validated per action type against reasonTags.json
+//     note required when tags includes 'other' OR when tags is empty
+//     → S→C 'trainingCompleted'     { runId, annotation:{scenarioId,startedAt,completedAt,decisions} }
+//     (file rewritten with status='complete' before emitting)
+//
+//   'undoTrainingAction'        ({ runId })
+//     Valid only in AWAITING-REASON. Restores the pre-action game-state
+//     snapshot, deletes the partial from disk, transitions back to
+//     AWAITING-ACTION so the user can re-play the decision.
+//     → S→C 'trainingUpdate'         { ...trainingSync, runState='AWAITING-ACTION' }
+//
+//   'abandonTrainingScenario'   ({ runId })
+//     → S→C 'trainingAbandoned'     { runId }
+//     (any partial on disk is deleted; nothing persists)
+//
+//   'leaveTrainingSummary'      ({ runId })
+//     (silent cleanup — user left the summary screen; run GC'd immediately)
+//
+// Resume flow (C→S):
+//   On socket connect, if any awaiting-reason partials <30 min old exist
+//   under the user's data dir, server emits:
+//     S→C 'trainingResumablePending' { partials: [{partialId,scenarioId,startedAt,action,ageMs}, ...] }
+//
+//   'resumeTrainingScenario'    ({ partialId })
+//     Server rehydrates the run in memory and transitions straight to
+//     AWAITING-REASON with the saved action.
+//     → S→C 'trainingAwaitingReason' { ...trainingSync, runState='AWAITING-REASON' }
+//
+//   'discardPartialTraining'    ({ partialId })
+//     (silent success — file deleted)
+//
+// Disconnect policy:
+//   5-min GC timer per in-memory run on socket drop. Reconnect within that
+//   window and emitting any training event re-engages the run.
+//   Partials on disk are independent of the timer.
+//
+// All training events are subject to the same 30/sec per-socket rate limit
+// as normal-game events.
 
 module.exports = {}; // no runtime exports — contract only

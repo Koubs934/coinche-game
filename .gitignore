@@ -12,6 +12,9 @@ frontend/.vite/
 .env.local
 .env.*.local
 
+# ── Training-mode annotations (per-user, written at runtime) ──────────────────
+backend/data/
+
 # ── OS / editor noise ─────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
