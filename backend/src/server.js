@@ -17,25 +17,54 @@ const httpServer = createServer(app);
 
 // ─── CORS origins ──────────────────────────────────────────────────────────
 // FRONTEND_URL is comma-separated so multiple frontends can share the backend
-// without a redeploy. In dev, set localhost + your LAN IP so a phone on Wi-Fi
-// can hit the dev server. In prod on Railway, set to the Vercel URL (and any
+// without a redeploy. In prod on Railway, set to the Vercel URL (and any
 // staging URLs). When adding a new frontend, update the env var and restart.
 //
 // Example:
 //   FRONTEND_URL=http://localhost:5173,http://192.168.1.42:5173
 //   FRONTEND_URL=https://coinche.vercel.app,https://coinche-staging.vercel.app
+//
+// Dev-only convenience: when NODE_ENV !== 'production', the origin validator
+// additionally accepts any localhost/loopback or RFC1918 private-IP origin
+// (10.x, 172.16-31.x, 192.168.x), so a phone on the same Wi-Fi can connect
+// to a Vite `--host 0.0.0.0` dev server without editing FRONTEND_URL. This
+// branch NEVER fires in production — the allowlist is the only gate there.
 const FRONTEND_ORIGINS = (process.env.FRONTEND_URL || 'http://localhost:5173')
   .split(',')
   .map(u => u.trim());
 
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+function isPrivateNetworkOrigin(origin) {
+  if (!origin) return false;
+  try {
+    const { hostname } = new URL(origin);
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true;
+    if (/^10\./.test(hostname))                                           return true;
+    if (/^192\.168\./.test(hostname))                                     return true;
+    if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname))                  return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function originAllowed(origin, cb) {
+  // No Origin header (same-origin, curl, health probe) — allow
+  if (!origin) return cb(null, true);
+  if (FRONTEND_ORIGINS.includes(origin)) return cb(null, true);
+  if (!IS_PROD && isPrivateNetworkOrigin(origin)) return cb(null, true);
+  return cb(new Error(`CORS: origin not allowed: ${origin}`));
+}
+
 const io = new Server(httpServer, {
   cors: {
-    origin: FRONTEND_ORIGINS,
+    origin: originAllowed,
     methods: ['GET', 'POST'],
   },
 });
 
-app.use(cors({ origin: FRONTEND_ORIGINS }));
+app.use(cors({ origin: originAllowed }));
 app.use(express.json());
 
 app.get('/health', (_, res) => res.json({ ok: true }));
