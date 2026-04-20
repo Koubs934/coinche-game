@@ -15,6 +15,9 @@ frontend/.vite/
 # ── Training-mode annotations (per-user, written at runtime) ──────────────────
 backend/data/
 
+# ── Playwright smoke screenshots ──────────────────────────────────────────────
+frontend/tests/shots/
+
 # ── OS / editor noise ─────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
