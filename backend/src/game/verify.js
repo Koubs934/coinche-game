@@ -3,11 +3,11 @@
  * Run with: node backend/src/game/verify.js
  */
 
-const { getValidCards, getTrickWinner, TRUMP_RANK } = require('./rules');
+const { getValidCards, getTrickWinner, TRUMP_RANK, cardPoints } = require('./rules');
 const { calculateRoundScore } = require('./scoring');
 const { bestOpeningBid, computeSuitFeatures,
         partnerResponseBid, myContributionToPartner } = require('./botBidding');
-const { getBotBidAction } = require('./botLogic');
+const { getBotBidAction, getBotCardAction } = require('./botLogic');
 
 let passed = 0;
 let failed = 0;
@@ -1043,6 +1043,159 @@ function mockBidGame(myHand, currentBid, myPos) {
   // The outside Ace ♠ still counts as normal contribution
   const r = partnerResponseBid(hand, { value: 100, suit: 'H' });
   assert(r?.value === 110, 'R20: partner 100♥, 1 outside Ace ♠ → support 110 (no trump Ace bonus)');
+}
+
+// ─── Bot Card Play ────────────────────────────────────────────────────────────
+
+console.log('\n=== Bot Card Play ===\n');
+
+// Helper to build a minimal game object for getBotCardAction
+function mockCardGame({ hand, trick = [], trumpSuit = 'H', tricks = [], contractTeam = 0, biddingHistory = [] }) {
+  // Build hands: position 0 is the bot under test; others get dummy single cards
+  const hands = {
+    0: hand,
+    1: [card('7', 'S')],
+    2: [card('8', 'S')],
+    3: [card('9', 'S')],
+  };
+  return {
+    hands,
+    currentTrick: trick,
+    trumpSuit,
+    tricks,
+    currentBid: { team: contractTeam, value: 80, suit: trumpSuit, playerIndex: 1, coinched: false, surcoinched: false },
+    biddingHistory,
+    beloteInfo: { declared: null },
+  };
+}
+
+// C1: Bot last-to-act, cannot win — partner NOT winning, trump J winning.
+// Hand: non-trump A♠ + non-trump 7♠. Must dump 7, not A.
+{
+  const trumpSuit = 'H';
+  const trick = [
+    play(card('J', 'H'), 1),  // trump J — unbeatable
+    play(card('A', 'S'), 2),  // non-trump, loses to trump
+    play(card('K', 'S'), 3),  // non-trump, loses to trump
+  ];
+  const hand = [card('A', 'S'), card('7', 'S')];
+  const game = mockCardGame({ hand, trick, trumpSuit, tricks: [] });
+  game.hands[0] = hand;
+  const { card: chosen } = getBotCardAction(game, 0);
+  assert(chosen.value === '7' && chosen.suit === 'S', 'C1: cannot win — dumps 7♠, not A♠');
+}
+
+// C2: Partner winning with trump J, bot has trump Q + non-trump A + non-trump 8.
+// Bot should SUPPORT (partner winning) → dumps cheapest loser → non-trump 8.
+// Lead suit is D — bot has no D → partner winning → all cards valid (R1).
+{
+  const trumpSuit = 'H';
+  const trick = [
+    play(card('7', 'D'), 1),  // opponent leads 7♦
+    play(card('J', 'H'), 2),  // partner (pos 2) plays trump J — winning
+  ];
+  const hand = [card('Q', 'H'), card('A', 'S'), card('8', 'C')];
+  const game = mockCardGame({ hand, trick, trumpSuit, tricks: [] });
+  game.hands[0] = hand;
+  const { card: chosen } = getBotCardAction(game, 0);
+  // partner is winning → SUPPORT → dump cheapest loser = non-trump 8♣ (dumpScore 1)
+  assert(chosen.value === '8', 'C2: partner winning — SUPPORT, dumps 8♣ not A♠ or Q♥');
+  assert(chosen.suit === 'C', 'C2: confirms dump is 8♣');
+}
+
+// C3: Bot attacking, leading, holds J+9 of trump, early game → leads highest trump (J).
+{
+  const trumpSuit = 'H';
+  const hand = [card('J', 'H'), card('9', 'H'), card('A', 'D'), card('K', 'S')];
+  const game = mockCardGame({ hand, trick: [], trumpSuit, tricks: [], contractTeam: 0 });
+  game.hands[0] = hand;
+  const { card: chosen } = getBotCardAction(game, 0);
+  // B-rule: attacking + J+9 + early → lead highest trump
+  assert(chosen.suit === 'H', 'C3: attacking with J+9 — leads trump');
+  assert(chosen.value === 'J', 'C3: leads trump J (highest trump)');
+}
+
+// C4: Bot leading, holds non-trump Ace, tricks < 5 → leads the Ace.
+// Does NOT hold J+9 of trump, so rule B doesn't fire.
+{
+  const trumpSuit = 'H';
+  const hand = [card('J', 'H'), card('A', 'S'), card('K', 'D')];  // J but no 9 of trump
+  const game = mockCardGame({ hand, trick: [], trumpSuit, tricks: [], contractTeam: 0 });
+  game.hands[0] = hand;
+  const { card: chosen } = getBotCardAction(game, 0);
+  // B doesn't fire (no trump 9). A fires: has non-trump Ace → lead it.
+  assert(chosen.value === 'A' && chosen.suit === 'S', 'C4: no J+9 combo — leads non-trump A♠');
+}
+
+// C5: Bot can win with trump Q or trump J → should play trump Q (cheapestWinner avoids J).
+{
+  const trumpSuit = 'H';
+  // Trick: opponent led 7♠, partner played 8♠, opponent played 9♠. Bot holds trump Q + trump J.
+  // Both trump cards would win (trump beats non-trump).
+  const trick = [
+    play(card('7', 'S'), 1),
+    play(card('8', 'S'), 2),
+    play(card('9', 'S'), 3),
+  ];
+  const hand = [card('Q', 'H'), card('J', 'H')];
+  const game = mockCardGame({ hand, trick, trumpSuit, tricks: [] });
+  game.hands[0] = hand;
+  const { card: chosen } = getBotCardAction(game, 0);
+  assert(chosen.suit === 'H' && chosen.value === 'Q', 'C5: both trumps win — plays Q♥ not J♥ (cheapestWinner guard)');
+}
+
+// C6: Trick has 0 points, bot's only winning move costs ≥10 pts → ABANDON.
+// Trick: three 7/8 non-trump cards (0 pts). Bot holds non-trump A (11 pts, winning) + non-trump 7.
+{
+  const trumpSuit = 'H';
+  const trick = [
+    play(card('7', 'S'), 1),
+    play(card('8', 'S'), 2),
+    play(card('9', 'S'), 3),
+  ];
+  // Bot (pos 0) must follow suit S; it has A♠ (wins, 11 pts) and 7♠ (loses, 0 pts)
+  const hand = [card('A', 'S'), card('7', 'S')];
+  const game = mockCardGame({ hand, trick, trumpSuit, tricks: [] });
+  game.hands[0] = hand;
+  const { card: chosen } = getBotCardAction(game, 0);
+  // trickValue = 0, winCost = 11 ≥ 10 → ABANDON → dumps 7♠
+  assert(chosen.value === '7' && chosen.suit === 'S', 'C6: 0-pt trick, cheapest win costs 11 pts → ABANDON, dumps 7♠');
+}
+
+// C7: dumpScore ordering — non-trump 7 dumps before non-trump 9, before trump 8, before non-trump J.
+// Lead suit D — bot has no D; partner (pos 2) winning with A♦ → all cards valid (R1).
+{
+  const trumpSuit = 'H';
+  const trick = [
+    play(card('7', 'D'), 1),  // opponent leads 7♦
+    play(card('A', 'D'), 2),  // partner (pos 2) plays A♦ — winning
+  ];
+  const cards = [
+    card('J', 'S'),  // non-trump J — dumpScore 4
+    card('8', 'H'),  // trump 8     — dumpScore 3
+    card('9', 'S'),  // non-trump 9 — dumpScore 2
+    card('7', 'S'),  // non-trump 7 — dumpScore 1  ← should be first
+  ];
+  const game = mockCardGame({ hand: cards, trick, trumpSuit, tricks: [] });
+  game.hands[0] = cards;
+  const { card: chosen } = getBotCardAction(game, 0);
+  assert(chosen.value === '7' && chosen.suit === 'S', 'C7: dumpScore — non-trump 7♠ dumps before 9♠, before 8♥(trump), before J♠');
+}
+
+// C8: Bot holding trump A + non-trump 8 — partner winning → SUPPORT, protects trump A.
+// Lead suit D — bot has no D; partner (pos 2) winning → all cards valid (R1).
+{
+  const trumpSuit = 'H';
+  const trick = [
+    play(card('7', 'D'), 1),  // opponent leads 7♦
+    play(card('A', 'D'), 2),  // partner (pos 2) plays A♦ — winning
+  ];
+  const hand = [card('A', 'H'), card('8', 'C')];
+  const game = mockCardGame({ hand, trick, trumpSuit, tricks: [] });
+  game.hands[0] = hand;
+  const { card: chosen } = getBotCardAction(game, 0);
+  // SUPPORT → cheapestLoser → 8♣ (dumpScore 1) before trump A♥ (dumpScore 11).
+  assert(chosen.value === '8' && chosen.suit === 'C', 'C8: partner winning — dumps 8♣ not trump A♥');
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
