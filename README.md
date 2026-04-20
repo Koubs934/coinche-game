@@ -137,3 +137,9 @@ Open the Vercel URL on your phone or share it with a friend. Sign up, create a r
 - Scoring: actual trick points; failed contract = 0 / 160; capot bid & made = 500; accidental capot = 250; dix de der = 10; belote = 20; all rounded to nearest 10
 - Running totals across rounds; game ends after the round where a team hits the target
 - Disconnected player pauses the game; resumes automatically on reconnect
+
+## Training mode
+
+A solo practice table for playing pre-authored belote scenarios and capturing structured reasoning (tags + freeform note) for every decision. The goal is an annotated dataset of the user's personal convention, which will later drive rule extraction and bot tuning.
+
+Access it today by appending `?training-dev=1` to the frontend URL (piece 3 will add a "Training" button on the Lobby screen). Scenarios live under `backend/src/training/scenarios/`; completed annotations land on disk at `backend/data/training/<userId>/<isoStamp>-<scenarioId>.json` and are gitignored.
