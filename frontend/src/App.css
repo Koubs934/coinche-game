@@ -310,6 +310,12 @@ a      { color: var(--accent); }
 .target-input:focus { outline: 2px solid var(--accent); border-color: transparent; }
 .target-display { font-size: 0.9em; color: var(--muted); text-align: center; }
 .waiting-msg    { text-align: center; color: var(--muted); font-size: 0.9em; }
+.lobby-training-hint {
+  text-align: center;
+  color: var(--accent);
+  font-size: 0.82em;
+  margin-top: -6px;
+}
 
 /* ─── Game board ────────────────────────────────────────────────────────── */
 .game-board {
@@ -2130,29 +2136,40 @@ a      { color: var(--accent); }
 .tc-actions .btn-primary,
 .tc-actions .btn-secondary { flex: 1 1 auto; min-width: 140px; }
 
-/* ─── Training: Dev picker (piece-1 test harness) ─────────────────────── */
-.dev-picker {
-  min-height: 100vh;
+/* ─── Training picker ──────────────────────────────────────────────────── */
+.training-picker {
+  flex: 1;
   padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
   overflow-y: auto;
 }
-.dev-picker-head {
-  max-width: 640px;
-  margin: 0 auto 10px;
+.training-picker-inner {
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
-.dev-picker-head h1 {
-  font-size: 1.05em;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text);
-  font-weight: 700;
-  margin: 8px 0 6px;
+.training-picker-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
-.dev-picker-section {
-  max-width: 640px;
-  margin: 14px auto;
+.training-picker-title {
+  font-size: 1.5em;
+  text-align: center;
+  color: var(--accent);
+  margin: 0;
 }
-.dev-picker-section h2 {
+.training-picker-subtitle {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9em;
+  margin: 0 0 6px;
+}
+
+.training-section-heading {
   font-size: 0.78em;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -2162,46 +2179,96 @@ a      { color: var(--accent); }
   padding-bottom: 4px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
-.dev-picker-item {
+
+/* Resumable callout — warm amber tint so it reads as "in-progress, finish
+   it" rather than another new scenario card. */
+.training-resumable {
+  background: rgba(240, 165, 0, 0.09);
+  border: 1px solid rgba(240, 165, 0, 0.38);
+  border-radius: 10px;
+  padding: 14px;
+}
+.training-resumable-heading {
+  font-size: 0.78em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.training-resumable-item {
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  padding: 12px 14px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(240, 165, 0, 0.22);
+  border-radius: var(--radius);
   margin-bottom: 8px;
-  background: var(--ui-card);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
 }
-.dev-picker-item.dev-picker-resume {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent) inset;
-}
-.dev-picker-item-main { flex: 1; min-width: 0; }
-.dev-picker-item-title {
+.training-resumable-item:last-child { margin-bottom: 0; }
+.training-resumable-main { flex: 1; min-width: 0; }
+.training-resumable-title {
   font-weight: 600;
   color: var(--text);
   margin-bottom: 4px;
 }
-.dev-picker-item-sub {
+.training-resumable-sub {
   font-size: 0.9em;
   color: var(--muted);
   line-height: 1.4;
   margin-bottom: 4px;
 }
-.dev-picker-item-sub code {
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 0.9em;
-  color: var(--text);
-}
-.dev-picker-item-meta { font-size: 0.78em; }
-.dev-picker-item-actions {
+.training-resumable-action { color: var(--text); font-weight: 600; }
+.training-resumable-action-red { color: var(--accent2); }
+.training-resumable-meta { font-size: 0.78em; color: var(--muted); }
+.training-resumable-actions {
   display: flex;
   flex-direction: column;
   gap: 6px;
   flex-shrink: 0;
 }
-.dev-picker-action {
-  color: var(--text);
-  font-weight: 600;
+
+/* Scenario list — standard ui-card stack. */
+.training-scenario-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.dev-picker-action-red { color: var(--accent2); }
+.training-scenario-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  background: var(--ui-card);
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.training-scenario-main { flex: 1; min-width: 0; }
+.training-scenario-title {
+  font-weight: 600;
+  font-size: 1.02em;
+  color: var(--text);
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+.training-scenario-description {
+  font-size: 0.9em;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.training-scenario-actions { flex-shrink: 0; }
+
+/* Narrow viewports — stack so Start/Reprendre reach the full width for
+   one-thumb tapping, and nothing truncates next to the action column. */
+@media (max-width: 480px) {
+  .training-resumable-item,
+  .training-scenario-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .training-resumable-actions { flex-direction: row; }
+  .training-resumable-actions .btn-primary,
+  .training-resumable-actions .btn-secondary,
+  .training-scenario-actions .btn-primary { flex: 1; width: 100%; }
+}

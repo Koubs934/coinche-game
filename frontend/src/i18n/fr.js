@@ -153,6 +153,8 @@ export default {
   // et ne doivent pas être renommées sans gérer la migration des données existantes.
   // Intitulé du bouton sur l'écran Lobby
   lobbyTrainingBtn: 'Entraînement',
+  // Indication sous le bouton Entraînement quand un partiel est en attente
+  lobbyResumableHint: (n) => n === 1 ? '1 scénario à terminer' : `${n} scénarios à terminer`,
 
   training: {
     // Confirm + button label when the user leaves a training run
@@ -161,15 +163,16 @@ export default {
 
     picker: {
       title:             'Scénarios d\'entraînement',
+      subtitle:          'Jouez des scénarios et enregistrez votre raisonnement.',
       empty:             'Aucun scénario disponible.',
       resumableHeading:  'Reprendre une annotation en cours',
       resumableAgeMin:   (n) => `commencé il y a ${n} min`,
-      actionShown:       "Vous aviez choisi :",
+      actionShown:       'Dernière action :',
       resumeBtn:         'Reprendre',
       discardBtn:        'Jeter',
+      startBtn:          'Démarrer',
       back:              'Retour',
     },
-
     completion: {
       title:        'Scénario terminé',
       actionLabel:  'Votre action',
@@ -183,12 +186,6 @@ export default {
 
     errors: {
       sessionInterrupted: 'Session interrompue — consultez les scénarios à reprendre.',
-    },
-
-    dev: {
-      heading:  'Démarrage rapide — scénarios (dev)',
-      hint:     'Mode développement : cliquer pour démarrer. Piéce 2 remplacera ceci par un vrai sélecteur.',
-      startBtn: 'Démarrer',
     },
 
     panel: {

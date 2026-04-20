@@ -3,7 +3,10 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import AdminPanel from './AdminPanel';
 
-export default function Lobby({ socket, roomState, myPosition, pendingRoom, onCancelPending }) {
+export default function Lobby({
+  socket, roomState, myPosition, pendingRoom, onCancelPending,
+  onOpenTraining, resumableCount = 0,
+}) {
   const { user, username } = useAuth();
   const { t } = useLang();
   const [codeInput, setCodeInput] = useState('');
@@ -215,6 +218,18 @@ export default function Lobby({ socket, roomState, myPosition, pendingRoom, onCa
         <p className="lobby-welcome">👋 {username}</p>
         <button className="btn-primary btn-large" onClick={createRoom}>{t.createRoom}</button>
         <button className="btn-secondary btn-large" onClick={() => setView('join')}>{t.joinRoom}</button>
+        {onOpenTraining && (
+          <>
+            <button className="btn-secondary btn-large" onClick={onOpenTraining}>
+              {t.lobbyTrainingBtn}
+            </button>
+            {resumableCount > 0 && (
+              <p className="lobby-training-hint">
+                {t.lobbyResumableHint(resumableCount)}
+              </p>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

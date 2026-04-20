@@ -39,13 +39,14 @@ async function shot(page, tag) {
     {
       const ctx  = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       const page = await ctx.newPage();
-      await page.goto(`${BASE_URL}/?training-dev=1`, { waitUntil: 'networkidle' });
+      await page.goto(BASE_URL, { waitUntil: 'networkidle' });
       await page.waitForTimeout(200);
       await shot(page, 'login-desktop');
       await ctx.close();
     }
 
-    // ── Authenticated dev picker, both viewports ──────────────────────────
+    // ── Authenticated picker, both viewports ──────────────────────────────
+    // Entry point: Lobby → "Training" / "Entraînement" button.
     for (const vp of VIEWPORTS) {
       const ctx = await browser.newContext({
         viewport: { width: vp.width, height: vp.height },
@@ -57,9 +58,11 @@ async function shot(page, tag) {
       const errs = [];
       page.on('pageerror', e => errs.push(`[pageerror] ${e.message}`));
 
-      await page.goto(`${BASE_URL}/?training-dev=1`, { waitUntil: 'networkidle' });
+      await page.goto(BASE_URL, { waitUntil: 'networkidle' });
       await authenticate(page);
-      // Wait for the dev picker's "Démarrer" button so we know scenarios loaded
+      // Lobby home: click the Training / Entraînement button
+      await page.click('button:has-text("Training"), button:has-text("Entraînement")');
+      // Wait for the picker's Start button so we know scenarios loaded
       await page.waitForSelector('text=/Démarrer|Start/i', { timeout: 10000 });
       await page.waitForTimeout(200);
       await shot(page, `picker-${vp.name}`);

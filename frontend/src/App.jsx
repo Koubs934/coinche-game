@@ -9,7 +9,7 @@ import GameBoard from './components/GameBoard';
 import ReasonPanelMock from './training/ReasonPanelMock';
 import TrainingTable from './training/TrainingTable';
 import CompletionSummary from './training/CompletionSummary';
-import DevTrainingPicker from './training/DevTrainingPicker';
+import TrainingPicker from './training/TrainingPicker';
 import { cleanupOldDrafts } from './training/noteDraft';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
@@ -28,13 +28,10 @@ const EMPTY_GAME = {
 
 // URL flags (read once at module load; don't change during a session):
 //   ?mock=training-panel  → reason-panel UX preview, no auth, no sockets
-//   ?training-dev=1       → on mount after auth, land on the dev picker
-//                           (piece-1 entry point until the real Lobby button ships)
 const URL_PARAMS = typeof window !== 'undefined'
   ? new URLSearchParams(window.location.search)
   : new URLSearchParams();
-const MOCK_MODE        = URL_PARAMS.get('mock');
-const TRAINING_DEV_URL = URL_PARAMS.get('training-dev') === '1';
+const MOCK_MODE = URL_PARAMS.get('mock');
 
 export default function App() {
   const { user, username, loading } = useAuth();
@@ -122,9 +119,6 @@ export default function App() {
       // Prime training data (cheap, gets cached server-side)
       socket.emit('getTrainingTags');
       socket.emit('listTrainingScenarios');
-
-      // Piece-1 dev entry: land on picker automatically if URL requested it
-      if (TRAINING_DEV_URL) setTrainingView(prev => prev ?? 'picker');
     });
 
     socket.on('disconnect', () => {
@@ -288,7 +282,7 @@ export default function App() {
         {!socketReady && <div className="toast-info">{t.reconnecting}</div>}
 
         {trainingView === 'picker' && (
-          <DevTrainingPicker
+          <TrainingPicker
             scenarios={trainingScenarios}
             resumablePartials={trainingResumable}
             onStart={startTraining}

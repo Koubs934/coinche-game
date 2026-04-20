@@ -153,6 +153,8 @@ export default {
   // and must not be renamed without migrating stored annotation records.
   // Lobby screen button label
   lobbyTrainingBtn: 'Training',
+  // Hint below the Lobby Training button when the user has in-progress partials
+  lobbyResumableHint: (n) => n === 1 ? '1 scenario to finish' : `${n} scenarios to finish`,
 
   training: {
     // Confirm + button label when the user leaves a training run
@@ -161,15 +163,16 @@ export default {
 
     picker: {
       title:             'Training scenarios',
+      subtitle:          'Play scenarios and record your reasoning.',
       empty:             'No scenarios available.',
       resumableHeading:  'Resume an in-progress annotation',
       resumableAgeMin:   (n) => `started ${n} min ago`,
-      actionShown:       'You had chosen:',
+      actionShown:       'Last action:',
       resumeBtn:         'Resume',
       discardBtn:        'Discard',
+      startBtn:          'Start',
       back:              'Back',
     },
-
     completion: {
       title:        'Scenario complete',
       actionLabel:  'Your action',
@@ -183,12 +186,6 @@ export default {
 
     errors: {
       sessionInterrupted: 'Session interrupted — check resumable scenarios.',
-    },
-
-    dev: {
-      heading:  'Quick-start — scenarios (dev)',
-      hint:     'Dev mode: click to start. Piece 2 will replace this with a real picker.',
-      startBtn: 'Start',
     },
 
     panel: {

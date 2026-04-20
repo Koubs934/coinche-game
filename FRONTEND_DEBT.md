@@ -8,8 +8,9 @@ feature batches. Each entry: one line, date-stamped, enough to locate.
 
 ### 2026-04-20 — Lang-toggle button overlaps heading on narrow viewports
 Affects the `.lang-toggle-fixed` button at top-right, which is positioned
-absolutely and overlays content underneath. Visible on the mock reason-panel
-harness (`?mock=training-panel`) and the dev training picker (`?training-dev=1`)
-at viewports ≤ ~400 px — heading text is truncated by the EN/FR button.
-Dev-only UI behind URL flags; no end-user impact. Fix: shift the lang toggle
-into a flow layout or add right-side padding to affected heading containers.
+absolutely and overlays content underneath. Still visible on the mock
+reason-panel harness (`?mock=training-panel`) at viewports ≤ ~400 px —
+heading text is truncated by the EN/FR button. Dev-only URL flag; no
+end-user impact. Fix: shift the lang toggle into a flow layout or add
+right-side padding to affected heading containers. (The Training picker
+avoids this by using an in-flow topbar with the lang button inline.)
