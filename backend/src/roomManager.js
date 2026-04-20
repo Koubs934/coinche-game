@@ -30,6 +30,52 @@ function getTeamByUserId(room, userId) {
   return p ? p.team : -1;
 }
 
+// ─── History / Undo ───────────────────────────────────────────────────────
+
+const HISTORY_LIMIT = 10;
+
+/**
+ * Deep-clone the reversible fields of a room and push them onto room.history.
+ * Must be called BEFORE any mutation so the snapshot reflects pre-action state.
+ */
+function pushHistorySnapshot(room) {
+  if (!room.history) room.history = [];
+  const snap = {
+    game:                 JSON.parse(JSON.stringify(room.game)),
+    phase:                room.phase,
+    nextDealer:           room.nextDealer,
+    shuffleDealer:        room.shuffleDealer,
+    cutPlayer:            room.cutPlayer,
+    nextRoundReady:       [...(room.nextRoundReady || [])],
+    lastShuffleCutAction: room.lastShuffleCutAction ?? null,
+    lastShuffleCutActorPos: room.lastShuffleCutActorPos ?? null,
+  };
+  room.history.push(snap);
+  if (room.history.length > HISTORY_LIMIT) room.history.shift();
+}
+
+function undoLastAction(code, userId) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+  if (room.creatorId !== userId) return { error: 'Only the creator can undo' };
+  if (!room.history?.length) return { error: 'Nothing to undo' };
+
+  const snap = room.history.pop();
+  room.game                  = snap.game;
+  room.phase                 = snap.phase;
+  room.nextDealer            = snap.nextDealer;
+  room.shuffleDealer         = snap.shuffleDealer;
+  room.cutPlayer             = snap.cutPlayer;
+  room.nextRoundReady        = snap.nextRoundReady;
+  room.lastShuffleCutAction  = snap.lastShuffleCutAction;
+  room.lastShuffleCutActorPos = snap.lastShuffleCutActorPos;
+
+  // Increment nonce so any pending bot callbacks (scheduled before undo) abort
+  room.actionNonce = (room.actionNonce || 0) + 1;
+
+  return { room };
+}
+
 // ─── Public room state (no hands) ─────────────────────────────────────────
 
 function publicRoom(room) {
@@ -48,6 +94,7 @@ function publicRoom(room) {
     cutPlayer:               room.cutPlayer ?? null,
     lastShuffleCutAction:    room.lastShuffleCutAction ?? null,
     lastShuffleCutActorPos:  room.lastShuffleCutActorPos ?? null,
+    canUndo:                 (room.history?.length ?? 0) > 0,
   };
 }
 
@@ -98,6 +145,8 @@ function createRoom({ userId, username, socketId }) {
     game: null,
     paused: false,
     pendingJoins: [],
+    history: [],
+    actionNonce: 0,
   });
   return rooms.get(code);
 }
@@ -273,6 +322,7 @@ function placeBid(code, userId, value, suit) {
     if (value !== 'capot' && value <= current.value) return { error: 'Bid must be higher than current bid' };
   }
 
+  pushHistorySnapshot(room);
   room.game.currentBid = {
     value,
     suit,
@@ -296,6 +346,7 @@ function passBid(code, userId) {
   if (position === -1) return { error: 'Not in this room' };
   if (room.game.biddingTurn !== position) return { error: 'Not your turn' };
 
+  pushHistorySnapshot(room);
   room.game.biddingActions[position] = { type: 'pass' };
   room.game.biddingHistory.push({ position, type: 'pass' });
   room.game.consecutivePasses++;
@@ -324,6 +375,7 @@ function coinche(code, userId) {
   if (bid.coinched) return { error: 'Already coinched' };
   if (getTeamByPosition(position) === bid.team) return { error: 'Cannot coinche your own team\'s bid' };
 
+  pushHistorySnapshot(room);
   bid.coinched = true;
   room.game.biddingActions[position] = { type: 'coinche' };
   room.game.biddingHistory.push({ position, type: 'coinche' });
@@ -347,6 +399,7 @@ function surcoinche(code, userId) {
   if (bid.surcoinched) return { error: 'Already surcoinched' };
   if (getTeamByPosition(position) !== bid.team) return { error: 'Only the contracting team can surcoinche' };
 
+  pushHistorySnapshot(room);
   bid.surcoinched = true;
   room.game.biddingActions[position] = { type: 'surcoinche' };
   room.game.biddingHistory.push({ position, type: 'surcoinche' });
@@ -384,16 +437,27 @@ function playCard(code, userId, card, declareBelote) {
   }
 
   // ── Belote / Rebelote declaration ─────────────────────────────────────────
+  // Check for the belote prompt BEFORE pushing the snapshot, so a
+  // beloteDecisionRequired early-return doesn't leave a spurious history entry.
   const { trumpSuit, beloteInfo } = room.game;
   const isTrumpRoyale = trumpSuit && card.suit === trumpSuit &&
                         (card.value === 'K' || card.value === 'Q');
+  if (isTrumpRoyale && beloteInfo.declared === null) {
+    const otherValue = card.value === 'K' ? 'Q' : 'K';
+    const hasOther = hand.some(c => c.suit === trumpSuit && c.value === otherValue);
+    if (hasOther && typeof declareBelote !== 'boolean') {
+      return { error: 'beloteDecisionRequired' };
+    }
+  }
+
+  pushHistorySnapshot(room);
+
+  // Apply belote / rebelote state (re-derive after snapshot is safely taken)
   if (isTrumpRoyale) {
     if (beloteInfo.declared === null) {
-      // Check if player still holds the partner card — first of the pair
       const otherValue = card.value === 'K' ? 'Q' : 'K';
       const hasOther = hand.some(c => c.suit === trumpSuit && c.value === otherValue);
       if (hasOther) {
-        if (typeof declareBelote !== 'boolean') return { error: 'beloteDecisionRequired' };
         beloteInfo.declared = declareBelote ? 'yes' : 'no';
         if (declareBelote) beloteInfo.playerIndex = position;
       }
@@ -734,6 +798,7 @@ module.exports = {
   coinche,
   surcoinche,
   playCard,
+  undoLastAction,
   confirmNextRound,
   shuffleDeck,
   skipShuffle,

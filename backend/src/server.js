@@ -212,6 +212,13 @@ io.on('connection', socket => {
     broadcastGame(result.room);
   });
 
+  // ── Undo last action (creator only) ─────────────────────────────────────
+  socket.on('undoLastAction', ({ code }) => {
+    const result = rm.undoLastAction(code, userId);
+    if (result.error) return emitError(socket, result.error);
+    broadcastGame(result.room);
+  });
+
   // ── Play card ────────────────────────────────────────────────────────────
   socket.on('playCard', ({ code, card, declareBelote }) => {
     const result = rm.playCard(code, userId, card, declareBelote);

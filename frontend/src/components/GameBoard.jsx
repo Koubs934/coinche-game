@@ -1002,7 +1002,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
           </div>
         )}
 
-        {/* Toolbar row: sort toggle + admin manage + leave */}
+        {/* Toolbar row: sort toggle + undo + admin manage + leave */}
         <div className="hand-toolbar">
           {!isShuffleCut && (
             <button
@@ -1013,6 +1013,16 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition }) 
               {sortMode === 'manual'
                 ? `⇅ ${t.sortManual}`
                 : `${SUIT_SYM[sortMode]} ${t.sortHand}`}
+            </button>
+          )}
+          {isCreator && (phase === 'BIDDING' || phase === 'PLAYING') && (
+            <button
+              className="btn-undo"
+              onClick={() => socket.emit('undoLastAction', { code: roomCode })}
+              disabled={!room.canUndo}
+              title={t.undoAction}
+            >
+              ↩ {t.undoAction}
             </button>
           )}
           {isCreator && (

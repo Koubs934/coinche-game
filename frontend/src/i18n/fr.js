@@ -137,4 +137,7 @@ export default {
   deckNotShuffled: (name) => `${name} n'a pas mélangé`,
   deckCut:         (name) => `${name} a coupé`,
   deckNotCut:      (name) => `${name} n'a pas coupé`,
+
+  // Annuler
+  undoAction: 'Annuler',
 };

@@ -19,11 +19,15 @@ function isBotTurn(room) {
 /**
  * Schedule the next bot turn for a room.
  * Re-fetches room by code at execution time to use up-to-date state.
+ * Captures actionNonce at schedule time — aborts if an undo changed the nonce.
  */
 function scheduleBotTurns(code, broadcastFn) {
+  const room0 = rm.getRoom(code);
+  const nonce = room0 ? (room0.actionNonce || 0) : 0;
   setTimeout(() => {
     const room = rm.getRoom(code);
     if (!room || room.paused || !isBotTurn(room)) return;
+    if ((room.actionNonce || 0) !== nonce) return; // undo happened — stale callback
     _execute(room, broadcastFn);
   }, BOT_DELAY_MS);
 }

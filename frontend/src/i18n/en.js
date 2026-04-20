@@ -137,4 +137,7 @@ export default {
   deckNotShuffled: (name) => `${name} didn't shuffle`,
   deckCut:         (name) => `${name} cut`,
   deckNotCut:      (name) => `${name} didn't cut`,
+
+  // Undo
+  undoAction: 'Undo',
 };

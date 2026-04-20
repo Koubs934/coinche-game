@@ -1395,6 +1395,18 @@ a      { color: var(--accent); }
 .btn-manage:hover { color: var(--text); background: rgba(0,0,0,0.5); }
 .btn-manage-lobby { font-size: 0.9em; padding: 10px 20px; min-height: auto; }
 
+.btn-undo {
+  background: rgba(80,60,20,0.35);
+  color: #d4a84b;
+  font-size: 0.75em;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(212,168,75,0.25);
+  min-height: 34px;
+}
+.btn-undo:hover:not(:disabled) { background: rgba(80,60,20,0.6); color: #f0c96a; }
+.btn-undo:disabled { opacity: 0.35; cursor: default; }
+
 /* ─── Remove player button (on disconnected opponent seat) ──────────────── */
 .btn-remove-player {
   background: none;
