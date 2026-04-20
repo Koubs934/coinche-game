@@ -139,4 +139,103 @@ function bestOpeningBid(hand) {
   return null; // pass
 }
 
-module.exports = { bestOpeningBid, computeSuitFeatures, suitBidLevel };
+// ─── Partner response logic V1 ────────────────────────────────────────────────
+//
+// Activated when partner is currently the highest bidder.
+// The bot interprets partner's bid using the same convention family,
+// then decides whether to support, switch to its own suit, or pass.
+//
+// Contribution model (V1 — Aces only):
+//   +10 per Ace held in any suit other than partner's trump suit
+//   +10 for holding the Ace of partner's trump suit ONLY when partner bid 90
+//         (petit jeu does not guarantee the trump Ace; 100+ already declares J+9+A)
+//   K/Q/10 of partner's suit: excluded in V1
+//
+// Response cap: 120. Bot never bids 130+ as a response in V1.
+
+const RESPONSE_CAP = 120;
+
+/**
+ * Count the Ace-equivalent contribution I can add toward partner's bid.
+ *
+ * @param {Array}  hand       - own hand
+ * @param {object} partnerBid - { value, suit }  (game.currentBid)
+ * @returns {number} total Ace-equivalent contributions (0, 1, 2, …)
+ */
+function myContributionToPartner(hand, partnerBid) {
+  // Aces in suits other than partner's trump always count
+  const outsideAces = hand.filter(
+    c => c.suit !== partnerBid.suit && c.value === 'A'
+  ).length;
+
+  // Trump Ace bonus: only when partner bid 90 (petit jeu might not include the Ace)
+  // When partner bid 100+ they already declared J+9+A, so they own the trump Ace.
+  const hasTrumpAce = hand.some(
+    c => c.suit === partnerBid.suit && c.value === 'A'
+  );
+  const trumpAceBonus = (partnerBid.value === 90 && hasTrumpAce) ? 1 : 0;
+
+  return outsideAces + trumpAceBonus;
+}
+
+/**
+ * Return the best "switch" bid: my own opening bid in a suit OTHER than
+ * partner's, only when the value is strictly higher than partner's bid.
+ * Keeps bids truthful — I only bid what my opening logic justifies.
+ *
+ * @param {Array}  hand       - own hand
+ * @param {object} partnerBid - { value, suit }
+ * @returns {{ value: number, suit: string } | null}
+ */
+function bestSwitchBid(hand, partnerBid) {
+  const myOpening = bestOpeningBid(hand);
+  if (!myOpening)                           return null; // no opening bid
+  if (myOpening.suit === partnerBid.suit)   return null; // same suit → support, not switch
+  if (myOpening.value <= partnerBid.value)  return null; // can't outbid
+  return myOpening;
+}
+
+/**
+ * Compute the best partner-response bid or null (= pass).
+ *
+ * Priority:
+ *   1. If both switch and support are available, prefer the one with the higher value.
+ *      Tie-break: switch (own trump certainty > Ace signal).
+ *   2. Switch only  → switch.
+ *   3. Support only → support.
+ *   4. Neither      → pass.
+ *
+ * @param {Array}  hand       - own 8-card hand
+ * @param {object} partnerBid - game.currentBid (caller guarantees partner is highest bidder)
+ * @returns {{ value: number, suit: string } | null}
+ */
+function partnerResponseBid(hand, partnerBid) {
+  // V1 cap — cannot raise above 120
+  if (partnerBid.value >= RESPONSE_CAP) return null;
+
+  // ── Support option ──────────────────────────────────────────────────────────
+  const contributionAces = myContributionToPartner(hand, partnerBid);
+  const rawSupport       = partnerBid.value + contributionAces * 10;
+  const supportValue     = Math.min(rawSupport, RESPONSE_CAP);
+  const canSupport       = supportValue > partnerBid.value; // at least 1 Ace equivalent
+
+  // ── Switch option ────────────────────────────────────────────────────────────
+  const switchBid = bestSwitchBid(hand, partnerBid);
+  const canSwitch = switchBid !== null;
+
+  // ── Decision ─────────────────────────────────────────────────────────────────
+  if (canSwitch && canSupport) {
+    // Both options available: prefer switch when values are equal or switch is higher
+    return switchBid.value >= supportValue
+      ? switchBid
+      : { value: supportValue, suit: partnerBid.suit };
+  }
+  if (canSwitch)  return switchBid;
+  if (canSupport) return { value: supportValue, suit: partnerBid.suit };
+  return null; // pass
+}
+
+module.exports = {
+  bestOpeningBid, computeSuitFeatures, suitBidLevel,
+  partnerResponseBid, myContributionToPartner, bestSwitchBid,
+};

@@ -5,7 +5,9 @@
 
 const { getValidCards, getTrickWinner, TRUMP_RANK } = require('./rules');
 const { calculateRoundScore } = require('./scoring');
-const { bestOpeningBid, computeSuitFeatures } = require('./botBidding');
+const { bestOpeningBid, computeSuitFeatures,
+        partnerResponseBid, myContributionToPartner } = require('./botBidding');
+const { getBotBidAction } = require('./botLogic');
 
 let passed = 0;
 let failed = 0;
@@ -736,6 +738,311 @@ console.log('\n=== Bot Opening Bids ===\n');
   const bid = bestOpeningBid(hand);
   assert(bid?.value === 120, 'B9: two bicolore suits → 120');
   assert(bid?.suit  === 'S', 'B9: tie-break by canonical order → ♠ over ♥');
+}
+
+// ─── BOT PARTNER RESPONSE BIDS ───────────────────────────────────────────────
+//
+// Convention (V1) — response when partner is currently the highest bidder:
+//
+//   SUPPORT  → raise in partner's suit:  partnerBid + outsideAces×10
+//              + trump Ace bonus of +10 when partner bid 90 (might lack A of trump)
+//   SWITCH   → bid own opening in suit Y ≠ partner's, only when value > partnerBid
+//              Tie (switch = support): prefer switch (own trump certainty wins)
+//   PASS     → no Ace contribution AND no valid switch
+//   CAP      → responses capped at 120 in V1
+
+console.log('\n=== Bot Partner Response Bids ===\n');
+
+// Helper: minimal game state for getBotBidAction tests (R18)
+function mockBidGame(myHand, currentBid, myPos) {
+  const hands = [[], [], [], []];
+  hands[myPos] = myHand;
+  return { hands, currentBid,
+    biddingTurn: myPos, dealer: (myPos + 3) % 4,
+    biddingHistory: [], biddingActions: [null, null, null, null],
+    consecutivePasses: 0, phase: 'BIDDING', trumpSuit: null,
+    beloteInfo: { playerIndex: null, declared: null, rebeloteDone: false, complete: false },
+  };
+}
+
+// ── R1: Partner bid 80 ♠ — no Aces, no trump → pass ─────────────────────────
+// 0 outside Aces. No qualifying trump suit. Pass.
+{
+  const hand = [
+    card('K','S'), card('Q','S'),
+    card('8','H'), card('7','H'),
+    card('9','D'), card('8','D'),
+    card('J','C'), card('7','C'),
+  ];
+  const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
+  assert(r === null, 'R1: partner 80♠, 0 Aces, no trump → pass');
+}
+
+// ── R2: Partner bid 80 ♠ — 1 outside Ace → support 90 ♠ ─────────────────────
+{
+  const hand = [
+    card('A','H'), card('8','H'),
+    card('K','D'), card('7','D'),
+    card('Q','C'), card('8','C'),
+    card('8','S'), card('7','S'),
+  ];
+  const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
+  assert(r?.value === 90,  'R2: partner 80♠, 1 outside Ace → support 90');
+  assert(r?.suit  === 'S', 'R2: support stays in partner\'s suit ♠');
+}
+
+// ── R3: Partner bid 80 ♠ — 2 outside Aces → support 100 ♠ ───────────────────
+{
+  const hand = [
+    card('A','H'), card('8','H'),
+    card('A','D'), card('7','D'),
+    card('Q','C'), card('8','C'),
+    card('8','S'), card('7','S'),
+  ];
+  const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
+  assert(r?.value === 100, 'R3: partner 80♠, 2 outside Aces → support 100');
+  assert(r?.suit  === 'S', 'R3: support in ♠');
+}
+
+// ── R4: Partner bid 80 ♠ — petit jeu ♥ (J-third), 0 outside Aces → switch 90 ♥
+{
+  const hand = [
+    card('J','H'), card('K','H'), card('8','H'),
+    card('Q','D'), card('7','D'),
+    card('8','C'), card('7','C'),
+    card('9','S'),
+  ];
+  const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
+  assert(r?.value === 90,  'R4: partner 80♠, petit jeu ♥ → switch 90');
+  assert(r?.suit  === 'H', 'R4: switch to own suit ♥');
+}
+
+// ── R5: Partner bid 80 ♠ — petit jeu ♥ AND 1 outside Ace → switch 90 ♥ ──────
+// Switch = 90, support = 90 → tie → switch preferred.
+{
+  const hand = [
+    card('J','H'), card('K','H'), card('8','H'),
+    card('A','D'), card('7','D'),
+    card('8','C'), card('7','C'),
+    card('9','S'),
+  ];
+  const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
+  assert(r?.value === 90,  'R5: switch 90♥ = support 90♠ → tie → switch preferred');
+  assert(r?.suit  === 'H', 'R5: tie-break: switch to ♥');
+}
+
+// ── R6: Partner bid 80 ♠ — master ♥ (J+9+A), no outside Ace → switch 100 ♥ ─
+{
+  const hand = [
+    card('J','H'), card('9','H'), card('A','H'),
+    card('K','D'), card('7','D'),
+    card('Q','C'), card('8','C'),
+    card('9','S'),
+  ];
+  const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
+  assert(r?.value === 100, 'R6: partner 80♠, master ♥ → switch 100');
+  assert(r?.suit  === 'H', 'R6: switch to master suit ♥');
+}
+
+// ── R7: Partner bid 80 ♠ — 3 outside Aces + petit jeu ♥ → support 110 ♠ ────
+// Support = 80+30 = 110. Switch (petit jeu ♥) = 90. 110 > 90 → support wins.
+{
+  const hand = [
+    card('J','H'), card('A','H'), card('K','H'),
+    card('A','D'), card('7','D'),
+    card('A','C'), card('8','C'),
+    card('7','S'),
+  ];
+  const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
+  assert(r?.value === 110, 'R7: partner 80♠, 3 outside Aces + petit jeu ♥ → support 110');
+  assert(r?.suit  === 'S', 'R7: 110 support beats 90 switch');
+}
+
+// ── R8: Partner bid 90 ♥ — I hold A♥ (trump Ace bonus) → support 100 ♥ ──────
+// Partner bid 90 (petit jeu, may lack A of trump). I hold A♥ → +10 bonus. 90+10=100.
+{
+  const hand = [
+    card('A','H'), card('8','H'),
+    card('K','D'), card('7','D'),
+    card('Q','C'), card('8','C'),
+    card('8','S'), card('7','S'),
+  ];
+  const r = partnerResponseBid(hand, { value: 90, suit: 'H' });
+  assert(r?.value === 100, 'R8: partner 90♥, I hold A♥ (trump Ace bonus) → support 100');
+  assert(r?.suit  === 'H', 'R8: support in ♥');
+  // Verify contribution counts: trump Ace bonus applies
+  const c = myContributionToPartner(hand, { value: 90, suit: 'H' });
+  assert(c === 1, 'R8: contribution = 1 (trump Ace bonus for 90, no outside Aces)');
+}
+
+// ── R9: Partner bid 90 ♥ — 1 outside Ace ♠, no trump complement → support 100 ♥
+{
+  const hand = [
+    card('A','S'), card('8','S'),
+    card('K','D'), card('7','D'),
+    card('Q','C'), card('8','C'),
+    card('8','H'), card('7','H'),
+  ];
+  const r = partnerResponseBid(hand, { value: 90, suit: 'H' });
+  assert(r?.value === 100, 'R9: partner 90♥, 1 outside Ace ♠ → support 100');
+  assert(r?.suit  === 'H', 'R9: support in ♥');
+}
+
+// ── R10: Partner bid 90 ♥ — master ♠ (J+9+A) → switch 100 ♠ ─────────────────
+// Switch = 100♠. Support = 90+10 = 100♥ (A♠ is outside Ace). Tie at 100 → switch.
+{
+  const hand = [
+    card('J','S'), card('9','S'), card('A','S'),
+    card('K','D'), card('7','D'),
+    card('Q','C'), card('8','C'),
+    card('7','H'),
+  ];
+  const r = partnerResponseBid(hand, { value: 90, suit: 'H' });
+  assert(r?.value === 100, 'R10: partner 90♥, master ♠ → 100 (switch tie-breaks support)');
+  assert(r?.suit  === 'S', 'R10: tie at 100 → switch to own master suit ♠');
+}
+
+// ── R11: Partner bid 90 ♥ — 0 Aces, no trump complement → pass ───────────────
+{
+  const hand = [
+    card('K','S'), card('Q','S'),
+    card('K','D'), card('7','D'),
+    card('Q','C'), card('8','C'),
+    card('8','H'), card('7','H'),
+  ];
+  const r = partnerResponseBid(hand, { value: 90, suit: 'H' });
+  assert(r === null, 'R11: partner 90♥, 0 Aces, no trump → pass');
+}
+
+// ── R12: Partner bid 100 ♠ — 0 outside Aces → pass ───────────────────────────
+// Even with petit jeu in ♦ (90), 90 is not > 100 → no valid switch. No Aces → pass.
+{
+  const hand = [
+    card('K','S'),
+    card('Q','D'), card('J','D'), card('7','D'),
+    card('8','H'), card('7','H'),
+    card('9','C'), card('8','C'),
+  ];
+  const r = partnerResponseBid(hand, { value: 100, suit: 'S' });
+  assert(r === null, 'R12: partner 100♠, 0 outside Aces, petit jeu ♦ → pass (90 can\'t outbid 100)');
+}
+
+// ── R13: Partner bid 100 ♠ — 1 outside Ace ♥ → support 110 ♠ ────────────────
+{
+  const hand = [
+    card('A','H'), card('8','H'),
+    card('K','D'), card('7','D'),
+    card('Q','C'), card('8','C'),
+    card('K','S'), card('8','S'),
+  ];
+  const r = partnerResponseBid(hand, { value: 100, suit: 'S' });
+  assert(r?.value === 110, 'R13: partner 100♠, 1 outside Ace → support 110');
+  assert(r?.suit  === 'S', 'R13: support in ♠');
+  // Verify trump Ace bonus does NOT apply for 100 (partner already owns A♠)
+  const c = myContributionToPartner(hand, { value: 100, suit: 'S' });
+  assert(c === 1, 'R13: contribution = 1 outside Ace only (no trump Ace bonus when partner bid 100)');
+}
+
+// ── R14: Partner bid 100 ♠ — 2 outside Aces → support 120 ♠ ─────────────────
+{
+  const hand = [
+    card('A','H'), card('8','H'),
+    card('A','D'), card('7','D'),
+    card('Q','C'), card('8','C'),
+    card('K','S'), card('8','S'),
+  ];
+  const r = partnerResponseBid(hand, { value: 100, suit: 'S' });
+  assert(r?.value === 120, 'R14: partner 100♠, 2 outside Aces → support 120');
+  assert(r?.suit  === 'S', 'R14: support in ♠');
+}
+
+// ── R15: Partner bid 110 ♠ — 1 outside Ace → support 120 ♠ ──────────────────
+{
+  const hand = [
+    card('A','H'), card('8','H'),
+    card('K','D'), card('7','D'),
+    card('Q','C'), card('8','C'),
+    card('K','S'), card('8','S'),
+  ];
+  const r = partnerResponseBid(hand, { value: 110, suit: 'S' });
+  assert(r?.value === 120, 'R15: partner 110♠, 1 outside Ace → support 120 (cap applied)');
+  assert(r?.suit  === 'S', 'R15: support in ♠');
+}
+
+// ── R16: Partner bid 110 ♠ — 0 outside Aces → pass ──────────────────────────
+{
+  const hand = [
+    card('K','S'),
+    card('Q','D'), card('J','D'), card('7','D'),
+    card('8','H'), card('7','H'),
+    card('9','C'), card('8','C'),
+  ];
+  const r = partnerResponseBid(hand, { value: 110, suit: 'S' });
+  assert(r === null, 'R16: partner 110♠, 0 outside Aces → pass');
+}
+
+// ── R17: Partner bid 120 ♠ — always pass (V1 cap) ───────────────────────────
+// Even a very strong hand should pass — 120 is the V1 ceiling.
+{
+  const hand = [
+    card('J','H'), card('9','H'), card('A','H'),
+    card('A','D'), card('K','D'), card('Q','D'),
+    card('A','C'), card('K','C'),
+  ];
+  const r = partnerResponseBid(hand, { value: 120, suit: 'S' });
+  assert(r === null, 'R17: partner 120♠ → always pass (V1 response cap)');
+}
+
+// ── R18: Coinched bid — getBotBidAction returns pass regardless of hand ───────
+// After a coinche only surcoinche is legal (a separate event). Bot must pass.
+{
+  const strongHand = [
+    card('J','S'), card('9','S'), card('A','S'),
+    card('A','H'), card('K','H'),
+    card('A','D'), card('A','C'), card('K','C'),
+  ];
+  // Position 0; partner is position 2; partner's 90♥ is now coinched by opponent
+  const game18 = mockBidGame(
+    strongHand,
+    { value: 90, suit: 'H', playerIndex: 2, team: 0, coinched: true, surcoinched: false },
+    0
+  );
+  const bid18 = getBotBidAction(game18, 0);
+  assert(bid18.type === 'pass', 'R18: coinched bid → getBotBidAction always passes');
+}
+
+// ── R19: Partner bid 90 ♥ — A♥ (trump Ace) + 1 outside Ace ♠ → support 110 ♥
+// Trump Ace bonus (+10) stacks with outside Ace (+10) → total contribution = 2 → 90+20=110.
+{
+  const hand = [
+    card('A','H'), card('K','H'),
+    card('A','S'), card('8','S'),
+    card('7','D'), card('8','D'),
+    card('Q','C'), card('7','C'),
+  ];
+  const r = partnerResponseBid(hand, { value: 90, suit: 'H' });
+  assert(r?.value === 110, 'R19: partner 90♥, A♥ + outside Ace ♠ → support 110 (stacked contribution)');
+  assert(r?.suit  === 'H', 'R19: support in ♥');
+  const c = myContributionToPartner(hand, { value: 90, suit: 'H' });
+  assert(c === 2, 'R19: contribution = 2 (trump Ace bonus + outside Ace ♠)');
+}
+
+// ── R20: Trump Ace bonus does NOT apply when partner bid 100+ ────────────────
+// Partner bid 100 in ♥ → already declared J+9+A♥; they own A♥.
+// I hold A♥ (impossible in a real game, but tests the rule logic):
+// the bonus should be 0 when partnerBid.value = 100.
+{
+  const hand = [
+    card('A','H'), card('8','H'),    // A♥ held — bonus must be 0 (partner bid 100)
+    card('A','S'), card('8','S'),    // outside Ace ♠ → +10
+    card('7','D'), card('8','D'),
+    card('Q','C'), card('7','C'),
+  ];
+  const c = myContributionToPartner(hand, { value: 100, suit: 'H' });
+  assert(c === 1, 'R20: trump Ace bonus is 0 when partner bid 100 (bonus only applies at 90)');
+  // The outside Ace ♠ still counts as normal contribution
+  const r = partnerResponseBid(hand, { value: 100, suit: 'H' });
+  assert(r?.value === 110, 'R20: partner 100♥, 1 outside Ace ♠ → support 110 (no trump Ace bonus)');
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
