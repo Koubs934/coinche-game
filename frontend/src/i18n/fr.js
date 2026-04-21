@@ -1,3 +1,64 @@
+// ── Training tag labels (shared fragments) ───────────────────────────────────
+// Tags in Groups 1, 2, 3, 5, 6, 7, 8 appear under every v2 bidding action
+// (bid/pass/coinche/surcoinche). Defined once here, spread into each action.
+// Group 4 (bidding-action) is action-specific and spelled out inline below.
+const _sharedBidDecisionTagsFr = {
+  // Groupe 1 — Main d'atout
+  'maitre':             "Maître à l'atout",
+  'valet-second':       'Valet second',
+  'valet-troisième':    'Valet troisième',
+  'valet-quatrième':    'Valet quatrième',
+  'valet-cinquième':    'Valet cinquième',
+  '9-second':           '9 second',
+  '9-troisième':        '9 troisième',
+  '9-quatrième':        '9 quatrième',
+  '9-cinquième':        '9 cinquième',
+  'atout-count-2':      '2 atouts',
+  'atout-count-3':      '3 atouts',
+  'atout-count-4':      '4 atouts',
+  'atout-count-5-plus': '5+ atouts',
+  'belote-possible':    'Belote',
+
+  // Groupe 2 — Main hors atout
+  'as-extérieur-0': '0 As extérieur',
+  'as-extérieur-1': '1 As extérieur',
+  'as-extérieur-2': '2 As extérieur',
+  'as-extérieur-3': '3 As extérieur',
+  'deux-as-bare':   '2 As (signal informatif)',
+  '21':             '21 (As + 10 même couleur)',
+  'deux-21':        'Deux 21',
+  'longue':         'Longue',
+
+  // Groupe 3 — Forme de la main
+  'bicolore':       'Bicolore',
+  'fausse-carte-1': '1 fausse carte',
+  'fausse-carte-2': '2 fausses cartes',
+
+  // Groupe 5 — Contexte partenaire
+  'premier-à-parler':              'Premier à parler',
+  'partenaire-ouverture-80':       'Partenaire a ouvert 80',
+  'partenaire-ouverture-90':       'Partenaire a ouvert 90',
+  'partenaire-ouverture-100':      'Partenaire a ouvert 100',
+  'partenaire-ouverture-110-plus': 'Partenaire a ouvert 110+',
+  'partenaire-même-couleur':       'Partenaire dans ma couleur',
+  'partenaire-autre-couleur':      'Partenaire autre couleur',
+
+  // Groupe 6 — Contexte adverse
+  'adverse-a-ouvert':     'Adverse a ouvert',
+  'adverse-a-surenchéri': 'Adverse a surenchéri',
+
+  // Groupe 7 — Contexte score
+  'score-équilibré': 'Score équilibré',
+  'score-derrière':  'Derrière, besoin de points',
+  'score-avance':    'En avance, sécurisation',
+  'dernière-donne':  'Dernière donne du match',
+
+  // Groupe 8 — Incertitude
+  'jugement':  'Jugement',
+  'incertain': 'Incertain',
+  'autre':     'Autre (note requise)',
+};
+
 export default {
   // Auth
   signIn: 'Se connecter',
@@ -217,6 +278,16 @@ export default {
     },
     tags: {
       groups: {
+        // v2 groups (bid/pass/coinche/surcoinche)
+        'trump-hand':       "Main d'atout",
+        'non-trump-hand':   'Main hors atout',
+        'hand-shape':       'Forme de la main',
+        'bidding-action':   'Annonce',
+        'partner-context':  'Contexte partenaire',
+        'opponent-context': 'Contexte adverse',
+        'score-context':    'Contexte score',
+        'meta':             'Incertitude',
+        // Legacy groups — still used by the (v1-carried-over) play-card action
         'hand-claim':     'Force de la main',
         'tactical':       'Tactique',
         'partner-signal': 'Signal au partenaire',
@@ -226,54 +297,29 @@ export default {
         'other':          'Autre',
       },
       bid: {
-        'conventional-opening':              'Ouverture conventionnelle',
-        'maitre-claim':                      "Maître à l'atout",
-        'petit-jeu-claim':                   'Petit jeu',
-        'information-80':                    '80 informatif',
-        'bicolore-claim':                    'Bicolore',
-        'supporting-partner':                'Soutien au partenaire',
-        'switching-to-own-suit':             'Changer de couleur',
-        'forcing-overcall-to-setup-coinche': 'Faire monter pour coincher',
-        'blocking-bid':                      'Annonce de blocage',
-        'competitive-real-claim':            'Compétitive (main réelle)',
-        'speculative-raise':                 'Relance spéculative',
-        'punishing-overreach':               'Sanctionner la surenchère',
-        'stretching-for-rubber':             'Forcer selon le score',
-        'avoiding-misleading-bid':           'Éviter une annonce trompeuse',
-        'judgment-call':                     'Jugement',
-        'not-sure':                          'Incertain',
-        'other':                             'Autre',
+        ..._sharedBidDecisionTagsFr,
+        // Groupe 4 — Annonce (bid-specific)
+        'ouverture':                   'Ouverture',
+        'monter':                      'Monter (même couleur)',
+        'changer':                     'Changer de couleur',
+        'bloquage':                    'Annonce de blocage',
+        'faire-monter-pour-coincher':  'Faire monter pour coincher',
+        'cherche-mon-partenaire':      'Cherche mon partenaire',
+        'surenchère-compétitive':      'Surenchère compétitive',
       },
       pass: {
-        'hand-too-weak':                'Main trop faible',
-        'nothing-to-add':               'Rien à ajouter',
-        'trap-letting-opponent-commit': "Piège — laisser l'adversaire s'engager",
-        'partner-well-placed':          'Partenaire bien placé',
-        'avoiding-misleading-bid':      'Éviter une annonce trompeuse',
-        'conserving-for-coinche':       'Garder la coinche',
-        'judgment-call':                'Jugement',
-        'not-sure':                     'Incertain',
-        'other':                        'Autre',
+        ..._sharedBidDecisionTagsFr,
+        // Groupe 4 — Annonce (pass-specific)
+        'passer-faible':      'Passer (main faible)',
+        'passer-stratégique': 'Passer (stratégique)',
       },
       coinche: {
-        'confident-defeat':           'Chute certaine',
-        'shape-based-defeat':         'Chute par distribution',
-        'partner-signalled-strength': 'Signal de force du partenaire',
-        'tactical-doubling':          'Coinche tactique',
-        'punishing-overreach':        'Sanctionner la surenchère',
-        'judgment-call':              'Jugement',
-        'not-sure':                   'Incertain',
-        'other':                      'Autre',
+        ..._sharedBidDecisionTagsFr,
+        'coincher': 'Coincher',
       },
       surcoinche: {
-        'confident-contract-makes':   'Contrat certain',
-        'shape-based-contract-makes': 'Contrat par distribution',
-        'partner-signalled-strength': 'Signal de force du partenaire',
-        'tactical-doubling':          'Surcoinche tactique',
-        'punishing-overreach':        'Sanctionner la surenchère',
-        'judgment-call':              'Jugement',
-        'not-sure':                   'Incertain',
-        'other':                      'Autre',
+        ..._sharedBidDecisionTagsFr,
+        'surcoincher': 'Surcoincher',
       },
       'play-card': {
         'cashing-winner-before-cut':  'Encaisser avant la coupe',

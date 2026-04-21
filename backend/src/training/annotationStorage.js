@@ -10,7 +10,13 @@
 const fs   = require('fs');
 const path = require('path');
 
+const reasonTags = require('./reasonTags.json');
+
+// Annotation-record schema (outer shape) and tag-vocabulary schema evolve
+// independently. Record shape = SCHEMA_VERSION here; tag vocabulary is
+// sourced from reasonTags.json so a vocab bump only edits one file.
 const SCHEMA_VERSION          = 1;
+const TAGS_SCHEMA_VERSION     = reasonTags.tagsSchemaVersion;
 const PARTIAL_TTL_MS          = 30 * 60 * 1000;
 const STATUS_AWAITING_REASON  = 'awaiting-reason';
 const STATUS_COMPLETE         = 'complete';
@@ -67,7 +73,7 @@ function writePartial(run) {
     schemaVersion:         SCHEMA_VERSION,
     scenarioId:            run.scenarioId,
     scenarioSchemaVersion: run.scenario.schemaVersion,
-    tagsSchemaVersion:     SCHEMA_VERSION,
+    tagsSchemaVersion:     TAGS_SCHEMA_VERSION,
     userId:                run.userId,
     username:              run.username,
     startedAt:             run.startedAt,
@@ -101,7 +107,7 @@ function writeComplete(run, { tags, note, decidedAt }) {
     schemaVersion:         SCHEMA_VERSION,
     scenarioId:            run.scenarioId,
     scenarioSchemaVersion: run.scenario.schemaVersion,
-    tagsSchemaVersion:     SCHEMA_VERSION,
+    tagsSchemaVersion:     TAGS_SCHEMA_VERSION,
     userId:                run.userId,
     username:              run.username,
     startedAt:             run.startedAt,

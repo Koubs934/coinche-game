@@ -1,3 +1,64 @@
+// ── Training tag labels (shared fragments) ───────────────────────────────────
+// Mirrors _sharedBidDecisionTagsFr in fr.js. French is canonical; several
+// entries preserve French terms (Maître, Belote, Bicolore, Longue, etc.) —
+// these are conventional names in Coinche / Belote, not translatable.
+const _sharedBidDecisionTagsEn = {
+  // Group 1 — Trump hand
+  'maitre':             'Maître (J+9+A trump)',
+  'valet-second':       'J-second (2 trumps incl. J)',
+  'valet-troisième':    'J-third (3 trumps incl. J)',
+  'valet-quatrième':    'J-fourth (4 trumps incl. J)',
+  'valet-cinquième':    'J-fifth (5 trumps incl. J)',
+  '9-second':           '9-second (2 trumps, no J)',
+  '9-troisième':        '9-third (3 trumps, no J)',
+  '9-quatrième':        '9-fourth (4 trumps, no J)',
+  '9-cinquième':        '9-fifth (5 trumps, no J)',
+  'atout-count-2':      '2 trumps',
+  'atout-count-3':      '3 trumps',
+  'atout-count-4':      '4 trumps',
+  'atout-count-5-plus': '5+ trumps',
+  'belote-possible':    'Belote (K+Q trump)',
+
+  // Group 2 — Non-trump hand
+  'as-extérieur-0': '0 outside Aces',
+  'as-extérieur-1': '1 outside Ace',
+  'as-extérieur-2': '2 outside Aces',
+  'as-extérieur-3': '3 outside Aces',
+  'deux-as-bare':   '2 Aces (informational)',
+  '21':             '21 (A + 10 same suit)',
+  'deux-21':        'Two 21s',
+  'longue':         'Longue (A-10-K in one suit)',
+
+  // Group 3 — Hand shape
+  'bicolore':       'Bicolore (2-suited)',
+  'fausse-carte-1': '1 weak off-suit card',
+  'fausse-carte-2': '2 weak off-suit cards',
+
+  // Group 5 — Partner context
+  'premier-à-parler':              'First to speak',
+  'partenaire-ouverture-80':       'Partner opened 80',
+  'partenaire-ouverture-90':       'Partner opened 90',
+  'partenaire-ouverture-100':      'Partner opened 100',
+  'partenaire-ouverture-110-plus': 'Partner opened 110+',
+  'partenaire-même-couleur':       'Partner in my suit',
+  'partenaire-autre-couleur':      'Partner in different suit',
+
+  // Group 6 — Opponent context
+  'adverse-a-ouvert':     'Opponent opened',
+  'adverse-a-surenchéri': 'Opponent raised',
+
+  // Group 7 — Score context
+  'score-équilibré': 'Score balanced',
+  'score-derrière':  'Behind, need points',
+  'score-avance':    'Ahead, play safe',
+  'dernière-donne':  'Last hand of match',
+
+  // Group 8 — Uncertainty / meta
+  'jugement':  'Judgment',
+  'incertain': 'Uncertain',
+  'autre':     'Other (note required)',
+};
+
 export default {
   // Auth
   signIn: 'Sign In',
@@ -217,6 +278,16 @@ export default {
     },
     tags: {
       groups: {
+        // v2 groups (bid/pass/coinche/surcoinche)
+        'trump-hand':       'Trump hand',
+        'non-trump-hand':   'Non-trump hand',
+        'hand-shape':       'Hand shape',
+        'bidding-action':   'Bidding action',
+        'partner-context':  'Partner context',
+        'opponent-context': 'Opponent context',
+        'score-context':    'Score context',
+        'meta':             'Uncertainty / meta',
+        // Legacy groups — still used by the (v1-carried-over) play-card action
         'hand-claim':     'Hand strength',
         'tactical':       'Tactical',
         'partner-signal': 'Partner signal',
@@ -226,54 +297,29 @@ export default {
         'other':          'Other',
       },
       bid: {
-        'conventional-opening':              'Conventional opening',
-        'maitre-claim':                      'Maître (J+9+A)',
-        'petit-jeu-claim':                   'Petit jeu',
-        'information-80':                    '80 informational',
-        'bicolore-claim':                    'Bicolore',
-        'supporting-partner':                'Supporting partner',
-        'switching-to-own-suit':             'Switching to own suit',
-        'forcing-overcall-to-setup-coinche': 'Forcing overcall (setup coinche)',
-        'blocking-bid':                      'Blocking bid',
-        'competitive-real-claim':            'Competitive (real claim)',
-        'speculative-raise':                 'Speculative raise',
-        'punishing-overreach':               'Punishing overreach',
-        'stretching-for-rubber':             'Stretching for the rubber',
-        'avoiding-misleading-bid':           'Avoiding misleading bid',
-        'judgment-call':                     'Judgment call',
-        'not-sure':                          'Not sure',
-        'other':                             'Other',
+        ..._sharedBidDecisionTagsEn,
+        // Group 4 — Bidding action (bid-specific)
+        'ouverture':                   'Opening',
+        'monter':                      'Raise (same suit)',
+        'changer':                     'Switch suit',
+        'bloquage':                    'Blocking bid',
+        'faire-monter-pour-coincher':  'Push to draw coinche',
+        'cherche-mon-partenaire':      'Information bid to partner',
+        'surenchère-compétitive':      'Competitive raise',
       },
       pass: {
-        'hand-too-weak':                'Hand too weak',
-        'nothing-to-add':               'Nothing to add',
-        'trap-letting-opponent-commit': 'Trap — letting opponent commit',
-        'partner-well-placed':          'Partner well-placed',
-        'avoiding-misleading-bid':      'Avoiding misleading bid',
-        'conserving-for-coinche':       'Conserving for coinche',
-        'judgment-call':                'Judgment call',
-        'not-sure':                     'Not sure',
-        'other':                        'Other',
+        ..._sharedBidDecisionTagsEn,
+        // Group 4 — Bidding action (pass-specific)
+        'passer-faible':      'Pass (weak hand)',
+        'passer-stratégique': 'Pass (strategic)',
       },
       coinche: {
-        'confident-defeat':           'Confident defeat',
-        'shape-based-defeat':         'Shape-based defeat',
-        'partner-signalled-strength': 'Partner signalled strength',
-        'tactical-doubling':          'Tactical doubling',
-        'punishing-overreach':        'Punishing overreach',
-        'judgment-call':              'Judgment call',
-        'not-sure':                   'Not sure',
-        'other':                      'Other',
+        ..._sharedBidDecisionTagsEn,
+        'coincher': 'Coinche',
       },
       surcoinche: {
-        'confident-contract-makes':   'Confident contract makes',
-        'shape-based-contract-makes': 'Shape-based contract makes',
-        'partner-signalled-strength': 'Partner signalled strength',
-        'tactical-doubling':          'Tactical doubling',
-        'punishing-overreach':        'Punishing overreach',
-        'judgment-call':              'Judgment call',
-        'not-sure':                   'Not sure',
-        'other':                      'Other',
+        ..._sharedBidDecisionTagsEn,
+        'surcoincher': 'Surcoinche',
       },
       'play-card': {
         'cashing-winner-before-cut':  'Cashing winner before cut',

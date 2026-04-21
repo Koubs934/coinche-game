@@ -135,10 +135,11 @@ describe('training flow — happy path', () => {
     expect(partial.decisions[0].action).toEqual({ type: 'bid', value: 90, suit: 'S' });
     expect(partial.decisions[0].tags).toBeNull();
 
-    // Submit reason
+    // Submit reason (v2 tags: one Group-4 `ouverture` is the required action tag;
+    // `valet-troisième` describes the trump hand)
     client.emit('submitTrainingReason', {
       runId,
-      tags: ['petit-jeu-claim'],
+      tags: ['ouverture', 'valet-troisième'],
       note: 'J-third in ♠, first to speak',
     });
 
@@ -149,7 +150,7 @@ describe('training flow — happy path', () => {
     expect(completed.runId).toBe(runId);
     expect(completed.annotation.scenarioId).toBe(SCENARIO);
     expect(completed.annotation.decisions).toHaveLength(1);
-    expect(completed.annotation.decisions[0].tags).toEqual(['petit-jeu-claim']);
+    expect(completed.annotation.decisions[0].tags).toEqual(['ouverture', 'valet-troisième']);
 
     // Final file on disk matches completed state, at SAME path (startedAt-derived)
     const finalFiles = fs.readdirSync(userDir).filter(f => f.endsWith('.json'));
@@ -159,7 +160,7 @@ describe('training flow — happy path', () => {
     const annotation = JSON.parse(fs.readFileSync(partialPath, 'utf8'));
     expect(annotation.schemaVersion).toBe(1);
     expect(annotation.scenarioSchemaVersion).toBe(1);
-    expect(annotation.tagsSchemaVersion).toBe(1);
+    expect(annotation.tagsSchemaVersion).toBe(2);
     expect(annotation.status).toBe('complete');
     expect(annotation.userId).toBe(USER_ID);
     expect(annotation.username).toBe(USERNAME);
@@ -167,7 +168,7 @@ describe('training flow — happy path', () => {
     expect(annotation.completedAt).toBeTruthy();
     expect(annotation.decisions).toHaveLength(1);
     expect(annotation.decisions[0].action).toEqual({ type: 'bid', value: 90, suit: 'S' });
-    expect(annotation.decisions[0].tags).toEqual(['petit-jeu-claim']);
+    expect(annotation.decisions[0].tags).toEqual(['ouverture', 'valet-troisième']);
     expect(annotation.decisions[0].note).toBe('J-third in ♠, first to speak');
     expect(annotation.decisions[0].decidedAt).toBeTruthy();
 
@@ -250,10 +251,11 @@ describe('training flow — partial resume', () => {
     // Server generates a fresh runId on resume (in-memory identity).
     // That's fine — the client uses whatever runId the server hands back.
 
-    // Submit final reason
+    // Submit final reason (v2: `faire-monter-pour-coincher` is the Group-4
+    // action tag; required exactly-one satisfied)
     client2.emit('submitTrainingReason', {
       runId: runId2,
-      tags: ['forcing-overcall-to-setup-coinche'],
+      tags: ['faire-monter-pour-coincher'],
       note: 'reasserted after resume',
     });
     await waitFor(() => events2.trainingCompleted.length > 0);
@@ -269,7 +271,7 @@ describe('training flow — partial resume', () => {
     const finalAnnotation = JSON.parse(fs.readFileSync(partialPath, 'utf8'));
     expect(finalAnnotation.status).toBe('complete');
     expect(finalAnnotation.startedAt).toBe(partialBefore.startedAt);
-    expect(finalAnnotation.decisions[0].tags).toEqual(['forcing-overcall-to-setup-coinche']);
+    expect(finalAnnotation.decisions[0].tags).toEqual(['faire-monter-pour-coincher']);
     expect(finalAnnotation.decisions[0].note).toBe('reasserted after resume');
 
     // No orphan .tmp files
