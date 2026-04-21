@@ -3,9 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/sync-mock-tags.js",
     "dev": "vite",
+    "prebuild": "node scripts/sync-mock-tags.js",
     "build": "vite build",
     "preview": "vite preview",
+    "sync:mock-tags": "node scripts/sync-mock-tags.js",
     "test:e2e": "node --env-file=../backend/.env.test.local tests/smoke.js"
   },
   "dependencies": {

@@ -117,6 +117,24 @@ Railway auto-detects Node.js and runs `npm start`.
 
 Open the Vercel URL on your phone or share it with a friend. Sign up, create a room, send the 6-character code.
 
+### Production storage (persistent volume)
+
+Railway containers have ephemeral disks — anything written to the filesystem
+is wiped on every redeploy or restart. Training annotations under
+`backend/data/training/<userId>/` are user-generated data and must survive
+both, so they go on a persistent volume in production.
+
+1. In the Railway backend service → **Volumes** → **Attach Volume**. Mount point: `/data`.
+2. Under **Variables**, add:
+   - `TRAINING_DATA_DIR` = `/data/training`
+3. Redeploy. `annotationStorage.js` reads that env var and writes annotations
+   there instead of the default `backend/data/training/`.
+4. Verify after a submitted run via Railway's shell:
+   `ls /data/training/<userId>/` should contain the `<isoStamp>-<scenarioId>.json` file.
+
+Local dev does not need this — when `TRAINING_DATA_DIR` is unset, writes go
+to the default path.
+
 ---
 
 ## Game flow
@@ -143,3 +161,5 @@ Open the Vercel URL on your phone or share it with a friend. Sign up, create a r
 A solo practice table for playing pre-authored belote scenarios and capturing structured reasoning (tags + freeform note) for every decision. The goal is an annotated dataset of the user's personal convention, which will later drive rule extraction and bot tuning.
 
 Access it from the Lobby home screen via the **Training** / **Entraînement** button. Scenarios live under `backend/src/training/scenarios/`; completed annotations land on disk at `backend/data/training/<userId>/<isoStamp>-<scenarioId>.json` and are gitignored.
+
+Tag vocabulary is versioned via `tagsSchemaVersion` inside each annotation record. Current version is **v2** (2026-04-21) — see [`docs/tags-v2-spec.md`](docs/tags-v2-spec.md) for the canonical reference. v1 is archived at `backend/src/training/reasonTags.v1.json` for historical lookups only. The validator enforces one tag from the `bidding-action` group per decision and emits a non-blocking confirmation when the `trump-hand` group is empty.
