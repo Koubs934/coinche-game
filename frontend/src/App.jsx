@@ -10,6 +10,7 @@ import ReasonPanelMock from './training/ReasonPanelMock';
 import TrainingTable from './training/TrainingTable';
 import CompletionSummary from './training/CompletionSummary';
 import TrainingPicker from './training/TrainingPicker';
+import EnvBadge from './components/EnvBadge';
 import { cleanupOldDrafts } from './training/noteDraft';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
@@ -46,6 +47,7 @@ export default function App() {
           <button className="btn-lang" onClick={toggleLang}>{lang.toUpperCase()}</button>
         </div>
         <ReasonPanelMock />
+        <EnvBadge />
       </>
     );
   }
@@ -69,6 +71,7 @@ export default function App() {
   const [trainingRun,        setTrainingRun]        = useState(null); // { trainingState, room, game, myPosition }
   const [trainingAnnotation, setTrainingAnnotation] = useState(null); // set by trainingCompleted
   const [trainingResumable,  setTrainingResumable]  = useState([]);
+  const [trainingWarnings,   setTrainingWarnings]   = useState(null); // string[]|null — soft warnings awaiting ack
 
   // Ref mirrors so the socket handler closure sees current state without re-subscribing
   const gameStateRef = useRef(null);
@@ -162,7 +165,14 @@ export default function App() {
     socket.on('trainingAwaitingReason', (payload) => setTrainingRun(payload));
     socket.on('trainingCompleted', ({ annotation }) => {
       setTrainingAnnotation(annotation);
+      setTrainingWarnings(null);
       setTrainingView('complete');
+    });
+    socket.on('trainingReasonWarning', ({ warnings }) => {
+      // Server accepted validation but wants a non-blocking confirmation
+      // (e.g. no trump-hand tag). ReasonPanel renders the overlay and the
+      // user either confirms (resubmits with ackWarnings) or edits.
+      setTrainingWarnings(warnings);
     });
     socket.on('trainingAbandoned', () => {
       setTrainingRun(null);
@@ -267,6 +277,7 @@ export default function App() {
           <button className="btn-lang" onClick={toggleLang}>{lang.toUpperCase()}</button>
         </div>
         <Auth />
+        <EnvBadge />
       </>
     );
   }
@@ -301,6 +312,8 @@ export default function App() {
             myPosition={trainingRun.myPosition}
             trainingState={trainingRun.trainingState}
             tagSchema={trainingTags}
+            pendingWarnings={trainingWarnings}
+            onDismissWarnings={() => setTrainingWarnings(null)}
           />
         )}
 
@@ -313,6 +326,7 @@ export default function App() {
             hasNextScenario={hasNextScenario}
           />
         )}
+        <EnvBadge />
       </div>
     );
   }
@@ -352,6 +366,7 @@ export default function App() {
           resumableCount={trainingResumable?.length || 0}
         />
       )}
+      <EnvBadge />
     </div>
   );
 }

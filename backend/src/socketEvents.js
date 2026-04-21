@@ -170,11 +170,18 @@
 //     → S→C 'trainingAwaitingReason' { ...trainingSync, runState='AWAITING-REASON' }
 //     (server writes partial annotation to disk atomically BEFORE emitting)
 //
-//   'submitTrainingReason'      ({ runId, tags: string[], note: string })
-//     tags validated per action type against reasonTags.json
-//     note required when tags includes 'other' OR when tags is empty
+//   'submitTrainingReason'      ({ runId, tags: string[], note: string, ackWarnings?: boolean })
+//     tags validated per action type against reasonTags.json. Validator is
+//     declarative: groups flagged `requireExactlyOne` must have exactly one
+//     selected tag; tags flagged `requiresNote` force a non-empty note.
+//     Non-blocking warnings (e.g. `recommendAtLeastOne` groups like
+//     trump-hand) bounce back via 'trainingReasonWarning' unless the client
+//     resubmits with `ackWarnings: true` — see below.
 //     → S→C 'trainingCompleted'     { runId, annotation:{scenarioId,startedAt,completedAt,decisions} }
 //     (file rewritten with status='complete' before emitting)
+//     → S→C 'trainingReasonWarning' { runId, tags, note, warnings:string[] }
+//     (only when v.ok with warnings && !ackWarnings; nothing is written,
+//     run stays in AWAITING-REASON)
 //
 //   'undoTrainingAction'        ({ runId })
 //     Valid only in AWAITING-REASON. Restores the pre-action game-state

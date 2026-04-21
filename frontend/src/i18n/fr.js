@@ -256,8 +256,16 @@ export default {
       notePlaceholderRequired:   'Obligatoire — quel raisonnement n’est pas capté par les tags ?',
       noteLabel:                 'Note',
       submit:                    'Valider',
+      // Client-side validation helpers (mirror tagValidator.js)
       helperEmpty:               'Choisir au moins un tag ou écrire une note',
-      helperOther:               '« Autre » exige une note',
+      helperNoteRequired:        'La note est requise pour le tag sélectionné',
+      helperMissingRequired:     (groupLabel) => `Sélectionnez un tag dans « ${groupLabel} »`,
+      helperMultipleRequired:    (groupLabel) => `Un seul tag autorisé dans « ${groupLabel} »`,
+      requiredBadge:             'Requis',
+      // Soft-warning confirmation overlay (server-returned, non-blocking)
+      warningHeading:            'Vérifier votre choix',
+      warningContinueBtn:        'Continuer',
+      warningBackBtn:            'Revenir et ajouter',
       changeAction:              'Changer mon action',
       // Action-display prefixes
       youBid:                    'Vous avez annoncé',

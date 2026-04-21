@@ -208,6 +208,22 @@ a      { color: var(--accent); }
   z-index: 500;
 }
 
+.env-badge {
+  position: fixed;
+  bottom: 8px;
+  right: 8px;
+  z-index: 500;
+  font-size: 0.7em;
+  letter-spacing: 0.1em;
+  padding: 3px 8px;
+  background: var(--ui-card);
+  color: var(--muted);
+  border-radius: var(--radius);
+  opacity: 0.85;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* ─── Splash ────────────────────────────────────────────────────────────── */
 .splash {
   height: 100%;
@@ -1832,6 +1848,7 @@ a      { color: var(--accent); }
    server-side validator would reject. */
 
 .training-reason-panel {
+  position: relative;
   max-width: 640px;
   margin: 24px auto;
   padding: 20px 22px 24px;
@@ -1897,7 +1914,9 @@ a      { color: var(--accent); }
 /* Tag group */
 .trp-group { border: 0; padding: 0; margin: 0; }
 .trp-group-label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 0.7em;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -1906,6 +1925,26 @@ a      { color: var(--accent); }
   margin-bottom: 9px;
   padding-bottom: 5px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  width: 100%;
+}
+/* Required group (e.g. bidding-action) — lightly-highlighted section plus "Requis" badge */
+.trp-group-required {
+  background: rgba(240, 165, 0, 0.05);
+  border: 1px solid rgba(240, 165, 0, 0.22);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.trp-group-required > .trp-group-label { color: var(--accent); border-bottom-color: rgba(240, 165, 0, 0.18); }
+.trp-group-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  background: var(--accent);
+  color: #1a1a1a;
+  border-radius: 999px;
+  font-size: 0.9em;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  line-height: 1.1;
 }
 
 /* Pill row */
@@ -1986,6 +2025,77 @@ a      { color: var(--accent); }
   font-size: 0.84em;
   font-weight: 500;
 }
+
+/* Soft-warning confirmation overlay — shown only when the server returned
+   a non-blocking warning (e.g. no trump-hand tag). The panel stays mounted
+   behind; this is an inline modal, not a full app modal. */
+.trp-warning-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.trp-warning-card {
+  background: var(--ui-card);
+  border: 1px solid rgba(240, 165, 0, 0.4);
+  border-radius: var(--radius);
+  padding: 18px 18px 16px;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.trp-warning-heading {
+  font-size: 1em;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0 0 12px;
+}
+.trp-warning-list {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.trp-warning-item {
+  color: var(--text);
+  font-size: 0.92em;
+  line-height: 1.45;
+  opacity: 0.92;
+}
+.trp-warning-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.trp-warning-continue,
+.trp-warning-back {
+  padding: 9px 14px;
+  border-radius: var(--radius);
+  font-weight: 700;
+  font-size: 0.92em;
+  transition: background 120ms, transform 80ms;
+}
+.trp-warning-continue {
+  background: var(--accent);
+  color: #1a1a1a;
+}
+.trp-warning-continue:hover  { background: #ffb821; }
+.trp-warning-continue:active { transform: scale(0.98); }
+.trp-warning-back {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+.trp-warning-back:hover  { background: rgba(255, 255, 255, 0.06); }
+.trp-warning-back:active { transform: scale(0.98); }
 
 /* ─── Mock harness (review-only; not shipped to users) ──────────────────── */
 .mock-harness {

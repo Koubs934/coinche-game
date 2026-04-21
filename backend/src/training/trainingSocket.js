@@ -116,7 +116,7 @@ function registerTrainingHandlers(socket) {
     socket.emit('trainingAwaitingReason', trainingRooms.publicView(run));
   });
 
-  socket.on('submitTrainingReason', ({ runId, tags, note } = {}) => {
+  socket.on('submitTrainingReason', ({ runId, tags, note, ackWarnings = false } = {}) => {
     const run = trainingRooms.getRun(runId);
     if (!run || run.userId !== socket.userId) return emitError(socket, 'Unknown training run', 'UNKNOWN_TRAINING_RUN');
     if (run.runState !== 'AWAITING-REASON') return emitError(socket, `Cannot submit reason in state ${run.runState}`);
@@ -124,6 +124,20 @@ function registerTrainingHandlers(socket) {
     const actionType = run.pendingAction?.action?.type;
     const v = tagValidator.validateReasonSubmission({ actionType, tags: tags ?? [], note: note ?? '' });
     if (!v.ok) return emitError(socket, v.message);
+
+    // Soft warnings (e.g. no trump-hand tag) bounce back to the client for
+    // a non-blocking confirmation. The run stays in AWAITING-REASON; nothing
+    // is written yet. The client resubmits with `ackWarnings: true` to
+    // proceed, or dismisses and edits.
+    if (v.warnings && v.warnings.length > 0 && !ackWarnings) {
+      socket.emit('trainingReasonWarning', {
+        runId:    run.runId,
+        tags:     v.tags,
+        note:     note ?? '',
+        warnings: v.warnings,
+      });
+      return;
+    }
 
     const decidedAt = new Date().toISOString();
     const completedDecision = {

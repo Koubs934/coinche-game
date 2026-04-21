@@ -256,8 +256,16 @@ export default {
       notePlaceholderRequired:   "Required — what reasoning isn't captured by the tags?",
       noteLabel:                 'Note',
       submit:                    'Submit',
+      // Client-side validation helpers (mirror tagValidator.js)
       helperEmpty:               'Pick at least one tag or write a note',
-      helperOther:               "'Other' requires a note",
+      helperNoteRequired:        'A note is required for the selected tag',
+      helperMissingRequired:     (groupLabel) => `Pick one tag from "${groupLabel}"`,
+      helperMultipleRequired:    (groupLabel) => `Only one tag allowed in "${groupLabel}"`,
+      requiredBadge:             'Required',
+      // Soft-warning confirmation overlay (server-returned, non-blocking)
+      warningHeading:            'Check your choice',
+      warningContinueBtn:        'Continue',
+      warningBackBtn:            'Go back and add',
       changeAction:              'Change my action',
       // Action-display prefixes
       youBid:                    'You bid',

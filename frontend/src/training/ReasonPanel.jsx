@@ -1,14 +1,17 @@
 // Reason-capture panel. Controlled component — the parent owns the "pending"
 // action and the submit/undo handlers. This file's responsibility is:
 //   - render the action prominently
-//   - render tag groups (labelled sections via groupOrder)
+//   - render tag groups (labelled sections via groupOrder), with required
+//     groups visually distinguished (bidding-action in v2)
 //   - manage local state: selected tag set + note text
-//   - client-mirror the server-side validator so submit is never enabled
-//     for a submission the server would reject
-//   - call onSubmit / onChangeAction when appropriate
+//   - client-mirror the server-side validator (driven by the same JSON flags:
+//     `requireExactlyOne` on groups, `requiresNote` on tags) so submit is
+//     never enabled for a submission the server would reject
+//   - surface the server's soft warnings via a non-blocking confirmation
+//     overlay; the user can either Continue or go back and edit
 //
-// The server-side validator (tagValidator.validateReasonSubmission) is the
-// authoritative gate; this panel is defensive UX, not validation.
+// The server-side validator (tagValidator.validateReasonSubmission) remains
+// the authoritative gate; this panel is defensive UX.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLang } from '../context/LanguageContext';
@@ -17,26 +20,22 @@ import { readDraft, writeDraft, clearDraft } from './noteDraft';
 
 /**
  * @param {object}   props
- * @param {object}   props.action         { type, value?, suit?, card? }
- * @param {object}   props.tagsForAction  reasonTags.json → actions[<type>]   { groupOrder, tags: [...] }
- * @param {object}   props.groupsMap      reasonTags.json → groups            { [groupKey]: { labelPath }}
- * @param {Function} props.onSubmit       (tags, note) => void
+ * @param {object}   props.action            { type, value?, suit?, card? }
+ * @param {object}   props.tagsForAction     reasonTags.json → actions[<type>]  { actionType, groupOrder, tags: [...] }
+ * @param {object}   props.groupsMap         reasonTags.json → groups            { [groupKey]: { labelPath, requireExactlyOne?, recommendAtLeastOne? }}
+ * @param {Function} props.onSubmit          (tags, note, ackWarnings) => void
  * @param {Function} [props.onChangeAction]  optional — back to action selection
- * @param {string}   [props.draftKey]     stable id (server-assigned partialId)
- *                                         used as the localStorage key for
- *                                         note+tag drafts so an interrupted
- *                                         session can recover the user's text.
+ * @param {string}   [props.draftKey]        stable id (server-assigned partialId) used as localStorage key
+ * @param {string[]|null} [props.pendingWarnings]  soft warnings from the server; when present, the confirmation overlay is shown
+ * @param {Function} [props.onDismissWarnings]     called when user opts to edit instead of confirm
  */
 export default function ReasonPanel({
   action, tagsForAction, groupsMap, onSubmit, onChangeAction,
-  draftKey,
+  draftKey, pendingWarnings, onDismissWarnings,
 }) {
   const { t } = useLang();
   const p = t.training.panel;
 
-  // Hydrate from any previously-saved draft for this partialId. Runs once
-  // at mount (note the function-form useState). If no draft exists the
-  // fields start empty, identical to the old behaviour.
   const [selectedTags, setSelectedTags] = useState(() => {
     const d = readDraft(draftKey);
     return new Set(d?.tags ?? []);
@@ -46,8 +45,7 @@ export default function ReasonPanel({
     return d?.note ?? '';
   });
 
-  // Group the tag list by group key for section rendering — follow groupOrder
-  // so sections display in the action's preferred order even if JSON reordered.
+  // ── Derived tag / group indexes (action-scoped) ─────────────────────────
   const sections = useMemo(() => {
     const byGroup = {};
     for (const tag of tagsForAction.tags) {
@@ -58,18 +56,68 @@ export default function ReasonPanel({
       .filter(section => section.tags.length > 0);
   }, [tagsForAction]);
 
-  const hasOther     = selectedTags.has('other');
-  const noteTrimmed  = note.trim();
-  const emptyEmpty   = selectedTags.size === 0 && noteTrimmed === '';
-  const otherNoNote  = hasOther && noteTrimmed === '';
-  const canSubmit    = !emptyEmpty && !otherNoNote;
+  const tagsByGroup = useMemo(() => {
+    const m = new Map();
+    for (const tag of tagsForAction.tags) {
+      if (!m.has(tag.group)) m.set(tag.group, new Set());
+      m.get(tag.group).add(tag.key);
+    }
+    return m;
+  }, [tagsForAction]);
 
-  const helper =
-      otherNoNote ? p.helperOther
-    : emptyEmpty  ? p.helperEmpty
-    : null;
+  const noteRequiredTagKeys = useMemo(
+    () => new Set(tagsForAction.tags.filter(t => t.requiresNote).map(t => t.key)),
+    [tagsForAction],
+  );
 
-  const placeholder = hasOther ? p.notePlaceholderRequired : p.notePlaceholderOptional;
+  // Required groups present in THIS action's tag list (inert for play-card).
+  const activeRequiredGroups = useMemo(() => {
+    return Object.entries(groupsMap)
+      .filter(([, meta]) => meta.requireExactlyOne)
+      .map(([key]) => key)
+      .filter(key => (tagsByGroup.get(key) || new Set()).size > 0);
+  }, [groupsMap, tagsByGroup]);
+
+  // ── Validation (client mirror of tagValidator.js) ──────────────────────
+  const noteTrimmed = note.trim();
+  const selectedArr = [...selectedTags];
+
+  const noteMissingForRequired =
+    selectedArr.some(k => noteRequiredTagKeys.has(k)) && noteTrimmed === '';
+
+  const perRequiredGroup = activeRequiredGroups.map(groupKey => ({
+    groupKey,
+    selected: selectedArr.filter(k => tagsByGroup.get(groupKey).has(k)),
+  }));
+  const missingRequiredGroups  = perRequiredGroup.filter(g => g.selected.length === 0).map(g => g.groupKey);
+  const multipleRequiredGroups = perRequiredGroup.filter(g => g.selected.length >  1).map(g => g.groupKey);
+
+  const hasRequiredStructure = activeRequiredGroups.length > 0;
+  const emptyEmpty = !hasRequiredStructure && selectedTags.size === 0 && noteTrimmed === '';
+
+  const canSubmit =
+    missingRequiredGroups.length  === 0 &&
+    multipleRequiredGroups.length === 0 &&
+    !noteMissingForRequired &&
+    !emptyEmpty;
+
+  // Helper message shown below the submit button — show the first blocker.
+  const helper = (() => {
+    if (missingRequiredGroups.length > 0) {
+      const gLabel = resolveGroupLabel(missingRequiredGroups[0]);
+      return p.helperMissingRequired(gLabel);
+    }
+    if (multipleRequiredGroups.length > 0) {
+      const gLabel = resolveGroupLabel(multipleRequiredGroups[0]);
+      return p.helperMultipleRequired(gLabel);
+    }
+    if (noteMissingForRequired) return p.helperNoteRequired;
+    if (emptyEmpty)              return p.helperEmpty;
+    return null;
+  })();
+
+  const hasNoteRequiredSelected = selectedArr.some(k => noteRequiredTagKeys.has(k));
+  const placeholder = hasNoteRequiredSelected ? p.notePlaceholderRequired : p.notePlaceholderOptional;
 
   function toggleTag(key) {
     setSelectedTags(prev => {
@@ -79,14 +127,26 @@ export default function ReasonPanel({
     });
   }
 
+  // ── Group-label resolver ───────────────────────────────────────────────
+  // groupsMap[key].labelPath like "training.tags.groups.bidding-action" —
+  // walk `t` rather than hardcode so localization stays data-driven.
+  function resolveLabelPath(labelPath) {
+    return labelPath.split('.').reduce((o, seg) => (o ? o[seg] : undefined), t) ?? labelPath;
+  }
+  function resolveGroupLabel(groupKey) {
+    return resolveLabelPath(groupsMap[groupKey]?.labelPath || '');
+  }
+
   // ── Draft persistence ─────────────────────────────────────────────────
   // Three write paths:
   //   1. Debounced on edit (500 ms idle) — normal case
   //   2. Synchronous on unmount — catches the UNKNOWN_TRAINING_RUN redirect
-  //      where the panel disappears before the debounce fires
-  //   3. clearDraft() on successful submit / change-action — stop tracking
-  // A ref mirrors the latest state so the unmount cleanup sees current
-  // values (closure would otherwise capture the initial state).
+  //   3. Re-saved when the user dismisses a warning (don't lose their work
+  //      if they reload in the middle of reconsidering)
+  // clearDraft is called on change-action (explicit abandonment). We NO
+  // LONGER clear on submit-press because a warning bounce may send the user
+  // back to editing; the parent/completion handler takes care of clearing
+  // once the server has actually accepted the submission.
   const latestRef  = useRef({ tags: selectedTags, note });
   const finishedRef = useRef(false);
   useEffect(() => { latestRef.current = { tags: selectedTags, note }; }, [selectedTags, note]);
@@ -100,8 +160,6 @@ export default function ReasonPanel({
   }, [selectedTags, note, draftKey]);
 
   useEffect(() => {
-    // Run-on-unmount: persist whatever is currently typed if the user didn't
-    // explicitly finish. Cheap — localStorage write is synchronous.
     return () => {
       if (!draftKey || finishedRef.current) return;
       const { tags, note } = latestRef.current;
@@ -112,15 +170,18 @@ export default function ReasonPanel({
   function handleSubmit(e) {
     e.preventDefault();
     if (!canSubmit) return;
-    finishedRef.current = true;
-    if (draftKey) clearDraft(draftKey);
-    onSubmit([...selectedTags], noteTrimmed);
+    onSubmit([...selectedTags], noteTrimmed, false);
   }
 
-  // Group label resolution: groupsMap[key].labelPath like "training.tags.groups.hand-claim".
-  // We look it up on t rather than hardcoding, so localization stays data-driven.
-  function resolveLabelPath(labelPath) {
-    return labelPath.split('.').reduce((o, seg) => (o ? o[seg] : undefined), t) ?? labelPath;
+  function handleConfirmWarnings() {
+    onSubmit([...selectedTags], noteTrimmed, true);
+  }
+  function handleDismissWarnings() {
+    // Warning dismissed — user wants to edit. Refresh the draft so a reload
+    // recovers the current tags + note (the submit-press path may have
+    // cleared it in earlier iterations; re-writing is always safe).
+    if (draftKey) writeDraft(draftKey, [...selectedTags], note);
+    onDismissWarnings?.();
   }
 
   const actionLabel = formatActionText(action, t);
@@ -151,39 +212,47 @@ export default function ReasonPanel({
 
       {/* ── Tag sections ──────────────────────────────────────────────── */}
       <form className="trp-form" onSubmit={handleSubmit}>
-        {sections.map(({ group, tags }) => (
-          <fieldset key={group} className="trp-group">
-            <legend className="trp-group-label">
-              {resolveLabelPath(groupsMap[group]?.labelPath)}
-            </legend>
-            <div className="trp-pill-row">
-              {tags.map(tag => {
-                const labelPath = `training.tags.${tagsForAction.actionType ?? ''}.${tag.key}`;
-                // Resolve by walking t: training.tags.<actionType>.<key>
-                const actionType = tagsForAction.actionType;
-                const label = t.training.tags[actionType]?.[tag.key] ?? tag.key;
-                const selected = selectedTags.has(tag.key);
-                return (
-                  <button
-                    key={tag.key}
-                    type="button"
-                    className={`trp-pill${selected ? ' trp-pill-on' : ''}`}
-                    aria-pressed={selected}
-                    onClick={() => toggleTag(tag.key)}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
-        ))}
+        {sections.map(({ group, tags }) => {
+          const meta = groupsMap[group] || {};
+          const isRequired = !!meta.requireExactlyOne;
+          const groupLabel = resolveLabelPath(meta.labelPath);
+          const actionType = tagsForAction.actionType;
+          return (
+            <fieldset key={group} className={`trp-group${isRequired ? ' trp-group-required' : ''}`}>
+              <legend className="trp-group-label">
+                <span>{groupLabel}</span>
+                {isRequired && (
+                  <span className="trp-group-badge" aria-label={p.requiredBadge}>
+                    {p.requiredBadge}
+                  </span>
+                )}
+              </legend>
+              <div className="trp-pill-row">
+                {tags.map(tag => {
+                  const label = t.training.tags[actionType]?.[tag.key] ?? tag.key;
+                  const selected = selectedTags.has(tag.key);
+                  return (
+                    <button
+                      key={tag.key}
+                      type="button"
+                      className={`trp-pill${selected ? ' trp-pill-on' : ''}`}
+                      aria-pressed={selected}
+                      onClick={() => toggleTag(tag.key)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          );
+        })}
 
         {/* ── Note (always visible) ────────────────────────────────────── */}
         <label className="trp-note-label">
           <span className="trp-note-heading">{p.noteLabel}</span>
           <textarea
-            className={`trp-note${otherNoNote ? ' trp-note-required' : ''}`}
+            className={`trp-note${noteMissingForRequired ? ' trp-note-required' : ''}`}
             value={note}
             onChange={e => setNote(e.target.value)}
             placeholder={placeholder}
@@ -203,6 +272,28 @@ export default function ReasonPanel({
           <p className="trp-helper">{helper}</p>
         )}
       </form>
+
+      {/* ── Soft-warning confirmation overlay ──────────────────────────── */}
+      {pendingWarnings && pendingWarnings.length > 0 && (
+        <div className="trp-warning-backdrop" role="dialog" aria-modal="true" aria-labelledby="trp-warning-heading">
+          <div className="trp-warning-card">
+            <h3 id="trp-warning-heading" className="trp-warning-heading">{p.warningHeading}</h3>
+            <ul className="trp-warning-list">
+              {pendingWarnings.map((msg, i) => (
+                <li key={i} className="trp-warning-item">💡 {msg}</li>
+              ))}
+            </ul>
+            <div className="trp-warning-actions">
+              <button type="button" className="trp-warning-continue" onClick={handleConfirmWarnings}>
+                {p.warningContinueBtn}
+              </button>
+              <button type="button" className="trp-warning-back" onClick={handleDismissWarnings}>
+                {p.warningBackBtn}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -252,10 +252,11 @@ describe('training flow — partial resume', () => {
     // That's fine — the client uses whatever runId the server hands back.
 
     // Submit final reason (v2: `faire-monter-pour-coincher` is the Group-4
-    // action tag; required exactly-one satisfied)
+    // action tag; `valet-troisième` is the trump-hand tag so no soft
+    // warning bounce — `recommendAtLeastOne` on trump-hand is satisfied)
     client2.emit('submitTrainingReason', {
       runId: runId2,
-      tags: ['faire-monter-pour-coincher'],
+      tags: ['faire-monter-pour-coincher', 'valet-troisième'],
       note: 'reasserted after resume',
     });
     await waitFor(() => events2.trainingCompleted.length > 0);
@@ -271,7 +272,7 @@ describe('training flow — partial resume', () => {
     const finalAnnotation = JSON.parse(fs.readFileSync(partialPath, 'utf8'));
     expect(finalAnnotation.status).toBe('complete');
     expect(finalAnnotation.startedAt).toBe(partialBefore.startedAt);
-    expect(finalAnnotation.decisions[0].tags).toEqual(['faire-monter-pour-coincher']);
+    expect(finalAnnotation.decisions[0].tags).toEqual(['faire-monter-pour-coincher', 'valet-troisième']);
     expect(finalAnnotation.decisions[0].note).toBe('reasserted after resume');
 
     // No orphan .tmp files
@@ -279,5 +280,73 @@ describe('training flow — partial resume', () => {
     expect(tmpFiles).toHaveLength(0);
 
     client2.disconnect();
+  });
+});
+
+// ─── Test C: soft-warning ack round-trip ──────────────────────────────────
+
+describe('training flow — soft warning ack', () => {
+  const USER_ID = 'test-user-warn';
+  const USERNAME = 'Warn Tester';
+  const SCENARIO = 'opening-petit-jeu-first-to-speak';
+
+  it('submit without trump-hand tag → trainingReasonWarning → ack → trainingCompleted', async () => {
+    const client = connectClient(USER_ID, USERNAME);
+    const events = collectEvents(client, [
+      'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
+      'trainingReasonWarning', 'trainingCompleted', 'error',
+    ]);
+
+    await new Promise(resolve => client.on('connect', resolve));
+    client.emit('startTrainingScenario', { scenarioId: SCENARIO });
+    await waitFor(() =>
+      events.trainingUpdate.some(u => u.trainingState.runState === 'AWAITING-ACTION'),
+    );
+    const runId = events.trainingStarted[0].trainingState.runId;
+
+    client.emit('submitTrainingAction', { runId, action: { type: 'bid', value: 90, suit: 'S' } });
+    await waitFor(() => events.trainingAwaitingReason.length > 0);
+
+    // No trump-hand tag → trump-hand recommendAtLeastOne triggers a warning.
+    // Server holds the run in AWAITING-REASON; nothing written to status=complete.
+    client.emit('submitTrainingReason', {
+      runId,
+      tags: ['ouverture'],
+      note: 'testing warning path',
+    });
+    await waitFor(() => events.trainingReasonWarning.length > 0);
+
+    expect(events.trainingCompleted).toHaveLength(0);
+    const warn = events.trainingReasonWarning[0];
+    expect(warn.runId).toBe(runId);
+    expect(warn.warnings[0]).toMatch(/trump-hand/);
+    expect(warn.tags).toEqual(['ouverture']);
+
+    // On-disk file is still awaiting-reason, not complete
+    const userDir = path.join(SCRATCH_DATA_DIR, USER_ID);
+    const interim = JSON.parse(fs.readFileSync(
+      path.join(userDir, fs.readdirSync(userDir).find(f => f.endsWith('.json'))),
+      'utf8',
+    ));
+    expect(interim.status).toBe('awaiting-reason');
+
+    // Ack and resubmit — now completion proceeds despite missing trump-hand
+    client.emit('submitTrainingReason', {
+      runId,
+      tags: ['ouverture'],
+      note: 'testing warning path',
+      ackWarnings: true,
+    });
+    await waitFor(() => events.trainingCompleted.length > 0);
+    expect(events.error).toHaveLength(0);
+
+    const finalAnnotation = JSON.parse(fs.readFileSync(
+      path.join(userDir, fs.readdirSync(userDir).find(f => f.endsWith('.json'))),
+      'utf8',
+    ));
+    expect(finalAnnotation.status).toBe('complete');
+    expect(finalAnnotation.decisions[0].tags).toEqual(['ouverture']);
+
+    client.disconnect();
   });
 });

@@ -13,7 +13,9 @@ export default function TrainingTable({
   game,
   myPosition,
   trainingState,
-  tagSchema, // loaded once via getTrainingTags; parent passes down
+  tagSchema,          // loaded once via getTrainingTags; parent passes down
+  pendingWarnings,    // string[]|null — soft warnings from the server
+  onDismissWarnings,  // () => void — clear warnings on the parent
 }) {
   const runState      = trainingState?.runState;
   const pendingAction = trainingState?.pendingAction;
@@ -26,8 +28,8 @@ export default function TrainingTable({
     ? { ...tagSchema.actions[actionType], actionType }
     : null;
 
-  function handleSubmitReason(tags, note) {
-    socket.emit('submitTrainingReason', { runId, tags, note });
+  function handleSubmitReason(tags, note, ackWarnings) {
+    socket.emit('submitTrainingReason', { runId, tags, note, ackWarnings });
   }
 
   function handleChangeAction() {
@@ -55,6 +57,8 @@ export default function TrainingTable({
               onSubmit={handleSubmitReason}
               onChangeAction={handleChangeAction}
               draftKey={trainingState.partialId}
+              pendingWarnings={pendingWarnings}
+              onDismissWarnings={onDismissWarnings}
             />
           </div>
         </div>

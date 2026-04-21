@@ -20,6 +20,7 @@ export default function ReasonPanelMock() {
   const p = t.training.panel;
   const [idx, setIdx] = useState(0);
   const [lastSubmit, setLastSubmit] = useState(null);
+  const [warningsOverride, setWarningsOverride] = useState(null);
 
   const action = MOCK_ACTIONS[idx].action;
   const actionType = action.type;
@@ -28,10 +29,11 @@ export default function ReasonPanelMock() {
     actionType, // so ReasonPanel can find i18n labels
   };
 
-  function handleSubmit(tags, note) {
-    const submission = { action, tags, note };
+  function handleSubmit(tags, note, ackWarnings) {
+    const submission = { action, tags, note, ackWarnings: !!ackWarnings };
     setLastSubmit(submission);
     console.log('[mock] submit:', submission);
+    if (ackWarnings) setWarningsOverride(null);
   }
 
   function handleChangeAction() {
@@ -58,6 +60,20 @@ export default function ReasonPanelMock() {
         </div>
       </div>
 
+      <div className="mock-warning-toggle">
+        <button
+          type="button"
+          className={`mock-switcher-btn${warningsOverride ? ' on' : ''}`}
+          onClick={() => setWarningsOverride(
+            warningsOverride
+              ? null
+              : ['Aucune étiquette "main d\'atout" — cette décision sera plus difficile à exploiter pour l\'extraction de règles.']
+          )}
+        >
+          Preview soft-warning overlay
+        </button>
+      </div>
+
       <ReasonPanel
         key={idx} // remount on switch so internal state resets
         action={action}
@@ -65,6 +81,8 @@ export default function ReasonPanelMock() {
         groupsMap={mockTags.groups}
         onSubmit={handleSubmit}
         onChangeAction={handleChangeAction}
+        pendingWarnings={warningsOverride}
+        onDismissWarnings={() => setWarningsOverride(null)}
       />
 
       {lastSubmit && (
