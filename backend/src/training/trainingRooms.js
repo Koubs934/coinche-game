@@ -119,9 +119,53 @@ function createRun({ userId, username, scenario }) {
     runState: 'SCRIPT-PLAYING',
     partialId: null,
     gcTimer: null,
+    // Exhaustion session — threads across alternative bids for the same
+    // scenario. `priorActions` is the list of committed actions from prior
+    // alternatives, used for duplicate-bid refusal. `reviewAnswered` flips
+    // once the user clicks yes/no on the review prompt; writeComplete reads
+    // it to decide between sessionStatus='in-progress' and 'concluded'.
+    session: {
+      sessionId:        crypto.randomUUID(),
+      alternativeIndex: 0,
+      priorActions:     [],
+      reviewAnswered:   false,
+    },
   };
   runs.set(runId, room);
   return room;
+}
+
+/**
+ * Reset an existing run to SCRIPT-PLAYING so the user can record another
+ * alternative bid on the same scenario. Preserves sessionId and runId;
+ * appends the just-completed action to priorActions so the duplicate-bid
+ * check catches a retry of the same bid. Caller is responsible for having
+ * already concluded the prior annotation's sessionStatus.
+ *
+ * @param {TrainingRoom} run
+ * @param {{type:string, value?:number|string, suit?:string, card?:object}} justCompletedAction
+ */
+function resetRunForNextAlternative(run, justCompletedAction) {
+  if (run.runState !== 'COMPLETE') {
+    throw new Error(`[trainingRooms] resetRunForNextAlternative: run must be COMPLETE, got ${run.runState}`);
+  }
+  if (!run.session) throw new Error('[trainingRooms] resetRunForNextAlternative: run has no session');
+
+  run.session.priorActions.push(justCompletedAction);
+  run.session.alternativeIndex += 1;
+  run.session.reviewAnswered    = false;
+
+  // Fresh startedAt — filename is startedAt-derived so alternatives don't
+  // collide on disk.
+  run.startedAt       = new Date().toISOString();
+  run.game            = buildInitialGame(run.scenario);
+  run.timelineCursor  = 0;
+  run.pendingAction   = null;
+  run.preActionSnapshot = null;
+  run.decisions       = [];
+  run.partialId       = null;
+  run.runState        = 'SCRIPT-PLAYING';
+  if (run.gcTimer) { clearTimeout(run.gcTimer); run.gcTimer = null; }
 }
 
 function getRun(runId) {
@@ -162,6 +206,12 @@ function publicView(run) {
       // Stable across resume — used by the frontend as the localStorage key
       // for note/tag drafts so an interrupted annotation can be recovered.
       partialId:     run.partialId ?? null,
+      // Exhaustion session metadata — optional on the wire (absent for
+      // legacy rehydrated runs that pre-date the session model).
+      session: run.session ? {
+        sessionId:        run.session.sessionId,
+        alternativeIndex: run.session.alternativeIndex,
+      } : null,
     },
     room: {
       code:     run.runId,                         // frontend can use this as a stable id
@@ -212,6 +262,7 @@ function publicView(run) {
 
 module.exports = {
   createRun,
+  resetRunForNextAlternative,
   getRun,
   deleteRun,
   listRunsForUser,

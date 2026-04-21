@@ -13,8 +13,25 @@ const trainingProcessor = require('./trainingProcessor');
 const scenarioLoader    = require('./scenarioLoader');
 const tagValidator      = require('./tagValidator');
 const annotationStorage = require('./annotationStorage');
+const exhaustionStorage = require('./exhaustionStorage');
 
 const GC_AFTER_DISCONNECT_MS = 5 * 60 * 1000;
+
+/**
+ * Check whether a new bid would duplicate one already submitted in this
+ * session. Bids collide on (type='bid', value, suit). Pass / coinche /
+ * surcoinche are never considered duplicates — pass can always follow a
+ * bid, and coinche/surcoinche are rare enough in exhaustion sessions that
+ * we defer a precise rule until usage surfaces the pattern.
+ */
+function sessionDuplicateBidOf(session, action) {
+  if (!session || !action || action.type !== 'bid') return null;
+  return session.priorActions.find(a =>
+    a.type  === 'bid' &&
+    a.value === action.value &&
+    a.suit  === action.suit,
+  ) || null;
+}
 
 let startupCleanupDone = false;
 
@@ -41,14 +58,19 @@ function registerTrainingHandlers(socket) {
     socket.emit(eventName, trainingRooms.publicView(run));
   }
 
-  // Surface resumable partials on connect (the caller invokes this right
-  // after attaching handlers; kept here to keep the training-specific logic
-  // out of server.js's connection handler).
+  // Surface resumable partials and exhausted scenarios on connect (the
+  // caller invokes this right after attaching handlers; kept here to keep
+  // the training-specific logic out of server.js's connection handler).
   function surfaceResumableOnConnect() {
     const partials = annotationStorage.listResumablePartials(socket.userId);
     if (partials.length > 0) {
       socket.emit('trainingResumablePending', { partials });
     }
+    // Always emit the exhausted list, even if empty — the picker relies on
+    // the event to know the fetch completed (and to swap from "loading" to
+    // "all scenarios, exhausted ones filtered").
+    const exhausted = exhaustionStorage.readExhausted(socket.userId);
+    socket.emit('exhaustedScenarios', { exhaustedScenarios: exhausted.exhaustedScenarios });
   }
 
   // ── Discovery events ─────────────────────────────────────────────────────
@@ -94,6 +116,18 @@ function registerTrainingHandlers(socket) {
   socket.on('submitTrainingAction', ({ runId, action } = {}) => {
     const run = trainingRooms.getRun(runId);
     if (!run || run.userId !== socket.userId) return emitError(socket, 'Unknown training run', 'UNKNOWN_TRAINING_RUN');
+
+    // Hard-refuse duplicate bids within the same exhaustion session BEFORE
+    // mutating any game state — this keeps the server's game model in sync
+    // even if the client submits the same bid twice across alternatives.
+    const dup = sessionDuplicateBidOf(run.session, action);
+    if (dup) {
+      return emitError(
+        socket,
+        'This bid was already recorded in this session. Choose a different bid.',
+        'DUPLICATE_BID_IN_SESSION',
+      );
+    }
 
     const result = trainingProcessor.validateAndApplyUserAction(run, action);
     if (!result.ok) return emitError(socket, result.message);
@@ -173,6 +207,100 @@ function registerTrainingHandlers(socket) {
         // NOTE: the client doesn't need the file path; kept out of payload.
       },
     });
+
+    // Exhaustion prompt: server still holds the run in COMPLETE awaiting the
+    // user's yes/no. Emitting this right after trainingCompleted lets the
+    // client render the completion screen AND overlay the review prompt —
+    // the overlay handlers call submitScenarioReviewAnswer below.
+    socket.emit('trainingScenarioReviewPrompt', {
+      runId:            run.runId,
+      scenarioId:       run.scenarioId,
+      sessionId:        run.session.sessionId,
+      alternativeIndex: run.session.alternativeIndex,
+    });
+  });
+
+  // ── Exhaustion review answer ───────────────────────────────────────────
+  //
+  // The client sends this after the user clicks Oui / Non on the overlay.
+  // 'yes' → conclude the current alternative, reset the run to SCRIPT-PLAYING
+  //         for the next alternative (re-plays the scripted timeline), and
+  //         signal via trainingScenarioReviewed.
+  // 'no'  → conclude the current alternative, append this scenario to the
+  //         user's _exhausted.json, emit trainingScenarioExhausted, GC the run.
+  socket.on('submitScenarioReviewAnswer', ({ runId, sessionId, answer } = {}) => {
+    const run = trainingRooms.getRun(runId);
+    if (!run || run.userId !== socket.userId) {
+      return emitError(socket, 'Unknown training run', 'UNKNOWN_TRAINING_RUN');
+    }
+    if (!run.session || run.session.sessionId !== sessionId) {
+      return emitError(socket, 'Unknown or mismatched session', 'UNKNOWN_SESSION');
+    }
+    if (run.runState !== 'COMPLETE') {
+      return emitError(socket, `Cannot answer review in state ${run.runState}`);
+    }
+    if (answer !== 'yes' && answer !== 'no') {
+      return emitError(socket, `answer must be 'yes' or 'no', got ${answer}`);
+    }
+
+    // Flip the file's sessionStatus in place. Required for both yes and no
+    // paths so downstream readers can tell a user has finished considering
+    // this alternative.
+    run.session.reviewAnswered = true;
+    try {
+      annotationStorage.concludeAnnotation(run.userId, run.partialId);
+    } catch (err) {
+      console.error(`[training] concludeAnnotation failed: ${err.message}`);
+      return emitError(socket, 'Could not update annotation status — please retry');
+    }
+
+    if (answer === 'yes') {
+      const justCompletedAction = run.decisions[run.decisions.length - 1]?.action;
+      try {
+        trainingRooms.resetRunForNextAlternative(run, justCompletedAction);
+      } catch (err) {
+        console.error(`[training] resetRunForNextAlternative failed: ${err.message}`);
+        return emitError(socket, 'Could not start next alternative — please retry');
+      }
+      // Announce the reset publicly — client transitions UI back to the
+      // run view before scripted playback resumes.
+      socket.emit('trainingScenarioReviewed', trainingRooms.publicView(run));
+      trainingProcessor.advance(run.runId, broadcastForRun);
+      return;
+    }
+
+    // answer === 'no'
+    const alternativesRecorded = run.session.alternativeIndex + 1;
+    let exhaustedRecord;
+    try {
+      exhaustedRecord = exhaustionStorage.addExhausted(run.userId, {
+        scenarioId:          run.scenarioId,
+        sessionId:           run.session.sessionId,
+        alternativesRecorded,
+      });
+    } catch (err) {
+      console.error(`[training] addExhausted failed: ${err.message}`);
+      return emitError(socket, 'Could not save exhaustion status — please retry');
+    }
+
+    socket.emit('trainingScenarioExhausted', {
+      runId:                 run.runId,
+      scenarioId:            run.scenarioId,
+      sessionId:             run.session.sessionId,
+      alternativesRecorded,
+      exhaustedScenarios:    exhaustedRecord.exhaustedScenarios,
+    });
+
+    trainingRooms.deleteRun(runId);
+    ownedRunIds.delete(runId);
+  });
+
+  // On-demand fetch for the picker. Response payload matches
+  // trainingScenarioExhausted's exhaustedScenarios field so the client can
+  // reuse the same update path.
+  socket.on('getExhaustedScenarios', () => {
+    const rec = exhaustionStorage.readExhausted(socket.userId);
+    socket.emit('exhaustedScenarios', { exhaustedScenarios: rec.exhaustedScenarios });
   });
 
   socket.on('undoTrainingAction', ({ runId } = {}) => {

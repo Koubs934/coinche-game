@@ -6,6 +6,17 @@
 //     where isoStamp uses hyphens (filesystem-safe): 2026-04-20T23-15-00
 //
 // Atomicity: writes go through <path>.tmp then fs.renameSync to <path>.
+//
+// v2 (2026-04-21): introduced exhaustion sessions. Each annotation carries
+// three new fields:
+//   - sessionId:          UUID threaded across all alternatives of a session
+//   - alternativeIndex:   0-based position within the session
+//   - sessionStatus:      'in-progress' until the user answers the review
+//                         prompt, then 'concluded'. On a "no" (exhausted)
+//                         answer the final alternative is concluded and the
+//                         scenario is appended to <userId>/_exhausted.json.
+// Legacy records written with schemaVersion:1 predate these fields; readers
+// should tolerate absence.
 
 const fs   = require('fs');
 const path = require('path');
@@ -15,12 +26,14 @@ const reasonTags = require('./reasonTags.json');
 // Annotation-record schema (outer shape) and tag-vocabulary schema evolve
 // independently. Record shape = SCHEMA_VERSION here; tag vocabulary is
 // sourced from reasonTags.json so a vocab bump only edits one file.
-const SCHEMA_VERSION          = 1;
+const SCHEMA_VERSION          = 2;
 const TAGS_SCHEMA_VERSION     = reasonTags.tagsSchemaVersion;
 const PARTIAL_TTL_MS          = 30 * 60 * 1000;
 const STATUS_AWAITING_REASON  = 'awaiting-reason';
 const STATUS_COMPLETE         = 'complete';
 const STATUS_ABANDONED_PARTIAL = 'abandoned-partial';
+const SESSION_IN_PROGRESS     = 'in-progress';
+const SESSION_CONCLUDED       = 'concluded';
 
 function dataDir() {
   // Tests override via TRAINING_DATA_DIR to write under a scratch directory.
@@ -42,8 +55,11 @@ function ensureUserDir(userId) {
 }
 
 function filesystemSafeStamp(isoStamp) {
-  // 2026-04-20T23:15:00.123Z → 2026-04-20T23-15-00
-  return isoStamp.replace(/:/g, '-').replace(/\.\d+Z$/, '');
+  // 2026-04-20T23:15:00.123Z → 2026-04-20T23-15-00-123
+  // Milliseconds are retained so back-to-back alternatives in the same
+  // exhaustion session (which can submit within a single wall-clock
+  // second) never collide on filename.
+  return isoStamp.replace(/:/g, '-').replace(/\.(\d+)Z$/, '-$1');
 }
 
 function partialIdFor(startedAt, scenarioId) {
@@ -79,6 +95,9 @@ function writePartial(run) {
     startedAt:             run.startedAt,
     completedAt:           null,
     status:                STATUS_AWAITING_REASON,
+    sessionId:             run.session?.sessionId ?? null,
+    alternativeIndex:      run.session?.alternativeIndex ?? 0,
+    sessionStatus:         SESSION_IN_PROGRESS,
     decisions: [
       {
         index:        0,
@@ -113,6 +132,9 @@ function writeComplete(run, { tags, note, decidedAt }) {
     startedAt:             run.startedAt,
     completedAt:           new Date().toISOString(),
     status:                STATUS_COMPLETE,
+    sessionId:             run.session?.sessionId ?? null,
+    alternativeIndex:      run.session?.alternativeIndex ?? 0,
+    sessionStatus:         run.session?.reviewAnswered ? SESSION_CONCLUDED : SESSION_IN_PROGRESS,
     decisions: [
       {
         index:        0,
@@ -126,6 +148,22 @@ function writeComplete(run, { tags, note, decidedAt }) {
     ],
   };
   writeAtomic(target, JSON.stringify(record, null, 2));
+  return target;
+}
+
+/**
+ * Flip an already-written complete annotation from sessionStatus:'in-progress'
+ * to 'concluded'. Called when the user answers the review prompt (yes or no).
+ * Read-modify-write on the existing file; session fields are a strict superset
+ * of the rest of the record so we preserve everything else verbatim.
+ */
+function concludeAnnotation(userId, partialId) {
+  const target = filePathFor(userId, partialId);
+  if (!fs.existsSync(target)) throw new Error(`[annotationStorage] concludeAnnotation: not found ${target}`);
+  const raw = fs.readFileSync(target, 'utf8');
+  const rec = JSON.parse(raw);
+  rec.sessionStatus = SESSION_CONCLUDED;
+  writeAtomic(target, JSON.stringify(rec, null, 2));
   return target;
 }
 
@@ -215,6 +253,7 @@ function cleanupStalePartials() {
 module.exports = {
   writePartial,
   writeComplete,
+  concludeAnnotation,
   discardPartial,
   loadPartial,
   listResumablePartials,
@@ -226,5 +265,7 @@ module.exports = {
   STATUS_AWAITING_REASON,
   STATUS_COMPLETE,
   STATUS_ABANDONED_PARTIAL,
+  SESSION_IN_PROGRESS,
+  SESSION_CONCLUDED,
   PARTIAL_TTL_MS,
 };

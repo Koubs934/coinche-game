@@ -182,12 +182,38 @@
 //     → S→C 'trainingReasonWarning' { runId, tags, note, warnings:string[] }
 //     (only when v.ok with warnings && !ackWarnings; nothing is written,
 //     run stays in AWAITING-REASON)
+//     After trainingCompleted, the server ALSO emits
+//     'trainingScenarioReviewPrompt' so the client can prompt "Autre
+//     stratégie possible ?" — see below.
+//
+//   'submitScenarioReviewAnswer'({ runId, sessionId, answer:'yes'|'no' })
+//     Response to the review prompt. 'yes' resets the run to SCRIPT-PLAYING
+//     for the next alternative on the same scenario (duplicate bids are
+//     hard-refused via DUPLICATE_BID_IN_SESSION). 'no' concludes the
+//     session, appends the scenario to <userId>/_exhausted.json, and GCs
+//     the run.
+//     → S→C 'trainingScenarioReviewed'   { ...trainingSync } (yes path)
+//     → S→C 'trainingScenarioExhausted'  { runId, scenarioId, sessionId,
+//                                          alternativesRecorded,
+//                                          exhaustedScenarios } (no path)
+//     Error codes:
+//       UNKNOWN_SESSION — sessionId does not match the run's session
+//
+//   'getExhaustedScenarios'     ()
+//     On-demand fetch of the user's exhausted list (the picker hides these
+//     by default). Also auto-emitted via 'exhaustedScenarios' on connect.
+//     → S→C 'exhaustedScenarios' { exhaustedScenarios:[{scenarioId,sessionId,exhaustedAt,alternativesRecorded}] }
 //
 //   'undoTrainingAction'        ({ runId })
 //     Valid only in AWAITING-REASON. Restores the pre-action game-state
 //     snapshot, deletes the partial from disk, transitions back to
 //     AWAITING-ACTION so the user can re-play the decision.
 //     → S→C 'trainingUpdate'         { ...trainingSync, runState='AWAITING-ACTION' }
+//
+//   'submitTrainingAction'      — also enforces DUPLICATE_BID_IN_SESSION
+//     within an active exhaustion session (alternativeIndex > 0). Error code
+//     is surfaced via the shared 'error' channel; the game-state mutation is
+//     NEVER applied when this fires, so the server's run remains consistent.
 //
 //   'abandonTrainingScenario'   ({ runId })
 //     → S→C 'trainingAbandoned'     { runId }

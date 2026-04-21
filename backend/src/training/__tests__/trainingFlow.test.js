@@ -127,7 +127,7 @@ describe('training flow — happy path', () => {
 
     // Partial file must exist
     const userDir = path.join(SCRATCH_DATA_DIR, USER_ID);
-    const partialFiles = fs.readdirSync(userDir).filter(f => f.endsWith('.json'));
+    const partialFiles = fs.readdirSync(userDir).filter(f => f.endsWith('.json') && !f.startsWith('_'));
     expect(partialFiles).toHaveLength(1);
     const partialPath = path.join(userDir, partialFiles[0]);
     const partial = JSON.parse(fs.readFileSync(partialPath, 'utf8'));
@@ -153,15 +153,19 @@ describe('training flow — happy path', () => {
     expect(completed.annotation.decisions[0].tags).toEqual(['ouverture', 'valet-troisième']);
 
     // Final file on disk matches completed state, at SAME path (startedAt-derived)
-    const finalFiles = fs.readdirSync(userDir).filter(f => f.endsWith('.json'));
+    const finalFiles = fs.readdirSync(userDir).filter(f => f.endsWith('.json') && !f.startsWith('_'));
     expect(finalFiles).toHaveLength(1);
     expect(finalFiles[0]).toBe(partialFiles[0]);  // same filename
 
     const annotation = JSON.parse(fs.readFileSync(partialPath, 'utf8'));
-    expect(annotation.schemaVersion).toBe(1);
+    expect(annotation.schemaVersion).toBe(2);
     expect(annotation.scenarioSchemaVersion).toBe(1);
     expect(annotation.tagsSchemaVersion).toBe(2);
     expect(annotation.status).toBe('complete');
+    expect(annotation.sessionId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(annotation.alternativeIndex).toBe(0);
+    // Session still in-progress — this test doesn't answer the review prompt.
+    expect(annotation.sessionStatus).toBe('in-progress');
     expect(annotation.userId).toBe(USER_ID);
     expect(annotation.username).toBe(USERNAME);
     expect(annotation.scenarioId).toBe(SCENARIO);
@@ -212,7 +216,7 @@ describe('training flow — partial resume', () => {
 
     // Confirm partial on disk
     const userDir = path.join(SCRATCH_DATA_DIR, USER_ID);
-    const partialFiles = fs.readdirSync(userDir).filter(f => f.endsWith('.json'));
+    const partialFiles = fs.readdirSync(userDir).filter(f => f.endsWith('.json') && !f.startsWith('_'));
     expect(partialFiles).toHaveLength(1);
     const partialFilename = partialFiles[0];
     const partialPath = path.join(userDir, partialFilename);
@@ -264,7 +268,7 @@ describe('training flow — partial resume', () => {
 
     // ── Disk checks ──────────────────────────────────────────────────────
     // Still exactly one JSON file
-    const finalFiles = fs.readdirSync(userDir).filter(f => f.endsWith('.json'));
+    const finalFiles = fs.readdirSync(userDir).filter(f => f.endsWith('.json') && !f.startsWith('_'));
     expect(finalFiles).toHaveLength(1);
     // And it's at the SAME path as the partial (startedAt-derived filename)
     expect(finalFiles[0]).toBe(partialFilename);
@@ -325,7 +329,7 @@ describe('training flow — soft warning ack', () => {
     // On-disk file is still awaiting-reason, not complete
     const userDir = path.join(SCRATCH_DATA_DIR, USER_ID);
     const interim = JSON.parse(fs.readFileSync(
-      path.join(userDir, fs.readdirSync(userDir).find(f => f.endsWith('.json'))),
+      path.join(userDir, fs.readdirSync(userDir).find(f => f.endsWith('.json') && !f.startsWith('_'))),
       'utf8',
     ));
     expect(interim.status).toBe('awaiting-reason');
@@ -341,11 +345,166 @@ describe('training flow — soft warning ack', () => {
     expect(events.error).toHaveLength(0);
 
     const finalAnnotation = JSON.parse(fs.readFileSync(
-      path.join(userDir, fs.readdirSync(userDir).find(f => f.endsWith('.json'))),
+      path.join(userDir, fs.readdirSync(userDir).find(f => f.endsWith('.json') && !f.startsWith('_'))),
       'utf8',
     ));
     expect(finalAnnotation.status).toBe('complete');
     expect(finalAnnotation.decisions[0].tags).toEqual(['ouverture']);
+
+    client.disconnect();
+  });
+});
+
+// ─── Test D: full exhaustion session (multi-alternative + duplicate refusal) ──
+
+describe('training flow — exhaustion session', () => {
+  const USER_ID = 'test-user-exhaust';
+  const USERNAME = 'Exhaust Tester';
+  const SCENARIO = 'opening-petit-jeu-first-to-speak'; // instant user-turn
+
+  async function submitAlt(client, events, runId, action, tags, note) {
+    // Clear the completion/prompt trackers for the upcoming alternative.
+    const before = events.trainingCompleted.length;
+    const beforePrompt = events.trainingScenarioReviewPrompt.length;
+    client.emit('submitTrainingAction', { runId, action });
+    await waitFor(() => events.trainingAwaitingReason.length >
+      events.trainingCompleted.length); // awaiting > completed proves this run reached AWAITING-REASON again
+    client.emit('submitTrainingReason', { runId, tags, note });
+    await waitFor(() => events.trainingCompleted.length > before);
+    await waitFor(() => events.trainingScenarioReviewPrompt.length > beforePrompt);
+  }
+
+  it('alt 0 → yes → alt 1 (duplicate refused) → alt 1 (different bid) → no → exhausted', async () => {
+    const client = connectClient(USER_ID, USERNAME);
+    const events = collectEvents(client, [
+      'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
+      'trainingCompleted', 'trainingScenarioReviewPrompt',
+      'trainingScenarioReviewed', 'trainingScenarioExhausted',
+      'exhaustedScenarios',
+      'error',
+    ]);
+
+    await new Promise(resolve => client.on('connect', resolve));
+    client.emit('startTrainingScenario', { scenarioId: SCENARIO });
+    await waitFor(() =>
+      events.trainingUpdate.some(u => u.trainingState.runState === 'AWAITING-ACTION'),
+    );
+
+    const started = events.trainingStarted[0];
+    const runId     = started.trainingState.runId;
+    const sessionId = started.trainingState.session.sessionId;
+    expect(sessionId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(started.trainingState.session.alternativeIndex).toBe(0);
+
+    // ── Alternative 0: submit 90♠ ────────────────────────────────────────
+    await submitAlt(client, events, runId,
+      { type: 'bid', value: 90, suit: 'S' },
+      ['ouverture', 'valet-troisième'],
+      'alt 0',
+    );
+
+    const prompt0 = events.trainingScenarioReviewPrompt[0];
+    expect(prompt0.sessionId).toBe(sessionId);
+    expect(prompt0.alternativeIndex).toBe(0);
+
+    // Yes → next alternative
+    client.emit('submitScenarioReviewAnswer', { runId, sessionId, answer: 'yes' });
+    await waitFor(() => events.trainingScenarioReviewed.length > 0);
+    expect(events.trainingScenarioReviewed[0].trainingState.session.alternativeIndex).toBe(1);
+
+    // Scenario replays (instantly for this one) and returns to AWAITING-ACTION
+    await waitFor(() =>
+      events.trainingUpdate.some(u =>
+        u.trainingState.runState === 'AWAITING-ACTION' &&
+        u.trainingState.session?.alternativeIndex === 1,
+      ),
+    );
+
+    // ── Alt 1 attempt: duplicate 90♠ — must be refused ──────────────────
+    const errorsBeforeDup = events.error.length;
+    client.emit('submitTrainingAction', { runId, action: { type: 'bid', value: 90, suit: 'S' } });
+    await waitFor(() => events.error.length > errorsBeforeDup);
+    const dupErr = events.error[events.error.length - 1];
+    expect(dupErr.code).toBe('DUPLICATE_BID_IN_SESSION');
+
+    // No new partial file was written for the failed attempt — count stays at 1
+    const userDir = path.join(SCRATCH_DATA_DIR, USER_ID);
+    const filesAfterDupAttempt = fs.readdirSync(userDir)
+      .filter(f => f.endsWith('.json') && !f.startsWith('_'));
+    expect(filesAfterDupAttempt).toHaveLength(1);
+
+    // ── Alt 1 retry: different bid (80♠) ────────────────────────────────
+    await submitAlt(client, events, runId,
+      { type: 'bid', value: 80, suit: 'S' },
+      ['ouverture', 'valet-troisième'],
+      'alt 1',
+    );
+
+    const prompt1 = events.trainingScenarioReviewPrompt[1];
+    expect(prompt1.sessionId).toBe(sessionId);
+    expect(prompt1.alternativeIndex).toBe(1);
+
+    // Now say no — concludes session, writes _exhausted.json
+    client.emit('submitScenarioReviewAnswer', { runId, sessionId, answer: 'no' });
+    await waitFor(() => events.trainingScenarioExhausted.length > 0);
+    const exhaustedEvt = events.trainingScenarioExhausted[0];
+    expect(exhaustedEvt.sessionId).toBe(sessionId);
+    expect(exhaustedEvt.scenarioId).toBe(SCENARIO);
+    expect(exhaustedEvt.alternativesRecorded).toBe(2);
+    expect(exhaustedEvt.exhaustedScenarios).toHaveLength(1);
+    expect(exhaustedEvt.exhaustedScenarios[0].scenarioId).toBe(SCENARIO);
+
+    // ── Disk checks ─────────────────────────────────────────────────────
+    // 2 annotation files with matching sessionId + incrementing alternativeIndex
+    const annotFiles = fs.readdirSync(userDir)
+      .filter(f => f.endsWith('.json') && !f.startsWith('_'))
+      .sort();
+    expect(annotFiles).toHaveLength(2);
+
+    const alts = annotFiles.map(f =>
+      JSON.parse(fs.readFileSync(path.join(userDir, f), 'utf8')),
+    ).sort((a, b) => a.alternativeIndex - b.alternativeIndex);
+
+    expect(alts[0].sessionId).toBe(sessionId);
+    expect(alts[0].alternativeIndex).toBe(0);
+    expect(alts[0].sessionStatus).toBe('concluded');
+    expect(alts[0].decisions[0].action).toEqual({ type: 'bid', value: 90, suit: 'S' });
+
+    expect(alts[1].sessionId).toBe(sessionId);
+    expect(alts[1].alternativeIndex).toBe(1);
+    expect(alts[1].sessionStatus).toBe('concluded');
+    expect(alts[1].decisions[0].action).toEqual({ type: 'bid', value: 80, suit: 'S' });
+
+    // _exhausted.json exists with the one entry
+    const exhaustedPath = path.join(userDir, '_exhausted.json');
+    expect(fs.existsSync(exhaustedPath)).toBe(true);
+    const exhaustedRec = JSON.parse(fs.readFileSync(exhaustedPath, 'utf8'));
+    expect(exhaustedRec.exhaustedScenarios).toHaveLength(1);
+    expect(exhaustedRec.exhaustedScenarios[0]).toMatchObject({
+      scenarioId:          SCENARIO,
+      sessionId,
+      alternativesRecorded: 2,
+    });
+
+    client.disconnect();
+  });
+
+  it('getExhaustedScenarios returns what addExhausted wrote', async () => {
+    // Relies on prior test having written _exhausted.json for USER_ID.
+    const client = connectClient(USER_ID, USERNAME);
+    const events = collectEvents(client, ['exhaustedScenarios', 'error']);
+    await new Promise(resolve => client.on('connect', resolve));
+
+    // surfaceResumableOnConnect auto-emits exhaustedScenarios on connect
+    await waitFor(() => events.exhaustedScenarios.length > 0);
+    const surfaced = events.exhaustedScenarios[0];
+    expect(surfaced.exhaustedScenarios.some(e => e.scenarioId === SCENARIO)).toBe(true);
+
+    // On-demand fetch behaves identically
+    client.emit('getExhaustedScenarios');
+    await waitFor(() => events.exhaustedScenarios.length > 1);
+    const fetched = events.exhaustedScenarios[1];
+    expect(fetched.exhaustedScenarios.some(e => e.scenarioId === SCENARIO)).toBe(true);
 
     client.disconnect();
   });
