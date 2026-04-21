@@ -72,6 +72,8 @@ export default function App() {
   const [trainingAnnotation, setTrainingAnnotation] = useState(null); // set by trainingCompleted
   const [trainingResumable,  setTrainingResumable]  = useState([]);
   const [trainingWarnings,   setTrainingWarnings]   = useState(null); // string[]|null — soft warnings awaiting ack
+  const [trainingReviewPrompt, setTrainingReviewPrompt] = useState(null); // {runId,sessionId,alternativeIndex}|null
+  const [trainingExhausted,  setTrainingExhausted]  = useState([]);   // list from exhaustedScenarios event
 
   // Ref mirrors so the socket handler closure sees current state without re-subscribing
   const gameStateRef = useRef(null);
@@ -174,6 +176,35 @@ export default function App() {
       // user either confirms (resubmits with ackWarnings) or edits.
       setTrainingWarnings(warnings);
     });
+    // Exhaustion session events (Phase A/B). Review prompt lands on top of
+    // the completion summary; yes → back to 'run' view with reset state;
+    // no → back to 'picker' with the new exhaustion entry reflected.
+    socket.on('trainingScenarioReviewPrompt', (payload) => {
+      setTrainingReviewPrompt(payload);
+    });
+    socket.on('trainingScenarioReviewed', (payload) => {
+      // Server has reset the run for the next alternative. Drop the old
+      // annotation display; transition back to the run view so the user
+      // can submit a different bid. `payload` is a full trainingSync.
+      setTrainingAnnotation(null);
+      setTrainingReviewPrompt(null);
+      setTrainingRun(payload);
+      setTrainingView('run');
+    });
+    socket.on('trainingScenarioExhausted', ({ exhaustedScenarios }) => {
+      // User said "Non, c'est tout" — session concluded, scenario marked
+      // exhausted in the user's `_exhausted.json`. Return to picker.
+      if (Array.isArray(exhaustedScenarios)) setTrainingExhausted(exhaustedScenarios);
+      setTrainingReviewPrompt(null);
+      setTrainingAnnotation(null);
+      setTrainingRun(null);
+      setTrainingView('picker');
+    });
+    socket.on('exhaustedScenarios', ({ exhaustedScenarios }) => {
+      // Auto-surfaced on connect and fetchable on demand. Used by the
+      // picker in Phase C; stored here so the picker has it ready.
+      setTrainingExhausted(exhaustedScenarios || []);
+    });
     socket.on('trainingAbandoned', () => {
       setTrainingRun(null);
       setTrainingView('picker');
@@ -192,13 +223,17 @@ export default function App() {
         // can pick up where they left off.
         setTrainingRun(null);
         setTrainingAnnotation(null);
+        setTrainingReviewPrompt(null);
         setTrainingView('picker');
         socket.emit('getResumablePartials');
         setSocketInfo(t.training.errors.sessionInterrupted);
         setTimeout(() => setSocketInfo(''), 4500);
         return;
       }
-      setSocketError(message);
+      // Coded errors with a known i18n translation surface the localized
+      // string instead of the server's English default.
+      const localized = (code && t.training?.errors?.byCode?.[code]) || message;
+      setSocketError(localized);
       setTimeout(() => setSocketError(''), 4000);
     });
 
@@ -251,6 +286,15 @@ export default function App() {
     setTrainingAnnotation(null);
     setTrainingRun(null);
     socketRef.current?.emit('startTrainingScenario', { scenarioId: next.id });
+  }
+  function reviewAnswer(answer) {
+    if (!trainingReviewPrompt) return;
+    const { runId, sessionId } = trainingReviewPrompt;
+    socketRef.current?.emit('submitScenarioReviewAnswer', { runId, sessionId, answer });
+    // Optimistic: hide the overlay immediately while we wait for the
+    // server's trainingScenarioReviewed (yes) or trainingScenarioExhausted
+    // (no) event. Both handlers clear any stale state.
+    setTrainingReviewPrompt(null);
   }
 
   const hasNextScenario = (() => {
@@ -324,6 +368,9 @@ export default function App() {
             onBackToPicker={backToPicker}
             onNextScenario={nextScenario}
             hasNextScenario={hasNextScenario}
+            pendingReview={trainingReviewPrompt}
+            onReviewContinue={() => reviewAnswer('yes')}
+            onReviewEnd={()     => reviewAnswer('no')}
           />
         )}
         <EnvBadge />

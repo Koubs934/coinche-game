@@ -1,8 +1,13 @@
 // Brief summary shown after a scenario is completed and the annotation is
-// persisted. Two terminal actions: back to picker, or next scenario.
+// persisted. Two terminal actions: back to picker, or next scenario — but
+// if the server has emitted an exhaustion-session review prompt, an
+// overlay appears on top asking "Autre stratégie possible ?" and the
+// terminal actions are replaced by Oui / Non answers. See
+// ReviewPromptOverlay.jsx for the overlay component.
 
 import { useLang } from '../context/LanguageContext';
 import { formatActionText, actionIsRed } from './formatAction';
+import ReviewPromptOverlay from './ReviewPromptOverlay';
 
 export default function CompletionSummary({
   annotation,
@@ -10,6 +15,9 @@ export default function CompletionSummary({
   onBackToPicker,
   onNextScenario,
   hasNextScenario,
+  pendingReview,      // {runId,sessionId,alternativeIndex}|null — shows overlay when set
+  onReviewContinue,   // user clicked "Oui, autre stratégie"
+  onReviewEnd,        // user clicked "Non, c'est tout"
 }) {
   const { t } = useLang();
   const c = t.training.completion;
@@ -74,6 +82,12 @@ export default function CompletionSummary({
           )}
         </div>
       </div>
+      {pendingReview && (
+        <ReviewPromptOverlay
+          onContinue={onReviewContinue}
+          onEnd={onReviewEnd}
+        />
+      )}
     </div>
   );
 }

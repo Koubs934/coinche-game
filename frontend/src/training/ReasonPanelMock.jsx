@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { useLang } from '../context/LanguageContext';
 import ReasonPanel from './ReasonPanel';
+import ReviewPromptOverlay from './ReviewPromptOverlay';
 import mockTags from './mockTags';
 
 const MOCK_ACTIONS = [
@@ -21,6 +22,7 @@ export default function ReasonPanelMock() {
   const [idx, setIdx] = useState(0);
   const [lastSubmit, setLastSubmit] = useState(null);
   const [warningsOverride, setWarningsOverride] = useState(null);
+  const [reviewPreview, setReviewPreview] = useState(false);
 
   const action = MOCK_ACTIONS[idx].action;
   const actionType = action.type;
@@ -72,6 +74,13 @@ export default function ReasonPanelMock() {
         >
           Preview soft-warning overlay
         </button>
+        <button
+          type="button"
+          className={`mock-switcher-btn${reviewPreview ? ' on' : ''}`}
+          onClick={() => setReviewPreview(v => !v)}
+        >
+          Preview review prompt overlay
+        </button>
       </div>
 
       <ReasonPanel
@@ -90,6 +99,18 @@ export default function ReasonPanelMock() {
           <h3>Last submission</h3>
           <pre>{JSON.stringify(lastSubmit, null, 2)}</pre>
         </div>
+      )}
+      {reviewPreview && (
+        <ReviewPromptOverlay
+          onContinue={() => {
+            console.log('[mock] review: continue (would emit submitScenarioReviewAnswer yes)');
+            setReviewPreview(false);
+          }}
+          onEnd={() => {
+            console.log('[mock] review: end (would emit submitScenarioReviewAnswer no, return to picker)');
+            setReviewPreview(false);
+          }}
+        />
       )}
     </div>
   );

@@ -247,6 +247,12 @@ export default {
 
     errors: {
       sessionInterrupted: 'Session interrompue — consultez les scénarios à reprendre.',
+      // Code-keyed error messages — App.jsx looks these up by the server's
+      // error.code before falling back to the raw server message.
+      byCode: {
+        DUPLICATE_BID_IN_SESSION: "Cette enchère a déjà été enregistrée dans cette session. Choisissez une enchère différente.",
+        UNKNOWN_SESSION:          'Session inconnue ou expirée.',
+      },
     },
 
     panel: {
@@ -266,6 +272,11 @@ export default {
       warningHeading:            'Vérifier votre choix',
       warningContinueBtn:        'Continuer',
       warningBackBtn:            'Revenir et ajouter',
+      // Post-completion exhaustion review overlay
+      reviewPromptTitle:         'Autre stratégie possible ?',
+      reviewPromptBody:          'Si vous pouvez imaginer une autre lecture de cette main menant à une enchère différente, explorez-la.',
+      reviewContinueBtn:         'Oui, autre stratégie',
+      reviewEndBtn:              'Non, c\'est tout',
       changeAction:              'Changer mon action',
       // Action-display prefixes
       youBid:                    'Vous avez annoncé',

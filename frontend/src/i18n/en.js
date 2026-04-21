@@ -247,6 +247,12 @@ export default {
 
     errors: {
       sessionInterrupted: 'Session interrupted — check resumable scenarios.',
+      // Code-keyed error messages — App.jsx looks these up by the server's
+      // error.code before falling back to the raw server message.
+      byCode: {
+        DUPLICATE_BID_IN_SESSION: 'This bid was already recorded in this session. Choose a different bid.',
+        UNKNOWN_SESSION:          'Unknown or expired session.',
+      },
     },
 
     panel: {
@@ -266,6 +272,11 @@ export default {
       warningHeading:            'Check your choice',
       warningContinueBtn:        'Continue',
       warningBackBtn:            'Go back and add',
+      // Post-completion exhaustion review overlay
+      reviewPromptTitle:         'Another strategy possible?',
+      reviewPromptBody:          'If you can imagine a different read of this hand leading to a different bid, explore it.',
+      reviewContinueBtn:         'Yes, another strategy',
+      reviewEndBtn:              "No, that's all",
       changeAction:              'Change my action',
       // Action-display prefixes
       youBid:                    'You bid',
