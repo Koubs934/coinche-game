@@ -150,3 +150,127 @@ play-card scenarios exist yet and the v2 spec doesn't cover them. A
 dedicated play-card v2 pass is expected when the first play-card scenarios
 ship. Until then the validator short-circuits the Group-4 rule for
 `play-card` because the action's tag list has no `bidding-action` tags.
+
+## Exhaustion sessions
+
+On **2026-04-21** the annotation record schema bumped from
+`schemaVersion: 1` to `schemaVersion: 2` (the tag vocabulary
+`tagsSchemaVersion` stays at 2 — this is a record-shape change only,
+not a vocabulary change). A single user decision is now the first
+*alternative* of an **exhaustion session**: the user can keep exploring
+different reads of the same hand until they declare they have no more
+strategies to record.
+
+### New annotation fields (`schemaVersion: 2`)
+
+| Field | Type | Meaning |
+|---|---|---|
+| `sessionId` | UUID string | Shared across all alternatives in one session. Threads files on disk without relying on filename parsing. |
+| `alternativeIndex` | 0-based integer | Order within the session. The first submission is `0`; the next is `1`, etc. |
+| `sessionStatus` | `'in-progress'` \| `'concluded'` | `in-progress` the moment the file is written; flips to `concluded` when the user answers the review prompt (yes OR no — either answer concludes *this alternative*; only `no` ends the session). |
+
+All three fields are required in `schemaVersion: 2` records. Legacy
+`schemaVersion: 1` records (from pre-2026-04-21 sessions) never carry
+them — see *Legacy handling* below.
+
+### Sidecar file — `_exhausted.json`
+
+Per-user metadata at `${TRAINING_DATA_DIR}/<userId>/_exhausted.json`.
+The leading underscore keeps it visually distinct from annotation
+files; annotation-file filters in scripts and tests exclude `_`-prefixed
+names.
+
+```json
+{
+  "schemaVersion": 1,
+  "userId": "<uuid>",
+  "exhaustedScenarios": [
+    {
+      "scenarioId":          "block-120-after-opp-overcall",
+      "sessionId":           "<uuid>",
+      "exhaustedAt":         "2026-04-21T05:12:33.521Z",
+      "alternativesRecorded": 3
+    }
+  ]
+}
+```
+
+Dedupe policy: one entry per `scenarioId` — the most recent exhaustion
+session wins. If the user re-opens an exhausted scenario (via the
+picker's "show completed" toggle) and concludes a fresh session, the
+old entry is replaced. Annotation files from prior sessions are *not*
+deleted; they remain as historical record. `_exhausted.json` is a
+presentation index, not the authoritative dataset.
+
+### Session flow
+
+```
+    Picker       user starts scenario
+       │
+       ▼        server:  createRun → sessionId = uuid, alternativeIndex = 0
+   AWAITING-ACTION
+       │        user submits a bid
+       ▼
+   AWAITING-REASON
+       │        user submits tags + note
+       ▼        server:  writePartial then writeComplete
+                         (sessionStatus: "in-progress")
+                server emits: trainingCompleted, trainingScenarioReviewPrompt
+  COMPLETE-awaiting-review  ◄──── overlay: "Autre stratégie possible ?"
+       │
+       ├── user: "Oui, autre stratégie"
+       │        server:  concludeAnnotation (sessionStatus → "concluded")
+       │                 resetRunForNextAlternative
+       │                 server emits: trainingScenarioReviewed
+       │        duplicate-bid guard active — DUPLICATE_BID_IN_SESSION
+       │        refuses same (value,suit) as any prior alternative
+       │        ▼
+       │     SCRIPT-PLAYING → (script replays) → AWAITING-ACTION (next alt)
+       │
+       └── user: "Non, c'est tout"
+                server:  concludeAnnotation (sessionStatus → "concluded")
+                         addExhausted → _exhausted.json updated
+                server emits: trainingScenarioExhausted
+                run GC'd, client returns to picker
+```
+
+### Socket event additions
+
+- **S→C** `trainingScenarioReviewPrompt` — emitted after `trainingCompleted`
+  whenever the server wants the user to decide whether to continue the
+  session. Payload: `{ runId, scenarioId, sessionId, alternativeIndex }`.
+- **C→S** `submitScenarioReviewAnswer` — response to the prompt. Payload:
+  `{ runId, sessionId, answer: 'yes' | 'no' }`. Hard-fails with
+  `UNKNOWN_SESSION` if `sessionId` doesn't match the run's current session.
+- **S→C** `trainingScenarioReviewed` — emitted on the yes path. Payload
+  is a full `trainingSync` reflecting the reset run (runState back to
+  SCRIPT-PLAYING, `alternativeIndex` bumped).
+- **S→C** `trainingScenarioExhausted` — emitted on the no path. Payload:
+  `{ runId, scenarioId, sessionId, alternativesRecorded, exhaustedScenarios }`.
+- **C→S** `getExhaustedScenarios` + **S→C** `exhaustedScenarios` — picker
+  fetch/auto-surface pair. The auto-emit happens on every socket connect.
+
+### New error codes
+
+- `DUPLICATE_BID_IN_SESSION` — server-side hard refusal on
+  `submitTrainingAction` when the action is a `bid` matching
+  `(type, value, suit)` of any prior alternative in the current session.
+  Check applies to bid-type actions only; pass / coinche / surcoinche
+  never duplicate. Client looks up the localized message via
+  `t.training.errors.byCode[code]` and surfaces via the existing error
+  toast.
+- `UNKNOWN_SESSION` — defensive check on `submitScenarioReviewAnswer`
+  when the `sessionId` doesn't match the run's session. In practice this
+  never fires under normal client flow; it guards against
+  replay/race bugs.
+
+### Legacy handling
+
+Annotations written before 2026-04-21 have `schemaVersion: 1` and **do
+not** carry `sessionId` / `alternativeIndex` / `sessionStatus`.
+Downstream consumers (rule extractor, analysis scripts) treat a missing
+`sessionId` as a *single-alternative legacy session* — equivalent to
+`alternativeIndex: 0`, `sessionStatus: 'concluded'`, with no sibling
+alternatives. The two v2-legacy annotations from the 2026-04-21 smoke
+tests fall into this bucket. No backfill: the annotation is immutable
+once written; new sessions on the same scenario create new files.
