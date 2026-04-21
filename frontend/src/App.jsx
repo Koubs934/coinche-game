@@ -10,6 +10,7 @@ import ReasonPanelMock from './training/ReasonPanelMock';
 import TrainingTable from './training/TrainingTable';
 import CompletionSummary from './training/CompletionSummary';
 import TrainingPicker from './training/TrainingPicker';
+import TrainingPickerMock from './training/TrainingPickerMock';
 import EnvBadge from './components/EnvBadge';
 import { cleanupOldDrafts } from './training/noteDraft';
 
@@ -47,6 +48,14 @@ export default function App() {
           <button className="btn-lang" onClick={toggleLang}>{lang.toUpperCase()}</button>
         </div>
         <ReasonPanelMock />
+        <EnvBadge />
+      </>
+    );
+  }
+  if (MOCK_MODE === 'training-picker') {
+    return (
+      <>
+        <TrainingPickerMock />
         <EnvBadge />
       </>
     );
@@ -340,6 +349,7 @@ export default function App() {
           <TrainingPicker
             scenarios={trainingScenarios}
             resumablePartials={trainingResumable}
+            exhaustedScenarios={trainingExhausted}
             onStart={startTraining}
             onResume={resumeTraining}
             onDiscardPartial={discardPartial}

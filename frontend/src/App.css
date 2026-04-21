@@ -2432,6 +2432,87 @@ a      { color: var(--accent); }
 }
 .training-scenario-actions { flex-shrink: 0; }
 
+/* Section header row — heading + active-count caption on one line. */
+.training-scenarios-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.training-scenarios-count {
+  font-size: 0.82em;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+/* Completed-scenarios toggle — muted secondary. Hidden entirely when
+   there are zero exhausted scenarios (rendered conditionally upstream). */
+.training-completed-toggle-row {
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+}
+.training-completed-toggle {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius);
+  padding: 7px 14px;
+  font-size: 0.85em;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+.training-completed-toggle:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+/* Completed section — visually distinct, below the active list. */
+.training-completed-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+.training-completed-heading {
+  font-size: 0.75em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+/* Exhausted scenario card — faded, "Terminé" badge in title, alt-count
+   subtitle. Still clickable: starting one begins a fresh session. */
+.training-scenario-exhausted { opacity: 0.62; }
+.training-scenario-exhausted:hover { opacity: 0.85; }
+.training-scenario-exhausted .training-scenario-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.training-scenario-badge {
+  display: inline-block;
+  font-size: 0.72em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 2px 7px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  line-height: 1.1;
+}
+.training-scenario-alts {
+  margin-top: 6px;
+  font-size: 0.82em;
+  color: var(--muted);
+  font-style: italic;
+}
+
 /* Narrow viewports — stack so Start/Reprendre reach the full width for
    one-thumb tapping, and nothing truncates next to the action column. */
 @media (max-width: 480px) {

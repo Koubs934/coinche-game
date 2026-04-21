@@ -2,14 +2,22 @@
 // DevTrainingPicker harness. Renders a resumable callout (amber-tinted, so
 // it reads as "in-progress — finish it", not as one of the scenario cards)
 // above the main scenario list.
+//
+// Exhaustion rendering: scenarios the user has marked "no more alternatives"
+// are hidden from the main list by default. A toggle below the main list
+// reveals them in a separate faded section with a "Terminé" badge and the
+// count of alternatives the user previously recorded. Clicking an exhausted
+// scenario is allowed — the server creates a new exhaustion session and,
+// on conclusion, its `_exhausted.json` entry is replaced (newest wins).
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useLang } from '../context/LanguageContext';
 import { formatActionText, actionIsRed } from './formatAction';
 
 export default function TrainingPicker({
   scenarios,
   resumablePartials,
+  exhaustedScenarios,   // [{scenarioId, sessionId, exhaustedAt, alternativesRecorded}, ...]
   onStart,
   onResume,
   onDiscardPartial,
@@ -28,6 +36,55 @@ export default function TrainingPicker({
   function scenarioTitle(scenarioId) {
     const s = scenariosById[scenarioId];
     return s?.title?.[lang] || s?.title?.en || scenarioId;
+  }
+
+  // Partition scenarios into active vs exhausted while preserving server order.
+  const exhaustedMap = useMemo(() => {
+    const m = {};
+    for (const e of exhaustedScenarios || []) m[e.scenarioId] = e;
+    return m;
+  }, [exhaustedScenarios]);
+
+  const activeScenarios    = useMemo(
+    () => (scenarios || []).filter(s => !exhaustedMap[s.id]),
+    [scenarios, exhaustedMap],
+  );
+  const completedScenarios = useMemo(
+    () => (scenarios || []).filter(s => exhaustedMap[s.id]),
+    [scenarios, exhaustedMap],
+  );
+  const completedCount = completedScenarios.length;
+
+  const [showCompleted, setShowCompleted] = useState(false);
+
+  function renderScenarioCard(s, { completed } = {}) {
+    const meta = completed ? exhaustedMap[s.id] : null;
+    const cardClass = 'training-scenario-card' + (completed ? ' training-scenario-exhausted' : '');
+    return (
+      <div key={s.id} className={cardClass}>
+        <div className="training-scenario-main">
+          <div className="training-scenario-title">
+            {s.title?.[lang] || s.title?.en || s.id}
+            {completed && (
+              <span className="training-scenario-badge">{tp.completedBadge}</span>
+            )}
+          </div>
+          <div className="training-scenario-description">
+            {s.description?.[lang] || s.description?.en || ''}
+          </div>
+          {completed && meta && (
+            <div className="training-scenario-alts">
+              {tp.alternativesRecorded(meta.alternativesRecorded)}
+            </div>
+          )}
+        </div>
+        <div className="training-scenario-actions">
+          <button className="btn-primary" onClick={() => onStart(s.id)}>
+            {tp.startBtn}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -81,29 +138,45 @@ export default function TrainingPicker({
         )}
 
         <section className="training-scenarios">
-          <h2 className="training-section-heading">{tp.title}</h2>
+          <div className="training-scenarios-head">
+            <h2 className="training-section-heading">{tp.title}</h2>
+            {scenarios?.length > 0 && (
+              <span className="training-scenarios-count">
+                {tp.scenariosToAnnotate(activeScenarios.length)}
+              </span>
+            )}
+          </div>
+
           {(!scenarios || scenarios.length === 0) ? (
             <p className="muted">{tp.empty}</p>
           ) : (
             <div className="training-scenario-list">
-              {scenarios.map(s => (
-                <div key={s.id} className="training-scenario-card">
-                  <div className="training-scenario-main">
-                    <div className="training-scenario-title">
-                      {s.title?.[lang] || s.title?.en || s.id}
-                    </div>
-                    <div className="training-scenario-description">
-                      {s.description?.[lang] || s.description?.en || ''}
-                    </div>
-                  </div>
-                  <div className="training-scenario-actions">
-                    <button className="btn-primary" onClick={() => onStart(s.id)}>
-                      {tp.startBtn}
-                    </button>
-                  </div>
-                </div>
-              ))}
+              {activeScenarios.map(s => renderScenarioCard(s))}
             </div>
+          )}
+
+          {completedCount > 0 && (
+            <>
+              <div className="training-completed-toggle-row">
+                <button
+                  type="button"
+                  className="training-completed-toggle"
+                  onClick={() => setShowCompleted(v => !v)}
+                  aria-expanded={showCompleted}
+                >
+                  {showCompleted ? tp.hideCompleted : tp.showCompleted(completedCount)}
+                </button>
+              </div>
+
+              {showCompleted && (
+                <section className="training-completed-section">
+                  <h3 className="training-completed-heading">{tp.completedSection}</h3>
+                  <div className="training-scenario-list">
+                    {completedScenarios.map(s => renderScenarioCard(s, { completed: true }))}
+                  </div>
+                </section>
+              )}
+            </>
           )}
         </section>
       </div>

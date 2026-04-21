@@ -233,6 +233,13 @@ export default {
       discardBtn:        'Jeter',
       startBtn:          'Démarrer',
       back:              'Retour',
+      // Exhaustion rendering
+      scenariosToAnnotate:  (n) => n === 1 ? '1 scénario à annoter' : `${n} scénarios à annoter`,
+      showCompleted:        (n) => `Afficher les scénarios terminés (${n})`,
+      hideCompleted:        'Masquer les scénarios terminés',
+      completedSection:     'Scénarios terminés',
+      completedBadge:       'Terminé',
+      alternativesRecorded: (n) => n === 1 ? '1 stratégie enregistrée' : `${n} stratégies enregistrées`,
     },
     completion: {
       title:        'Scénario terminé',
