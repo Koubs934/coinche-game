@@ -208,6 +208,38 @@ export default {
   invalidRoomCode: 'Le code doit comporter 6 lettres ou chiffres',
   usernameTooShort: 'Le nom doit comporter au moins 2 caractères',
 
+  // Revue de partie — étiquetage libre des erreurs de jeu en cours de partie
+  button: {
+    tagPlayError: 'Erreur de jeu',
+  },
+  overlay: {
+    tagPlayError: {
+      heading:         'Marquer une erreur de jeu',
+      trickLabel:      (n) => `Pli ${n}`,
+      currentTrick:    'Pli en cours',
+      // "Pli {{trick}}, joueur '{{username}}' (siège {{seat}}) a joué le {{card}}"
+      cardSelected:    ({ trick, username, seat, card }) =>
+                        `Pli ${trick}, joueur « ${username} » (siège ${seat}) a joué le ${card}`,
+      notePlaceholder: 'Pourquoi cette carte est une erreur ?',
+      saveBtn:         'Enregistrer',
+      cancelBtn:       'Annuler',
+    },
+  },
+  toast: {
+    gameRecordSaved: 'Partie sauvegardée pour analyse',
+  },
+  errors: {
+    // Server error codes emitted by the Game Review backend. App.jsx prefers
+    // these over the generic server message when a code is present.
+    byCode: {
+      FORBIDDEN_NOT_ROOM_CREATOR: 'Seul le créateur de la partie peut marquer des erreurs.',
+      INVALID_CARD_REF:           "Cette carte n'a pas été jouée ainsi dans ce pli.",
+      NOTE_EMPTY:                 'La note ne peut pas être vide.',
+      NOTE_TOO_LONG:              'La note dépasse la longueur maximum.',
+      UNKNOWN_GAME:               'Cette partie est introuvable ou déjà terminée.',
+    },
+  },
+
   // Mode entraînement — labels pour la capture de raisonnement.
   // Le français est la langue canonique; l'anglais est une traduction.
   // Les clés sont immuables (définies dans backend/src/training/reasonTags.json)

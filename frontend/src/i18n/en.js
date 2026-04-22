@@ -208,6 +208,38 @@ export default {
   invalidRoomCode: 'Room code must be 6 letters or digits',
   usernameTooShort: 'Username must be at least 2 characters',
 
+  // Game Review — free-text error tagging during live play
+  button: {
+    tagPlayError: 'Game error',
+  },
+  overlay: {
+    tagPlayError: {
+      heading:         'Tag a play error',
+      trickLabel:      (n) => `Trick ${n}`,
+      currentTrick:    'Current trick',
+      // "Trick {{trick}}, player '{{username}}' (seat {{seat}}) played {{card}}"
+      cardSelected:    ({ trick, username, seat, card }) =>
+                        `Trick ${trick}, player "${username}" (seat ${seat}) played ${card}`,
+      notePlaceholder: 'Why is this card a mistake?',
+      saveBtn:         'Save',
+      cancelBtn:       'Cancel',
+    },
+  },
+  toast: {
+    gameRecordSaved: 'Game saved for analysis',
+  },
+  errors: {
+    // Server error codes emitted by the Game Review backend. App.jsx prefers
+    // these over the generic server message when a code is present.
+    byCode: {
+      FORBIDDEN_NOT_ROOM_CREATOR: 'Only the room creator can tag errors.',
+      INVALID_CARD_REF:           "That card wasn't played that way in that trick.",
+      NOTE_EMPTY:                 "Note can't be empty.",
+      NOTE_TOO_LONG:              'Note exceeds the maximum length.',
+      UNKNOWN_GAME:               'This game could not be found or has already ended.',
+    },
+  },
+
   // Training mode — labels for the reasoning-capture UI.
   // French (fr.js) is the canonical source; these are translations.
   // Keys are immutable (defined in backend/src/training/reasonTags.json)

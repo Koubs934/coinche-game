@@ -2526,3 +2526,199 @@ a      { color: var(--accent); }
   .training-resumable-actions .btn-secondary,
   .training-scenario-actions .btn-primary { flex: 1; width: 100%; }
 }
+
+/* ─── Game Review — "Erreur de jeu" button + tag overlay ─────────────────
+   Mirrors the amber/outlined visual language of .trp-warning-* and
+   .trp-review-*, but has its own suite because the internals (trick pill
+   row, card grid, note textarea, selection feedback) are richer. */
+
+.btn-tag-play-error {
+  /* Muted secondary in the GameBoard toolbar — intentionally low-contrast
+     so it never distracts from ongoing card play. */
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 7px 12px;
+  border-radius: var(--radius);
+  font-size: 0.88em;
+  font-weight: 600;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+.btn-tag-play-error:hover {
+  background: rgba(240, 165, 0, 0.08);
+  color: var(--accent);
+  border-color: rgba(240, 165, 0, 0.4);
+}
+
+.game-error-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+.game-error-overlay-card {
+  background: var(--ui-card);
+  border: 1px solid rgba(240, 165, 0, 0.4);
+  border-radius: var(--radius);
+  padding: 22px 22px 20px;
+  max-width: 560px;
+  width: 100%;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.42);
+}
+.game-error-overlay-heading {
+  font-size: 1.05em;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0 0 14px;
+}
+
+.game-error-overlay-trick-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.gerr-trick-pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.85em;
+  font-weight: 600;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+.gerr-trick-pill:hover { background: rgba(255, 255, 255, 0.1); }
+.gerr-trick-pill.on {
+  background: rgba(240, 165, 0, 0.18);
+  border-color: rgba(240, 165, 0, 0.55);
+  color: var(--accent);
+}
+.gerr-trick-pill-inprogress { font-style: italic; }
+
+.game-error-overlay-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  justify-content: flex-start;
+}
+.gerr-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 82px;
+  padding: 10px 8px;
+  background: #fff;
+  color: #111;
+  border: 2px solid rgba(0, 0, 0, 0.12);
+  border-radius: var(--radius);
+  transition: border-color 120ms, transform 80ms, box-shadow 120ms;
+}
+.gerr-card:hover {
+  border-color: rgba(240, 165, 0, 0.55);
+}
+.gerr-card:active { transform: scale(0.98); }
+.gerr-card-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(240, 165, 0, 0.25);
+}
+.gerr-card-red .gerr-card-face { color: #c0392b; }
+.gerr-card-face {
+  font-size: 1.4em;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.gerr-card-seat {
+  font-size: 0.75em;
+  color: #555;
+  font-weight: 600;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gerr-card-empty {
+  color: var(--muted);
+  font-style: italic;
+  padding: 12px 0;
+}
+
+.game-error-overlay-selected-label {
+  margin: 6px 0 12px;
+  padding: 8px 10px;
+  background: rgba(240, 165, 0, 0.08);
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+  font-size: 0.88em;
+  line-height: 1.4;
+  border-radius: 4px;
+}
+
+.game-error-overlay-note {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius);
+  font-size: 0.95em;
+  font-family: inherit;
+  line-height: 1.45;
+  resize: vertical;
+  margin-bottom: 14px;
+}
+.game-error-overlay-note:focus {
+  outline: none;
+  border-color: rgba(240, 165, 0, 0.6);
+}
+
+.game-error-overlay-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.gerr-save,
+.gerr-cancel {
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  font-weight: 700;
+  font-size: 0.95em;
+  transition: background 120ms, transform 80ms, opacity 120ms;
+}
+.gerr-save {
+  background: var(--accent);
+  color: #1a1a1a;
+}
+.gerr-save:hover:not(:disabled)  { background: #ffb821; }
+.gerr-save:active:not(:disabled) { transform: scale(0.98); }
+.gerr-save:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.gerr-cancel {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+.gerr-cancel:hover  { background: rgba(255, 255, 255, 0.06); }
+.gerr-cancel:active { transform: scale(0.98); }
+
+@media (max-width: 480px) {
+  .game-error-overlay-card {
+    padding: 16px 14px 14px;
+  }
+  .gerr-card { min-width: 72px; padding: 8px 6px; }
+  .gerr-card-face { font-size: 1.2em; }
+}
+

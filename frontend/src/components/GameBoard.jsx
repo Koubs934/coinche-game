@@ -15,6 +15,7 @@ import {
   ContractBadge, CoincheBadge, PlayerSeat, CutPicker,
   BelotePrompt, PauseBanner,
 } from './gameBoardParts';
+import GameErrorTagOverlay from '../game/GameErrorTagOverlay';
 
 // ─── Main GameBoard ────────────────────────────────────────────────────────
 
@@ -56,6 +57,10 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   const [beloteAnnounce, setBeloteAnnounce] = useState(null);
   // shuffleCutMsg: { text, positive } shown on table after a shuffle/cut action; null when hidden
   const [shuffleCutMsg, setShuffleCutMsg] = useState(null);
+  // tagErrorOpen: whether the room-creator Game Review overlay is visible.
+  // V1 pause semantics are frontend-only — backend keeps accepting plays from
+  // everyone else while this is up.
+  const [tagErrorOpen, setTagErrorOpen] = useState(false);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const prevTricksLenRef = useRef(0);
@@ -722,6 +727,16 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
               ⚙ {t.managePlayers}
             </button>
           )}
+          {/* Game Review: only rendered for the room creator in live games. */}
+          {!trainingMode && isCreator && phase === 'PLAYING' && (
+            <button
+              className="btn-tag-play-error"
+              onClick={() => setTagErrorOpen(true)}
+              title={t.button.tagPlayError}
+            >
+              ⚠ {t.button.tagPlayError}
+            </button>
+          )}
           <button className="btn-leave" onClick={leaveTable}>
             {trainingMode ? t.training.abandonLabel : t.leaveTable}
           </button>
@@ -766,6 +781,23 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
           t={t}
           onYes={() => { playCard(beloteDecisionCard, true);  setBeloteDecisionCard(null); }}
           onNo ={() => { playCard(beloteDecisionCard, false); setBeloteDecisionCard(null); }}
+        />
+      )}
+
+      {/* ── Game Review: creator-only error-tagging overlay ────────────────── */}
+      {tagErrorOpen && isCreator && game?.gameId && (
+        <GameErrorTagOverlay
+          game={game}
+          players={players}
+          onSubmit={({ cardRef, note }) => {
+            socket.emit('createGameErrorAnnotation', {
+              gameId: game.gameId,
+              cardRef,
+              note,
+            });
+            setTagErrorOpen(false);
+          }}
+          onCancel={() => setTagErrorOpen(false)}
         />
       )}
     </div>

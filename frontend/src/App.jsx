@@ -7,6 +7,7 @@ import Header from './components/Header';
 import Lobby from './components/Lobby';
 import GameBoard from './components/GameBoard';
 import ReasonPanelMock from './training/ReasonPanelMock';
+import GameErrorTaggerMock from './game/GameErrorTaggerMock';
 import TrainingTable from './training/TrainingTable';
 import CompletionSummary from './training/CompletionSummary';
 import TrainingPicker from './training/TrainingPicker';
@@ -29,7 +30,9 @@ const EMPTY_GAME = {
 };
 
 // URL flags (read once at module load; don't change during a session):
-//   ?mock=training-panel  → reason-panel UX preview, no auth, no sockets
+//   ?mock=training-panel     → reason-panel UX preview, no auth, no sockets
+//   ?mock=training-picker    → picker UX preview, no auth, no sockets
+//   ?mock=game-error-tagger  → Game Review tag overlay preview, no auth, no sockets
 const URL_PARAMS = typeof window !== 'undefined'
   ? new URLSearchParams(window.location.search)
   : new URLSearchParams();
@@ -56,6 +59,17 @@ export default function App() {
     return (
       <>
         <TrainingPickerMock />
+        <EnvBadge />
+      </>
+    );
+  }
+  if (MOCK_MODE === 'game-error-tagger') {
+    return (
+      <>
+        <div className="lang-toggle-fixed">
+          <button className="btn-lang" onClick={toggleLang}>{lang.toUpperCase()}</button>
+        </div>
+        <GameErrorTaggerMock />
         <EnvBadge />
       </>
     );
@@ -162,6 +176,20 @@ export default function App() {
       sessionStorage.removeItem('coinche_room');
     });
 
+    // ── Game Review (creator-only) ────────────────────────────────────
+    // Acknowledgement of a successful createGameErrorAnnotation. The overlay
+    // is already closed on submit; no-op here beyond a debug log (the server
+    // also emits a roomUpdate so publicGame.errorAnnotations stays fresh).
+    socket.on('gameErrorAnnotationCreated', () => {
+      // Intentionally silent — the server's roomUpdate broadcast is the
+      // authoritative sync. Future phase C will surface existing-tag badges.
+    });
+    // End-of-round GameRecord persisted to disk. Creator-only.
+    socket.on('gameRecordSaved', () => {
+      setSocketInfo(t.toast.gameRecordSaved);
+      setTimeout(() => setSocketInfo(''), 4000);
+    });
+
     // ── Training events ────────────────────────────────────────────────
     socket.on('trainingTags',          ({ tags })      => setTrainingTags(tags));
     socket.on('trainingScenariosList', ({ scenarios }) => setTrainingScenarios(scenarios));
@@ -240,8 +268,13 @@ export default function App() {
         return;
       }
       // Coded errors with a known i18n translation surface the localized
-      // string instead of the server's English default.
-      const localized = (code && t.training?.errors?.byCode?.[code]) || message;
+      // string instead of the server's English default. Training-mode codes
+      // live under t.training.errors.byCode; Game Review codes live under
+      // the top-level t.errors.byCode.
+      const localized = (code && (
+        t.errors?.byCode?.[code] ||
+        t.training?.errors?.byCode?.[code]
+      )) || message;
       setSocketError(localized);
       setTimeout(() => setSocketError(''), 4000);
     });
