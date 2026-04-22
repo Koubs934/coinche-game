@@ -53,6 +53,8 @@
  * @typedef {Object} PublicGame
  * Only the viewer's own hand is populated; other hands are nulls with
  * the right length (count via handCounts).
+ * @property {string|null} gameId  // per-round UUID used by Game Review events
+ * @property {Array<{annotationId:string,cardRef:{trickIndex:number,seat:number,card:string},note:string,createdAt:string,createdByUserId:string}>} errorAnnotations
  * @property {number}     dealer
  * @property {'BIDDING'|'PLAYING'|'ROUND_OVER'} phase
  * @property {{value:BidValue,suit:Suit,playerIndex:number,team:0|1,coinched:boolean,surcoinched:boolean}|null} currentBid
@@ -113,6 +115,28 @@
 // Admin:
 //   'undoLastAction'({ code })  // creator only
 //
+// Game Review (creator-only tagging during a live round):
+//   'createGameErrorAnnotation' ({ gameId, cardRef:{trickIndex,seat,card}, note })
+//     gameId routes to the active room holding the matching in-progress game.
+//     cardRef identifies the card being flagged (trickIndex + seat are the
+//     unique key; card string is cross-checked against what was actually played).
+//     Server-side permission and validation errors:
+//       FORBIDDEN_NOT_ROOM_CREATOR — socket.userId !== room.creatorId
+//       UNKNOWN_GAME               — gameId does not match any active room
+//       INVALID_CARD_REF           — trickIndex out of range, seat did not play
+//                                    that trick, or card mismatch
+//       NOTE_EMPTY                 — note is empty/whitespace-only
+//       NOTE_TOO_LONG              — note exceeds 2000 chars
+//     On success:
+//       → S→C 'gameErrorAnnotationCreated' { gameId, annotation } (creator only)
+//       → S→C 'roomUpdate' broadcast so publicGame.errorAnnotations stays synced
+//
+//   'getCurrentGameState' ({ gameId })
+//     Requests a fresh snapshot of the game state keyed by gameId. Used by the
+//     tag overlay to re-hydrate the trick/card grid without relying on a
+//     reconnection. Responds on 'roomUpdate' (filtered to the requester).
+//     Errors: UNKNOWN_GAME.
+//
 // All C→S events are rate-limited by server.js middleware (30/sec per socket).
 
 // ─── S→C events ────────────────────────────────────────────────────────────
@@ -120,6 +144,12 @@
 //   'roomUpdate' : RoomSync
 //   'joinPending': { code }
 //   'leftRoom'   : ()
+//   'gameRecordSaved'          : { gameId, filePath }
+//     Emitted to the room creator only, once per completed round, after the
+//     GameRecord has been atomically written to disk. filePath is absolute
+//     and useful for diagnostic logging only — do NOT show it in the UI.
+//   'gameErrorAnnotationCreated': { gameId, annotation:{annotationId,cardRef,note,createdAt,createdByUserId} }
+//     Emitted to the creator's socket after a successful createGameErrorAnnotation.
 //   'error'      : { message, code? }
 //                     code is an optional machine-readable sentinel — UI uses
 //                     it to drive recovery flows without string-matching.

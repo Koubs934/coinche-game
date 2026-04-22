@@ -141,6 +141,8 @@ function publicGame(room, viewerPosition) {
   const g = room.game;
   if (!g) return null;
   return {
+    gameId: g.gameId || null,
+    errorAnnotations: g.errorAnnotations || [],
     dealer: g.dealer,
     phase: g.phase,
     currentBid: g.currentBid,
@@ -296,6 +298,16 @@ function _startRound(room, dealer) {
   const hands = dealFrom(room.deck, firstPlayer);
   room.phase = 'PLAYING';
   room.game = {
+    // gameId + createdAt + initialHands are the per-round review identity. They're
+    // captured here (before any mutation) so the final GameRecord can reconstruct
+    // the deal exactly. initialHands is a defensive deep-copy — hands[] is mutated
+    // as cards are played.
+    gameId:               crypto.randomUUID(),
+    createdAt:            new Date().toISOString(),
+    initialHands:         hands.map(h => h.map(c => ({ ...c }))),
+    errorAnnotations:     [],
+    beloteDeclaredTrickIndex: null,
+    beloteRebeloteAt:     null,
     dealer,
     hands,
     phase: 'BIDDING',
@@ -518,14 +530,20 @@ function playCard(code, userId, card, declareBelote) {
 
   if (beloteAction === 'declare') {
     beloteInfo.declared = declareBelote ? 'yes' : 'no';
-    if (declareBelote) beloteInfo.playerIndex = position;
+    if (declareBelote) {
+      beloteInfo.playerIndex = position;
+      // trick being played right now = first in-progress trick; record its index
+      // so the GameRecord can point to exactly when Belote was declared.
+      room.game.beloteDeclaredTrickIndex = room.game.tricks.length;
+    }
   } else if (beloteAction === 'complete') {
     beloteInfo.rebeloteDone = true;
     beloteInfo.complete = true;
+    room.game.beloteRebeloteAt = new Date().toISOString();
   }
 
   hand.splice(cardIdx, 1);
-  room.game.currentTrick.push({ card, playerIndex: position });
+  room.game.currentTrick.push({ card, playerIndex: position, playedAt: new Date().toISOString() });
 
   if (room.game.currentTrick.length === 4) {
     _completeTrick(room);
@@ -580,6 +598,174 @@ function _finishRound(room) {
   if (room.scores[0] >= room.targetScore || room.scores[1] >= room.targetScore) {
     room.phase = 'GAME_OVER';
   }
+}
+
+// ─── Game Review: error annotations + GameRecord assembly ────────────────
+//
+// V1 scope: only the room creator can tag errors on cards during a round.
+// Annotations accumulate in-memory on room.game.errorAnnotations and get
+// serialized into the GameRecord at end-of-round. Mid-round crashes lose them
+// (acceptable — persistence is at round-end only).
+
+const NOTE_MAX_LEN = 2000;
+
+function _cardToStr(c) {
+  return `${c.value}${c.suit}`;
+}
+
+// Linear scan over rooms looking for an active game with a matching gameId.
+// Used for socket events that key on gameId (createGameErrorAnnotation,
+// getCurrentGameState). Room count stays small in practice so O(n) is fine.
+function getRoomByGameId(gameId) {
+  if (!gameId) return null;
+  for (const room of rooms.values()) {
+    if (room.game && room.game.gameId === gameId) return room;
+  }
+  return null;
+}
+
+function createGameErrorAnnotation(gameId, userId, cardRef, note) {
+  const room = getRoomByGameId(gameId);
+  if (!room || !room.game) return { error: 'UNKNOWN_GAME', code: 'UNKNOWN_GAME' };
+  if (room.creatorId !== userId) {
+    return { error: 'Only the room creator can tag errors', code: 'FORBIDDEN_NOT_ROOM_CREATOR' };
+  }
+
+  if (typeof note !== 'string' || note.trim().length === 0) {
+    return { error: 'Note cannot be empty', code: 'NOTE_EMPTY' };
+  }
+  if (note.length > NOTE_MAX_LEN) {
+    return { error: `Note exceeds ${NOTE_MAX_LEN} chars`, code: 'NOTE_TOO_LONG' };
+  }
+
+  if (!cardRef || typeof cardRef !== 'object') {
+    return { error: 'Missing cardRef', code: 'INVALID_CARD_REF' };
+  }
+  const { trickIndex, seat, card } = cardRef;
+  if (typeof trickIndex !== 'number' || !Number.isInteger(trickIndex) || trickIndex < 0) {
+    return { error: 'Invalid trickIndex', code: 'INVALID_CARD_REF' };
+  }
+  if (typeof seat !== 'number' || seat < 0 || seat > 3) {
+    return { error: 'Invalid seat', code: 'INVALID_CARD_REF' };
+  }
+  if (typeof card !== 'string' || !card) {
+    return { error: 'Invalid card', code: 'INVALID_CARD_REF' };
+  }
+
+  const g = room.game;
+  const completedTricks = g.tricks.length;
+  const hasInProgress = (g.currentTrick || []).length > 0;
+  const maxIdx = hasInProgress ? completedTricks : completedTricks - 1;
+  if (trickIndex > maxIdx) {
+    return { error: 'Trick index exceeds current trick', code: 'INVALID_CARD_REF' };
+  }
+
+  const trickCards = trickIndex < completedTricks ? g.tricks[trickIndex].cards : g.currentTrick;
+  const played = trickCards.find(c => c.playerIndex === seat);
+  if (!played) {
+    return { error: 'Seat did not play in that trick', code: 'INVALID_CARD_REF' };
+  }
+  if (_cardToStr(played.card) !== card) {
+    return { error: 'Card does not match the one played', code: 'INVALID_CARD_REF' };
+  }
+
+  const annotation = {
+    annotationId:    crypto.randomUUID(),
+    cardRef:         { trickIndex, seat, card },
+    note:            note.trim(),
+    createdAt:       new Date().toISOString(),
+    createdByUserId: userId,
+  };
+  if (!g.errorAnnotations) g.errorAnnotations = [];
+  g.errorAnnotations.push(annotation);
+  return { room, annotation };
+}
+
+/**
+ * Assemble the GameRecord for the round that just ended. Called by the server
+ * after _finishRound. Reads exclusively from the authoritative in-memory state
+ * — no side effects.
+ */
+function buildGameRecord(room) {
+  const g = room.game;
+  if (!g) return null;
+  const sortedPlayers = [...room.players].sort((a, b) => a.position - b.position);
+  const creator = room.players.find(p => p.userId === room.creatorId);
+  const completedAt = new Date().toISOString();
+
+  const hands = {};
+  for (let i = 0; i < 4; i++) {
+    hands[String(i)] = (g.initialHands[i] || []).map(_cardToStr);
+  }
+
+  const biddingRounds = (g.biddingHistory || []).map(h => {
+    if (h.type === 'bid') {
+      return { seat: h.position, action: { type: 'bid', value: h.value, suit: h.suit } };
+    }
+    return { seat: h.position, action: { type: h.type } };
+  });
+  const biddingWinner = g.currentBid ? {
+    seat:  g.currentBid.playerIndex,
+    value: g.currentBid.value,
+    suit:  g.currentBid.suit,
+    team:  g.currentBid.team,
+  } : null;
+  const coincheInfo = g.currentBid?.coinched
+    ? { surcoinched: !!g.currentBid.surcoinched }
+    : null;
+
+  const tricks = (g.tricks || []).map((t, i) => ({
+    trickIndex: i,
+    leadSeat:   t.cards[0]?.playerIndex ?? null,
+    cards:      t.cards.map(c => ({
+      seat:     c.playerIndex,
+      card:     _cardToStr(c.card),
+      playedAt: c.playedAt || null,
+    })),
+    winnerSeat: t.winner,
+  }));
+
+  const belote = {
+    declaredBy: g.beloteInfo?.playerIndex ?? null,
+    trickIndex: g.beloteDeclaredTrickIndex ?? null,
+    rebeloteAt: g.beloteRebeloteAt ?? null,
+  };
+
+  const contractTeam = g.currentBid?.team ?? null;
+  const winningTeam = contractTeam !== null
+    ? (g.contractMade ? contractTeam : 1 - contractTeam)
+    : null;
+
+  const outcome = {
+    team0Score:            g.roundScores?.[0] ?? 0,
+    team1Score:            g.roundScores?.[1] ?? 0,
+    team0CumulativeScore:  room.scores?.[0] ?? 0,
+    team1CumulativeScore:  room.scores?.[1] ?? 0,
+    winningTeam,
+  };
+
+  return {
+    schemaVersion:       1,
+    gameId:              g.gameId,
+    roomCreatorUserId:   room.creatorId,
+    roomCreatorUsername: creator?.username ?? null,
+    createdAt:           g.createdAt,
+    completedAt,
+    players: sortedPlayers.map(p => ({ seat: p.position, userId: p.userId, username: p.username })),
+    teams: [
+      { teamId: 0, seats: [0, 2] },
+      { teamId: 1, seats: [1, 3] },
+    ],
+    deal: { hands, dealer: g.dealer },
+    bidding: {
+      rounds:  biddingRounds,
+      winner:  biddingWinner,
+      coinche: coincheInfo,
+    },
+    play: { tricks, belote },
+    outcome,
+    errorAnnotations: Array.isArray(g.errorAnnotations) ? g.errorAnnotations.slice() : [],
+  };
 }
 
 // ─── Shuffle / Cut ────────────────────────────────────────────────────────
@@ -880,4 +1066,7 @@ module.exports = {
   publicGame,
   getPosition,
   hydrateRooms,
+  getRoomByGameId,
+  createGameErrorAnnotation,
+  buildGameRecord,
 };

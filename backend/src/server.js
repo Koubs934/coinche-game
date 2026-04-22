@@ -7,6 +7,7 @@ const rm = require('./roomManager');
 const { scheduleBotTurns, scheduleBotConfirms, scheduleBotShuffleCut } = require('./botProcessor');
 const rateLimit = require('./rateLimit');
 const persistence = require('./persistence');
+const gameRecordStorage = require('./game/gameRecordStorage');
 const { registerTrainingHandlers, runStartupCleanup: trainingStartupCleanup } = require('./training/trainingSocket');
 // Event payload contract for every socket.on / socket.emit below:
 // see socketEvents.js. Update both sides (FE + BE) when changing a payload.
@@ -100,12 +101,41 @@ function emitError(socket, message) {
   socket.emit('error', { message });
 }
 
+// Persist the just-finished round as a GameRecord and notify the room creator.
+// Guarded by room.game.gameId so a second broadcast of the same ROUND_OVER
+// phase (e.g. through bot confirm cascades) does not rewrite the file.
+function maybeSaveGameRecord(room) {
+  const g = room.game;
+  if (!g || !g.gameId) return;
+  if (g.phase !== 'ROUND_OVER') return;
+  if (room._lastSavedGameId === g.gameId) return;
+
+  try {
+    const record = rm.buildGameRecord(room);
+    const filePath = gameRecordStorage.writeGameRecord(record);
+    room._lastSavedGameId = g.gameId;
+
+    // Notify the room creator. Skip silently if they're not connected — no
+    // retry buffering; file write is the authoritative result.
+    const creator = room.players.find(p => p.userId === room.creatorId);
+    const creatorSocket = creator ? io.sockets.sockets.get(creator.socketId) : null;
+    if (creatorSocket) {
+      creatorSocket.emit('gameRecordSaved', { gameId: g.gameId, filePath });
+    }
+  } catch (err) {
+    console.error(`[gameRecord] save failed for room ${room.code}: ${err.message}`);
+  }
+}
+
 // Broadcast + queue the next bot turn (if any) for game-state changes.
 // When the round just ended, schedule bot auto-confirms instead of bot turns.
 function broadcastGame(room) {
   broadcast(room);
   if (room.phase === 'ROUND_OVER') {
+    maybeSaveGameRecord(room);
     scheduleBotConfirms(room.code, broadcastGame);
+  } else if (room.phase === 'GAME_OVER') {
+    maybeSaveGameRecord(room);
   } else if (room.phase === 'SHUFFLE' || room.phase === 'CUT') {
     scheduleBotShuffleCut(room.code, broadcastGame);
   } else {
@@ -281,6 +311,30 @@ io.on('connection', socket => {
     const result = rm.playCard(code, userId, card, declareBelote);
     if (result.error) return emitError(socket, result.error);
     broadcastGame(result.room);
+  });
+
+  // ── Game Review: tag an error card (creator only) ────────────────────────
+  socket.on('createGameErrorAnnotation', ({ gameId, cardRef, note }) => {
+    const result = rm.createGameErrorAnnotation(gameId, userId, cardRef, note);
+    if (result.error) return socket.emit('error', { message: result.error, code: result.code });
+
+    socket.emit('gameErrorAnnotationCreated', { gameId, annotation: result.annotation });
+    // Broadcast the updated game state so the client's publicGame.errorAnnotations
+    // stays in sync. Non-creators can't see the annotations UI but the payload is
+    // harmless metadata and keeping one code path simple is worth it here.
+    broadcast(result.room);
+  });
+
+  socket.on('getCurrentGameState', ({ gameId }) => {
+    const room = rm.getRoomByGameId(gameId);
+    if (!room) return socket.emit('error', { message: 'Unknown game', code: 'UNKNOWN_GAME' });
+    const player = room.players.find(p => p.userId === userId);
+    if (!player) return socket.emit('error', { message: 'Not in this room' });
+    socket.emit('roomUpdate', {
+      room: rm.publicRoom(room),
+      game: rm.publicGame(room, player.position),
+      myPosition: player.position,
+    });
   });
 
   // ── Shuffle / Cut ────────────────────────────────────────────────────────
