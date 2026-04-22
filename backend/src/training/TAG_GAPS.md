@@ -4,6 +4,32 @@ Real-use observations where existing tags didn't capture user reasoning.
 Review in batches, not individually. Update the vocabulary in a coordinated
 schemaVersion bump when patterns become clear.
 
+## 2026-04-22 — Game Review feature launched
+
+New annotation surface parallel to Training mode. Captures complete play
+records (all 8 tricks, bidding, outcome) for every completed game plus
+optional free-text error tags attached to specific cards. Distinct from
+Training mode's curated bidding scenarios; feeds the same downstream
+Claude-based analysis pipeline aimed at deriving "rules of optimal play"
+and informing bot strategy.
+
+Data path: `/data/games/<roomCreatorUserId>/<isoStamp>-<gameId>.json`
+(sibling to `/data/training/`). New env var `GAMES_DATA_DIR` (default
+`/data/games/`). GameRecord `schemaVersion: 1`. ErrorAnnotation contains
+`annotationId` (uuid), `cardRef` (trickIndex+seat+card), `note` (free
+text, 2000 char max), `createdAt`, `createdByUserId`.
+
+V1 scope: only the room creator can tag errors. Free-text only, no
+structured vocabulary. Game-level tags only (not trick-level or
+hand-level). No replay viewer. Mid-game crashes lose in-memory
+annotations.
+
+Future iterations may add: structured category picker on top of free
+text, review UI for browsing past games, per-trick or per-hand
+annotations, multi-annotator support.
+
+Full spec at [`docs/game-review-spec.md`](../../../docs/game-review-spec.md).
+
 ## 2026-04-21 — exhaustion session model (schemaVersion 1 → 2)
 
 Annotations now group into **exhaustion sessions**: user records

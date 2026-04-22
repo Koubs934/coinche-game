@@ -127,10 +127,13 @@ both, so they go on a persistent volume in production.
 1. In the Railway backend service → **Volumes** → **Attach Volume**. Mount point: `/data`.
 2. Under **Variables**, add:
    - `TRAINING_DATA_DIR` = `/data/training`
-3. Redeploy. `annotationStorage.js` reads that env var and writes annotations
-   there instead of the default `backend/data/training/`.
+   - `GAMES_DATA_DIR` = `/data/games` (Game Review records share the same volume, different subdirectory)
+3. Redeploy. `annotationStorage.js` and `gameRecordStorage.js` each read their
+   own env var and write there instead of the default `backend/data/training/`
+   or `backend/data/games/`.
 4. Verify after a submitted run via Railway's shell:
-   `ls /data/training/<userId>/` should contain the `<isoStamp>-<scenarioId>.json` file.
+   `ls /data/training/<userId>/` should contain the `<isoStamp>-<scenarioId>.json` file, and
+   `ls /data/games/<userId>/` should contain a `<isoStamp>-<gameId>.json` file after any completed round.
 
 Local dev does not need this — when `TRAINING_DATA_DIR` is unset, writes go
 to the default path.
@@ -179,3 +182,13 @@ Annotations are written to `backend/data/training/<userId>/<isoStamp>-<scenarioI
 The sidecar file `backend/data/training/<userId>/_exhausted.json` indexes the user's exhausted scenarios (schema, sessionId, exhaustedAt, alternativesRecorded). The leading underscore keeps it visually distinct from annotation files; backup, recovery, and annotation-count scripts filter `_`-prefixed filenames.
 
 The validator enforces one tag from the `bidding-action` group per decision and emits a non-blocking confirmation when the `trump-hand` group is empty. Duplicate bids within an exhaustion session are hard-refused with `DUPLICATE_BID_IN_SESSION`. All annotation files and the sidecar are gitignored.
+
+## Game Review
+
+A second annotation surface, parallel to Training mode. Every completed round of a real game auto-saves a full play record (initial hands, bidding, all 8 tricks with per-card timestamps, belote, outcome) to disk. No opt-out.
+
+While the round is in progress, the **room creator** sees an **Erreur de jeu** / **Game error** button in the hand toolbar. Tapping it opens a full-screen overlay listing every completed trick (plus the in-progress one); the creator picks a card, writes a free-text note, and hits **Enregistrer**. The annotation is attached to that specific card (trick index + seat + card) and persisted into the `errorAnnotations` array of the round's final `GameRecord`. Cards already tagged in the current round show an amber dot; hovering (desktop) or tapping (mobile) reveals the existing note text so the creator doesn't unknowingly double-tag.
+
+Records land at `backend/data/games/<roomCreatorUserId>/<isoStamp>-<gameId>.json` (production: `/data/games` on the same Railway persistent volume as Training — set via `GAMES_DATA_DIR`). `schemaVersion: 1`.
+
+V1 scope is deliberately narrow: creator-only tagging, free-text notes only (no structured vocabulary), one card per annotation (no trick/hand-level notes), and no in-app replay viewer. Mid-round crashes lose the in-memory annotations. Full spec — schema, socket events, error codes, privacy facts — in [`docs/game-review-spec.md`](docs/game-review-spec.md).
