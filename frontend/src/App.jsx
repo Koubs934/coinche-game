@@ -182,7 +182,8 @@ export default function App() {
     // also emits a roomUpdate so publicGame.errorAnnotations stays fresh).
     socket.on('gameErrorAnnotationCreated', () => {
       // Intentionally silent — the server's roomUpdate broadcast is the
-      // authoritative sync. Future phase C will surface existing-tag badges.
+      // authoritative sync for publicGame.errorAnnotations; the overlay
+      // reads that list to render the already-tagged badges.
     });
     // End-of-round GameRecord persisted to disk. Creator-only.
     socket.on('gameRecordSaved', () => {

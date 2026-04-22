@@ -36,11 +36,33 @@ function isRed(card) {
 export default function GameErrorTagOverlay({
   game,
   players,
+  existingAnnotations,
   onSubmit,
   onCancel,
 }) {
   const { t } = useLang();
   const tp = t.overlay.tagPlayError;
+
+  // Group existing annotations by (trickIndex, seat, card) so each tagged card
+  // can show its badge and compose a multi-note tooltip. Spec allows multiple
+  // annotations on the same card; a badge just warns the admin so they don't
+  // unknowingly double-tag — tagging another is still valid.
+  const annotationsByKey = useMemo(() => {
+    const map = new Map();
+    for (const a of (existingAnnotations || [])) {
+      const cr = a?.cardRef;
+      if (!cr) continue;
+      const key = `${cr.trickIndex}-${cr.seat}-${cr.card}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(a);
+    }
+    return map;
+  }, [existingAnnotations]);
+
+  // Tap-to-pin tooltip state so mobile (no hover) still reveals notes. Key =
+  // same `${trickIdx}-${seat}-${card}` string used above. Null = nothing pinned;
+  // hover CSS still reveals on desktop independently.
+  const [pinnedBadge, setPinnedBadge] = useState(null);
 
   // Tricks available for tagging: every completed trick + (maybe) the
   // in-progress one if any card has been played in it.
@@ -111,7 +133,7 @@ export default function GameErrorTagOverlay({
                 key={trk.index}
                 type="button"
                 className={`gerr-trick-pill${active ? ' on' : ''}${trk.inProgress ? ' gerr-trick-pill-inprogress' : ''}`}
-                onClick={() => { setTrickIdx(trk.index); setSelected(null); }}
+                onClick={() => { setTrickIdx(trk.index); setSelected(null); setPinnedBadge(null); }}
               >
                 {label}
               </button>
@@ -127,16 +149,57 @@ export default function GameErrorTagOverlay({
               && selected.seat === playerIndex
               && selected.card?.suit === card.suit
               && selected.card?.value === card.value;
+            const cardKey = `${trickIdx}-${playerIndex}-${cardToString(card)}`;
+            const existing = annotationsByKey.get(cardKey);
+            const tooltip = existing
+              ? existing.map(a => a.note).join('\n\n')
+              : null;
+            const pinned = pinnedBadge === cardKey;
             return (
-              <button
+              <div
                 key={`${idx}-${cardToString(card)}`}
-                type="button"
-                className={`gerr-card${sel ? ' gerr-card-selected' : ''}${isRed(card) ? ' gerr-card-red' : ''}`}
-                onClick={() => handleSelect(playerIndex, card)}
+                className={`gerr-card-wrap${pinned ? ' gerr-card-wrap-pinned' : ''}`}
               >
-                <span className="gerr-card-face">{cardLabel(card)}</span>
-                <span className="gerr-card-seat">{playerName(playerIndex)}</span>
-              </button>
+                <button
+                  type="button"
+                  className={`gerr-card${sel ? ' gerr-card-selected' : ''}${isRed(card) ? ' gerr-card-red' : ''}${existing ? ' gerr-card-tagged' : ''}`}
+                  onClick={() => handleSelect(playerIndex, card)}
+                >
+                  <span className="gerr-card-face">{cardLabel(card)}</span>
+                  <span className="gerr-card-seat">{playerName(playerIndex)}</span>
+                </button>
+                {existing && (
+                  <button
+                    type="button"
+                    className="gerr-card-badge"
+                    title={tooltip}
+                    aria-label={tooltip}
+                    onClick={(e) => {
+                      // Stop propagation so clicking the badge doesn't also
+                      // select the card underneath; pinned-tooltip toggling
+                      // is the badge's only job.
+                      e.stopPropagation();
+                      setPinnedBadge(pinned ? null : cardKey);
+                    }}
+                  >
+                    <span aria-hidden="true">●</span>
+                  </button>
+                )}
+                {existing && (
+                  // Always rendered when annotations exist. Visibility is
+                  // driven by CSS: :hover on the wrap reveals it (desktop),
+                  // and .gerr-card-wrap-pinned forces it visible (tap-pin
+                  // on mobile). Native `title` on the badge is a third
+                  // belt-and-braces affordance for assistive tech.
+                  <div className="gerr-card-tooltip" role="tooltip">
+                    {existing.map((a, i) => (
+                      <div key={a.annotationId || i} className="gerr-card-tooltip-item">
+                        {a.note}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             );
           })}
           {activeTrick && activeTrick.cards.length === 0 && (

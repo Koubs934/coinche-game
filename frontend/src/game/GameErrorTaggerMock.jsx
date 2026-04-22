@@ -59,10 +59,39 @@ const MOCK_PLAYERS = [
   { userId: 'user-4',    username: 'Bot',  position: 3, team: 1, connected: true, isBot: true  },
 ];
 
+// Preloaded annotations so the badge + tooltip behaviour can be reviewed
+// standalone. One tag on trick 1 card 9H (first card played), one on trick 2
+// card JS (seat 2's play). Spec allows multiple per card, so we also attach
+// a second annotation to the 9H to exercise the multi-note tooltip path.
+const MOCK_EXISTING_ANNOTATIONS = [
+  {
+    annotationId:   'mock-ann-1',
+    cardRef:        { trickIndex: 0, seat: 1, card: '9H' },
+    note:           "Lead d'entame mauvaise — le 9 était maître, à garder.",
+    createdAt:      '2026-04-22T12:01:30.000Z',
+    createdByUserId:'creator-1',
+  },
+  {
+    annotationId:   'mock-ann-2',
+    cardRef:        { trickIndex: 0, seat: 1, card: '9H' },
+    note:           'Également : signal au partenaire manqué.',
+    createdAt:      '2026-04-22T12:01:45.000Z',
+    createdByUserId:'creator-1',
+  },
+  {
+    annotationId:   'mock-ann-3',
+    cardRef:        { trickIndex: 1, seat: 2, card: 'JS' },
+    note:           'Le J a coupé la séquence du partenaire.',
+    createdAt:      '2026-04-22T12:02:30.000Z',
+    createdByUserId:'creator-1',
+  },
+];
+
 export default function GameErrorTaggerMock() {
   const { t, lang, toggleLang } = useLang();
   const [open, setOpen] = useState(true);
   const [lastSubmit, setLastSubmit] = useState(null);
+  const [preload, setPreload] = useState(false);
 
   function handleSubmit(payload) {
     console.log('[mock] createGameErrorAnnotation →', payload);
@@ -81,6 +110,15 @@ export default function GameErrorTaggerMock() {
             onClick={toggleLang}
           >
             {lang.toUpperCase()}
+          </button>
+          <button
+            type="button"
+            className={`mock-switcher-btn${preload ? ' on' : ''}`}
+            onClick={() => { setPreload(v => !v); setOpen(true); setLastSubmit(null); }}
+          >
+            {preload
+              ? (lang === 'fr' ? 'Annotations préchargées ✓' : 'Preloaded annotations ✓')
+              : (lang === 'fr' ? 'Précharger des annotations' : 'Preload existing annotations')}
           </button>
           <button
             type="button"
@@ -109,6 +147,7 @@ export default function GameErrorTaggerMock() {
         <GameErrorTagOverlay
           game={MOCK_GAME}
           players={MOCK_PLAYERS}
+          existingAnnotations={preload ? MOCK_EXISTING_ANNOTATIONS : []}
           onSubmit={handleSubmit}
           onCancel={() => setOpen(false)}
         />

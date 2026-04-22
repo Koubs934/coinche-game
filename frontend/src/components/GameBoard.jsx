@@ -789,6 +789,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
         <GameErrorTagOverlay
           game={game}
           players={players}
+          existingAnnotations={game.errorAnnotations || []}
           onSubmit={({ cardRef, note }) => {
             socket.emit('createGameErrorAnnotation', {
               gameId: game.gameId,
