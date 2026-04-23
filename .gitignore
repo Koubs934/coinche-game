@@ -13,7 +13,11 @@ frontend/.vite/
 .env.*.local
 
 # ── Training-mode annotations (per-user, written at runtime) ──────────────────
+# (covers backend/data/games-mirror/ — the local Game Review mirror — as well)
 backend/data/
+
+# ── Game analysis report (generated from mirror, regenerate on demand) ───────
+docs/games-report.html
 
 # ── Playwright smoke screenshots ──────────────────────────────────────────────
 frontend/tests/shots/

@@ -192,3 +192,16 @@ While the round is in progress, the **room creator** sees an **Erreur de jeu** /
 Records land at `backend/data/games/<roomCreatorUserId>/<isoStamp>-<gameId>.json` (production: `/data/games` on the same Railway persistent volume as Training — set via `GAMES_DATA_DIR`). `schemaVersion: 1`.
 
 V1 scope is deliberately narrow: creator-only tagging, free-text notes only (no structured vocabulary), one card per annotation (no trick/hand-level notes), and no in-app replay viewer. Mid-round crashes lose the in-memory annotations. Full spec — schema, socket events, error codes, privacy facts — in [`docs/game-review-spec.md`](docs/game-review-spec.md).
+
+### Analysis tool
+
+Local-only pair of Node scripts that mirrors production `GameRecord`s to disk and renders a single-file HTML report for eyeball-level pattern review.
+
+```
+node scripts/sync-games.js          # pull latest from Railway /data/games/
+node scripts/build-games-report.js  # rebuild docs/games-report.html
+```
+
+Open `docs/games-report.html` directly in a browser (no server needed). The report is self-contained — inlined CSS + vanilla JS, works offline. Usernames are mapped to short codes (2–3 chars); the mapping is shown in a legend at the top of the report. Real `userId`s never appear in the HTML.
+
+The mirror directory `backend/data/games-mirror/` and the generated `docs/games-report.html` are both gitignored — re-run sync to fetch new rounds, then rebuild. Requires the `railway` CLI on PATH and `backend/.env.railway.local` holding a valid `RAILWAY_TOKEN`; on Windows, Git Bash (or another bash in PATH) is required so the remote `tar | base64` pipeline quotes correctly. The sync is read-only — production data is never mutated.
