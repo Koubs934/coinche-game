@@ -4,16 +4,16 @@
 // for the full C→S / S→C list.
 //
 // Isolation: every path in this file touches trainingRooms / scenarioLoader /
-// annotationStorage / tagValidator / trainingProcessor. Nothing here calls
+// annotationStorage / trainingProcessor / divergence. Nothing here calls
 // roomManager.js, botProcessor.js, or persistence.js — training is a
 // parallel subsystem by construction.
 
 const trainingRooms     = require('./trainingRooms');
 const trainingProcessor = require('./trainingProcessor');
 const scenarioLoader    = require('./scenarioLoader');
-const tagValidator      = require('./tagValidator');
 const annotationStorage = require('./annotationStorage');
 const exhaustionStorage = require('./exhaustionStorage');
+const divergence        = require('./divergence');
 
 const GC_AFTER_DISCONNECT_MS = 5 * 60 * 1000;
 
@@ -75,8 +75,11 @@ function registerTrainingHandlers(socket) {
 
   // ── Discovery events ─────────────────────────────────────────────────────
 
+  // v3 cutover: structured tag vocabulary removed. Event kept for socket-
+  // contract continuity but emits a `null` payload — clients should treat
+  // a null tags response as "no vocabulary; use the divergence flow".
   socket.on('getTrainingTags', () => {
-    socket.emit('trainingTags', { tags: tagValidator.getAllTags() });
+    socket.emit('trainingTags', { tags: null });
   });
 
   socket.on('listTrainingScenarios', () => {
@@ -155,37 +158,34 @@ function registerTrainingHandlers(socket) {
     socket.emit('trainingAwaitingReason', trainingRooms.publicView(run));
   });
 
-  socket.on('submitTrainingReason', ({ runId, tags, note, ackWarnings = false } = {}) => {
+  // v3 payload: { runId, divergenceAgreement, note }.  No more tags array.
+  // The server recomputes divergenceType from the scenario's expectedAnswer
+  // and the action stored on the run — clients send divergenceAgreement
+  // (their yes/no answer) plus a free-text note. The previous soft-warning
+  // path is gone (no vocabulary to warn about).
+  socket.on('submitTrainingReason', ({ runId, divergenceAgreement = null, note = '' } = {}) => {
     const run = trainingRooms.getRun(runId);
     if (!run || run.userId !== socket.userId) return emitError(socket, 'Unknown training run', 'UNKNOWN_TRAINING_RUN');
     if (run.runState !== 'AWAITING-REASON') return emitError(socket, `Cannot submit reason in state ${run.runState}`);
 
-    const actionType = run.pendingAction?.action?.type;
-    const v = tagValidator.validateReasonSubmission({ actionType, tags: tags ?? [], note: note ?? '' });
-    if (!v.ok) return emitError(socket, v.message);
+    const v = divergence.validateSubmission({
+      scenario: run.scenario,
+      action:   run.pendingAction.action,
+      divergenceAgreement,
+      note,
+    });
+    if (!v.ok) return emitError(socket, v.message, v.code);
 
-    // Soft warnings (e.g. no trump-hand tag) bounce back to the client for
-    // a non-blocking confirmation. The run stays in AWAITING-REASON; nothing
-    // is written yet. The client resubmits with `ackWarnings: true` to
-    // proceed, or dismisses and edits.
-    if (v.warnings && v.warnings.length > 0 && !ackWarnings) {
-      socket.emit('trainingReasonWarning', {
-        runId:    run.runId,
-        tags:     v.tags,
-        note:     note ?? '',
-        warnings: v.warnings,
-      });
-      return;
-    }
-
-    const decidedAt = new Date().toISOString();
+    const trimmedNote = (note ?? '').trim();
+    const decidedAt   = new Date().toISOString();
     const completedDecision = {
-      index:        run.decisions.length,
-      timelineStep: run.pendingAction.timelineStep,
-      phase:        run.game.phase,
-      action:       run.pendingAction.action,
-      tags:         v.tags,
-      note:         note.trim(),
+      index:               run.decisions.length,
+      timelineStep:        run.pendingAction.timelineStep,
+      phase:               run.game.phase,
+      action:              run.pendingAction.action,
+      divergenceType:      v.divergenceType,
+      divergenceAgreement: divergenceAgreement ?? null,
+      note:                trimmedNote,
       decidedAt,
     };
     run.decisions.push(completedDecision);
@@ -193,7 +193,12 @@ function registerTrainingHandlers(socket) {
 
     let annotationPath;
     try {
-      annotationPath = annotationStorage.writeComplete(run, { tags: v.tags, note: note.trim(), decidedAt });
+      annotationPath = annotationStorage.writeComplete(run, {
+        divergenceType:      v.divergenceType,
+        divergenceAgreement: divergenceAgreement ?? null,
+        note:                trimmedNote,
+        decidedAt,
+      });
     } catch (err) {
       console.error(`[training] writeComplete failed: ${err.message}`);
       // Roll back to AWAITING-REASON so the user can retry without losing partial.

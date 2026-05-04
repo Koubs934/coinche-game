@@ -1,7 +1,18 @@
 # Training tag vocabulary — v2 (canonical)
 
+> **Historical (V2 vocabulary)** — superseded by the divergence-driven flow.
+> Structured reasoning tags were removed in May 2026. New annotations capture
+> only structured action + free-text reasoning conditional on rule divergence.
+> See [`training-divergence-flow.md`](./training-divergence-flow.md) for current design.
+>
+> The 18 schemaVersion 2 annotations on disk under `backend/data/training/`
+> still reference these tag keys; they remain readable by
+> `scripts/build-training-snapshot.js` under its "Legacy v2 dataset" section.
+> The `reasonTags.json` file is archived under
+> [`backend/src/training/_archive/`](../backend/src/training/_archive/).
+
 `tagsSchemaVersion: 2` • 56 tags across 8 groups (52 v2 + 4 legacy — see note)
-Ship date: 2026-04-21 • Source of truth: [`backend/src/training/reasonTags.json`](../backend/src/training/reasonTags.json)
+Ship date: 2026-04-21 • Removed: 2026-05-04 • Archived source: [`backend/src/training/_archive/reasonTags.json`](../backend/src/training/_archive/reasonTags.json)
 
 ## Background
 

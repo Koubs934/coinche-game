@@ -174,7 +174,10 @@
 //
 // Discovery (C→S):
 //   'getTrainingTags'           ()
-//     → S→C 'trainingTags'          { tags: <full reasonTags.json> }
+//     v3 (2026-05-04): the tag vocabulary was removed. The event is kept
+//     for socket-contract continuity; the server now responds with a null
+//     payload to signal "no vocabulary; use the divergence flow".
+//     → S→C 'trainingTags'          { tags: null }
 //   'listTrainingScenarios'     ()
 //     → S→C 'trainingScenariosList' { scenarios: [{id,title,description,userSeat,dealer}, ...] }
 //   'getResumablePartials'      ()
@@ -200,18 +203,27 @@
 //     → S→C 'trainingAwaitingReason' { ...trainingSync, runState='AWAITING-REASON' }
 //     (server writes partial annotation to disk atomically BEFORE emitting)
 //
-//   'submitTrainingReason'      ({ runId, tags: string[], note: string, ackWarnings?: boolean })
-//     tags validated per action type against reasonTags.json. Validator is
-//     declarative: groups flagged `requireExactlyOne` must have exactly one
-//     selected tag; tags flagged `requiresNote` force a non-empty note.
-//     Non-blocking warnings (e.g. `recommendAtLeastOne` groups like
-//     trump-hand) bounce back via 'trainingReasonWarning' unless the client
-//     resubmits with `ackWarnings: true` — see below.
+//   'submitTrainingReason'      ({ runId,
+//                                   divergenceAgreement?: 'could-be-either'|'user-disagrees'|null,
+//                                   note?: string })
+//     v3 payload (2026-05-04). The server recomputes divergenceType from
+//     the scenario's expectedAnswer and the user's submitted action stored
+//     on the run; the client sends only the yes/no agreement (when the
+//     three-state UI showed it) plus a free-text note. Validation rules
+//     (server-side, single source of truth in divergence.js):
+//       - match              → divergenceAgreement must be null;     note may be empty
+//       - rule-silent        → divergenceAgreement must be null;     note required
+//       - any other divergence → divergenceAgreement is required and must be one of
+//                                'could-be-either' / 'user-disagrees'; note required
+//     Tag-based fields (tags, ackWarnings) and the soft-warning bounce path
+//     are removed — there is no vocabulary to warn about anymore.
 //     → S→C 'trainingCompleted'     { runId, annotation:{scenarioId,startedAt,completedAt,decisions} }
 //     (file rewritten with status='complete' before emitting)
-//     → S→C 'trainingReasonWarning' { runId, tags, note, warnings:string[] }
-//     (only when v.ok with warnings && !ackWarnings; nothing is written,
-//     run stays in AWAITING-REASON)
+//     Error codes:
+//       MISSING_DIVERGENCE_AGREEMENT     — divergent action with null agreement
+//       INVALID_DIVERGENCE_AGREEMENT     — agreement value not in legal set
+//       MISSING_REQUIRED_NOTE            — divergent or rule-silent with empty note
+//       UNEXPECTED_DIVERGENCE_AGREEMENT  — agreement provided on a match or rule-silent case
 //     After trainingCompleted, the server ALSO emits
 //     'trainingScenarioReviewPrompt' so the client can prompt "Autre
 //     stratégie possible ?" — see below.

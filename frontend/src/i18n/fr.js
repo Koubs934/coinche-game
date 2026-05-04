@@ -1,63 +1,7 @@
-// ── Training tag labels (shared fragments) ───────────────────────────────────
-// Tags in Groups 1, 2, 3, 5, 6, 7, 8 appear under every v2 bidding action
-// (bid/pass/coinche/surcoinche). Defined once here, spread into each action.
-// Group 4 (bidding-action) is action-specific and spelled out inline below.
-const _sharedBidDecisionTagsFr = {
-  // Groupe 1 — Main d'atout
-  'maitre':             "Maître à l'atout",
-  'valet-second':       'Valet second',
-  'valet-troisième':    'Valet troisième',
-  'valet-quatrième':    'Valet quatrième',
-  'valet-cinquième':    'Valet cinquième',
-  '9-second':           '9 second',
-  '9-troisième':        '9 troisième',
-  '9-quatrième':        '9 quatrième',
-  '9-cinquième':        '9 cinquième',
-  'atout-count-2':      '2 atouts',
-  'atout-count-3':      '3 atouts',
-  'atout-count-4':      '4 atouts',
-  'atout-count-5-plus': '5+ atouts',
-  'belote-possible':    'Belote',
-
-  // Groupe 2 — Main hors atout
-  'as-extérieur-0': '0 As extérieur',
-  'as-extérieur-1': '1 As extérieur',
-  'as-extérieur-2': '2 As extérieur',
-  'as-extérieur-3': '3 As extérieur',
-  'deux-as-bare':   '2 As (signal informatif)',
-  '21':             '21 (As + 10 même couleur)',
-  'deux-21':        'Deux 21',
-  'longue':         'Longue',
-
-  // Groupe 3 — Forme de la main
-  'bicolore':       'Bicolore',
-  'fausse-carte-1': '1 fausse carte',
-  'fausse-carte-2': '2 fausses cartes',
-
-  // Groupe 5 — Contexte partenaire
-  'premier-à-parler':              'Premier à parler',
-  'partenaire-ouverture-80':       'Partenaire a ouvert 80',
-  'partenaire-ouverture-90':       'Partenaire a ouvert 90',
-  'partenaire-ouverture-100':      'Partenaire a ouvert 100',
-  'partenaire-ouverture-110-plus': 'Partenaire a ouvert 110+',
-  'partenaire-même-couleur':       'Partenaire dans ma couleur',
-  'partenaire-autre-couleur':      'Partenaire autre couleur',
-
-  // Groupe 6 — Contexte adverse
-  'adverse-a-ouvert':     'Adverse a ouvert',
-  'adverse-a-surenchéri': 'Adverse a surenchéri',
-
-  // Groupe 7 — Contexte score
-  'score-équilibré': 'Score équilibré',
-  'score-derrière':  'Derrière, besoin de points',
-  'score-avance':    'En avance, sécurisation',
-  'dernière-donne':  'Dernière donne du match',
-
-  // Groupe 8 — Incertitude
-  'jugement':  'Jugement',
-  'incertain': 'Incertain',
-  'autre':     'Autre (note requise)',
-};
+// v3 (2026-05-04): the structured tag vocabulary was removed alongside the
+// divergence-driven UI rewrite. The shared `_sharedBidDecisionTagsFr`
+// fragment that lived here is gone — git history preserves it. Annotation
+// is now: pick action → (if rules diverge or are silent) free-text note.
 
 export default {
   // Auth
@@ -276,9 +220,7 @@ export default {
     completion: {
       title:        'Scénario terminé',
       actionLabel:  'Votre action',
-      tagsLabel:    'Tags retenus',
       noteLabel:    'Votre note',
-      noTags:       '(aucun tag sélectionné)',
       noNote:       '(aucune note)',
       backToPicker: 'Retour aux scénarios',
       nextScenario: 'Scénario suivant',
@@ -289,35 +231,24 @@ export default {
       // Code-keyed error messages — App.jsx looks these up by the server's
       // error.code before falling back to the raw server message.
       byCode: {
-        DUPLICATE_BID_IN_SESSION: "Cette enchère a déjà été enregistrée dans cette session. Choisissez une enchère différente.",
-        UNKNOWN_SESSION:          'Session inconnue ou expirée.',
+        DUPLICATE_BID_IN_SESSION:        "Cette enchère a déjà été enregistrée dans cette session. Choisissez une enchère différente.",
+        UNKNOWN_SESSION:                 'Session inconnue ou expirée.',
+        MISSING_DIVERGENCE_AGREEMENT:    'Veuillez répondre à la question avant de valider.',
+        INVALID_DIVERGENCE_AGREEMENT:    'Réponse invalide.',
+        MISSING_REQUIRED_NOTE:           'Une explication est requise pour ce choix.',
+        UNEXPECTED_DIVERGENCE_AGREEMENT: 'Erreur de soumission.',
       },
     },
 
     panel: {
-      title:                     'Pourquoi ce choix ?',
-      actionLabel:               'Action jouée',
-      notePlaceholderOptional:   'Facultatif — qu’est-ce qui vous a fait pencher vers ce choix ?',
-      notePlaceholderRequired:   'Obligatoire — quel raisonnement n’est pas capté par les tags ?',
-      noteLabel:                 'Note',
       submit:                    'Valider',
-      // Client-side validation helpers (mirror tagValidator.js)
-      helperEmpty:               'Choisir au moins un tag ou écrire une note',
-      helperNoteRequired:        'La note est requise pour le tag sélectionné',
-      helperMissingRequired:     (groupLabel) => `Sélectionnez un tag dans « ${groupLabel} »`,
-      helperMultipleRequired:    (groupLabel) => `Un seul tag autorisé dans « ${groupLabel} »`,
-      requiredBadge:             'Requis',
-      // Soft-warning confirmation overlay (server-returned, non-blocking)
-      warningHeading:            'Vérifier votre choix',
-      warningContinueBtn:        'Continuer',
-      warningBackBtn:            'Revenir et ajouter',
       // Post-completion exhaustion review overlay
       reviewPromptTitle:         'Autre stratégie possible ?',
       reviewPromptBody:          'Si vous pouvez imaginer une autre lecture de cette main menant à une enchère différente, explorez-la.',
       reviewContinueBtn:         'Oui, autre stratégie',
       reviewEndBtn:              'Non, c\'est tout',
       changeAction:              'Changer mon action',
-      // Action-display prefixes
+      // Action-display prefixes (used by formatActionText)
       youBid:                    'Vous avez annoncé',
       youPassed:                 'Vous avez passé',
       youCoinched:               'Vous avez coinché',
@@ -325,82 +256,30 @@ export default {
       youPlayed:                 'Vous avez joué',
       // Mock-only — not shown outside the mock harness
       mockHarnessHeading:        'Mode démo — panneau de raisonnement',
-      mockSwitcherLabel:         'Type d’action',
+      mockSwitcherLabel:         'Cas',
+      mockStateMatch:            'Match (règle = action)',
+      mockStateDivergent:        'Divergence',
+      mockStateRuleSilent:       'Règle silencieuse',
     },
-    actions: {
-      bid:         'Annonce',
-      pass:        'Passer',
-      coinche:     'Coinche',
-      surcoinche:  'Surcoinche',
-      'play-card': 'Jeu de carte',
+    // v3 divergence-driven flow.
+    divergence: {
+      heading: {
+        userChoice:    (action) => `Vous avez choisi : ${action}`,
+        rulesSuggest:  (action) => `Les règles suggèrent : ${action}`,
+      },
+      question:               (action) => `Pourriez-vous avoir ${action} aussi ?`,
+      option: {
+        couldBeEither: 'Oui',
+        userDisagrees: 'Non',
+      },
     },
-    tags: {
-      groups: {
-        // v2 groups (bid/pass/coinche/surcoinche)
-        'trump-hand':       "Main d'atout",
-        'non-trump-hand':   'Main hors atout',
-        'hand-shape':       'Forme de la main',
-        'bidding-action':   'Annonce',
-        'partner-context':  'Contexte partenaire',
-        'opponent-context': 'Contexte adverse',
-        'score-context':    'Contexte score',
-        'meta':             'Incertitude',
-        // Legacy groups — still used by the (v1-carried-over) play-card action
-        'hand-claim':     'Force de la main',
-        'tactical':       'Tactique',
-        'partner-signal': 'Signal au partenaire',
-        'defensive':      'Défensif',
-        'situational':    'Contextuel',
-        'uncertainty':    'Incertitude',
-        'other':          'Autre',
-      },
-      bid: {
-        ..._sharedBidDecisionTagsFr,
-        // Groupe 4 — Annonce (bid-specific)
-        'ouverture':                   'Ouverture',
-        'monter':                      'Monter (même couleur)',
-        'changer':                     'Changer de couleur',
-        'bloquage':                    'Annonce de blocage',
-        'faire-monter-pour-coincher':  'Faire monter pour coincher',
-        'cherche-mon-partenaire':      'Cherche mon partenaire',
-        'surenchère-compétitive':      'Surenchère compétitive',
-      },
-      pass: {
-        ..._sharedBidDecisionTagsFr,
-        // Groupe 4 — Annonce (pass-specific)
-        'passer-faible':      'Passer (main faible)',
-        'passer-stratégique': 'Passer (stratégique)',
-      },
-      coinche: {
-        ..._sharedBidDecisionTagsFr,
-        'coincher': 'Coincher',
-      },
-      surcoinche: {
-        ..._sharedBidDecisionTagsFr,
-        'surcoincher': 'Surcoincher',
-      },
-      'play-card': {
-        'cashing-winner-before-cut':  'Encaisser avant la coupe',
-        'drawing-trump':              'Tirer les atouts',
-        'promoting-partners-card':    'Promouvoir la carte du partenaire',
-        'letting-partner-win':        'Laisser gagner le partenaire',
-        'signalling-suit-to-partner': 'Signaler une couleur au partenaire',
-        'belote-order-signal':        "Signal d'ordre Belote (K/Q)",
-        'appel-direct':               'Appel direct',
-        'appel-indirect':             'Appel indirect',
-        'protecting-high-card':       'Protéger une carte maîtresse',
-        'saving-trump-for-later':     "Garder l'atout pour plus tard",
-        'dumping-garbage':            'Défausse sans valeur',
-        'forced-only-legal-card':     'Carte imposée',
-        'non-default-winner-choice':  'Choix délibéré du gagnant',
-        'shedding-to-create-ruff':    'Se défausser pour couper',
-        'forcing-opponent-to-trump':  "Forcer l'adversaire à couper",
-        'endgame-positioning':        'Fin de partie (plis 6-7)',
-        'last-trick-dix-de-der':      'Dix de der',
-        'judgment-call':              'Jugement',
-        'not-sure':                   'Incertain',
-        'other':                      'Autre',
-      },
+    ruleSilent: {
+      intro: 'Les règles ne couvrent pas ce cas — votre raisonnement nous aide à les construire.',
+    },
+    reasoning: {
+      notePrompt:      'Pourquoi ce choix ?',
+      noteRequired:    '(requis)',
+      notePlaceholder: 'Expliquez votre raisonnement...',
     },
   },
 };

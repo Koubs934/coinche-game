@@ -4,6 +4,14 @@ Real-use observations where existing tags didn't capture user reasoning.
 Review in batches, not individually. Update the vocabulary in a coordinated
 schemaVersion bump when patterns become clear.
 
+## 2026-05-04 — Training mode v3: divergence-driven flow
+
+Removed all structured reasoning tags. Annotation now captures only structured action + (when rules diverge or are silent) a yes/no on whether the rule's answer could also work + a free-text explanation. Three data classes: match (no input required), soft divergence ("could be either"), hard divergence ("user disagrees").
+
+Rationale: tag aggregation was unused — analysis pipeline is LLM-based. Tags were friction for users. Free text feeding Claude is the actual workflow. Adaptive UI minimizes annotation cost when users agree with rules and concentrates rich data on the divergence cases that matter for rule revision.
+
+Existing 18 schemaVersion 2 annotations remain in dataset as legacy. The reasonTags.json vocabulary is archived under backend/src/training/_archive/ for historical reference.
+
 ## 2026-04-22 — Game Review feature launched
 
 New annotation surface parallel to Training mode. Captures complete play

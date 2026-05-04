@@ -89,12 +89,14 @@ afterAll(async () => {
 
 // ─── Test A: happy path ────────────────────────────────────────────────────
 
-describe('training flow — happy path', () => {
+describe('training flow — happy path (match case, v3)', () => {
   const USER_ID = 'test-user-happy';
   const USERNAME = 'Happy Tester';
-  const SCENARIO = 'opening-petit-jeu-first-to-speak'; // no scripted events, straight to user-turn
+  // Per V2.1, the expected opening on this hand is `pass`. Submitting pass
+  // exercises the match path — no divergenceAgreement, no required note.
+  const SCENARIO = 'opening-petit-jeu-first-to-speak';
 
-  it('start → action → reason → completed + annotation file matches', async () => {
+  it('start → pass (match) → reason (null/empty) → completed + v3 annotation', async () => {
     const client = connectClient(USER_ID, USERNAME);
     const events = collectEvents(client, [
       'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
@@ -102,7 +104,6 @@ describe('training flow — happy path', () => {
     ]);
 
     await new Promise(resolve => client.on('connect', resolve));
-
     client.emit('startTrainingScenario', { scenarioId: SCENARIO });
 
     await waitFor(() =>
@@ -110,75 +111,64 @@ describe('training flow — happy path', () => {
     );
 
     expect(events.trainingStarted).toHaveLength(1);
-    const started = events.trainingStarted[0];
-    expect(started.trainingState.scenarioId).toBe(SCENARIO);
-    const runId = started.trainingState.runId;
-    expect(runId).toBeTruthy();
+    const runId = events.trainingStarted[0].trainingState.runId;
 
-    // Submit action
-    client.emit('submitTrainingAction', { runId, action: { type: 'bid', value: 90, suit: 'S' } });
+    // Match path: action equals scenario.expectedAnswer.action
+    client.emit('submitTrainingAction', { runId, action: { type: 'pass' } });
 
     await waitFor(() => events.trainingAwaitingReason.length > 0);
     expect(events.error).toHaveLength(0);
 
-    const awaiting = events.trainingAwaitingReason[0];
-    expect(awaiting.trainingState.runState).toBe('AWAITING-REASON');
-    expect(awaiting.trainingState.pendingAction).toEqual({ type: 'bid', value: 90, suit: 'S' });
-
-    // Partial file must exist
+    // Partial on disk uses v3 shape — no `tags` field anywhere.
     const userDir = path.join(SCRATCH_DATA_DIR, USER_ID);
     const partialFiles = fs.readdirSync(userDir).filter(f => f.endsWith('.json') && !f.startsWith('_'));
     expect(partialFiles).toHaveLength(1);
     const partialPath = path.join(userDir, partialFiles[0]);
     const partial = JSON.parse(fs.readFileSync(partialPath, 'utf8'));
+    expect(partial.schemaVersion).toBe(3);
+    expect(partial).not.toHaveProperty('tagsSchemaVersion');
     expect(partial.status).toBe('awaiting-reason');
-    expect(partial.decisions[0].action).toEqual({ type: 'bid', value: 90, suit: 'S' });
-    expect(partial.decisions[0].tags).toBeNull();
+    expect(partial.decisions[0].action).toEqual({ type: 'pass' });
+    expect(partial.decisions[0]).not.toHaveProperty('tags');
+    expect(partial.decisions[0].divergenceType).toBeNull();
+    expect(partial.decisions[0].divergenceAgreement).toBeNull();
+    expect(partial.decisions[0].note).toBeNull();
 
-    // Submit reason (v2 tags: one Group-4 `ouverture` is the required action tag;
-    // `valet-troisième` describes the trump hand)
-    client.emit('submitTrainingReason', {
-      runId,
-      tags: ['ouverture', 'valet-troisième'],
-      note: 'J-third in ♠, first to speak',
-    });
+    // Match-case reason payload: null agreement + empty note (server allows).
+    client.emit('submitTrainingReason', { runId, divergenceAgreement: null, note: '' });
 
     await waitFor(() => events.trainingCompleted.length > 0);
     expect(events.error).toHaveLength(0);
 
     const completed = events.trainingCompleted[0];
     expect(completed.runId).toBe(runId);
-    expect(completed.annotation.scenarioId).toBe(SCENARIO);
     expect(completed.annotation.decisions).toHaveLength(1);
-    expect(completed.annotation.decisions[0].tags).toEqual(['ouverture', 'valet-troisième']);
+    const decision = completed.annotation.decisions[0];
+    expect(decision.divergenceType).toBeNull();
+    expect(decision.divergenceAgreement).toBeNull();
+    expect(decision.note).toBe('');
 
-    // Final file on disk matches completed state, at SAME path (startedAt-derived)
+    // Final file on disk: v3 schema, at the same path as the partial.
     const finalFiles = fs.readdirSync(userDir).filter(f => f.endsWith('.json') && !f.startsWith('_'));
     expect(finalFiles).toHaveLength(1);
-    expect(finalFiles[0]).toBe(partialFiles[0]);  // same filename
-
+    expect(finalFiles[0]).toBe(partialFiles[0]);
     const annotation = JSON.parse(fs.readFileSync(partialPath, 'utf8'));
-    expect(annotation.schemaVersion).toBe(2);
-    // scenarioSchemaVersion mirrors the live scenario file. Bumped from 1 to
-    // 2 when expectedAnswer / ambiguityFlags fields landed.
+    expect(annotation.schemaVersion).toBe(3);
     expect(annotation.scenarioSchemaVersion).toBe(2);
-    expect(annotation.tagsSchemaVersion).toBe(2);
+    expect(annotation).not.toHaveProperty('tagsSchemaVersion');
     expect(annotation.status).toBe('complete');
     expect(annotation.sessionId).toMatch(/^[0-9a-f-]{36}$/);
     expect(annotation.alternativeIndex).toBe(0);
-    // Session still in-progress — this test doesn't answer the review prompt.
     expect(annotation.sessionStatus).toBe('in-progress');
     expect(annotation.userId).toBe(USER_ID);
     expect(annotation.username).toBe(USERNAME);
     expect(annotation.scenarioId).toBe(SCENARIO);
-    expect(annotation.completedAt).toBeTruthy();
-    expect(annotation.decisions).toHaveLength(1);
-    expect(annotation.decisions[0].action).toEqual({ type: 'bid', value: 90, suit: 'S' });
-    expect(annotation.decisions[0].tags).toEqual(['ouverture', 'valet-troisième']);
-    expect(annotation.decisions[0].note).toBe('J-third in ♠, first to speak');
-    expect(annotation.decisions[0].decidedAt).toBeTruthy();
+    expect(annotation.decisions[0].action).toEqual({ type: 'pass' });
+    expect(annotation.decisions[0].divergenceType).toBeNull();
+    expect(annotation.decisions[0].divergenceAgreement).toBeNull();
+    expect(annotation.decisions[0].note).toBe('');
+    expect(annotation.decisions[0]).not.toHaveProperty('tags');
 
-    // No orphan .tmp files
     const tmpFiles = fs.readdirSync(userDir).filter(f => f.endsWith('.tmp'));
     expect(tmpFiles).toHaveLength(0);
 
@@ -257,12 +247,12 @@ describe('training flow — partial resume', () => {
     // Server generates a fresh runId on resume (in-memory identity).
     // That's fine — the client uses whatever runId the server hands back.
 
-    // Submit final reason (v2: `faire-monter-pour-coincher` is the Group-4
-    // action tag; `valet-troisième` is the trump-hand tag so no soft
-    // warning bounce — `recommendAtLeastOne` on trump-hand is satisfied)
+    // The scenario `petit-jeu-after-opp-80-spades` is rule-silent
+    // (`expectedAnswer: null`, `competitive-bidding-not-formalized` flag).
+    // v3 rules: divergenceAgreement must be null, note must be non-empty.
     client2.emit('submitTrainingReason', {
       runId: runId2,
-      tags: ['faire-monter-pour-coincher', 'valet-troisième'],
+      divergenceAgreement: null,
       note: 'reasserted after resume',
     });
     await waitFor(() => events2.trainingCompleted.length > 0);
@@ -276,10 +266,13 @@ describe('training flow — partial resume', () => {
     expect(finalFiles[0]).toBe(partialFilename);
 
     const finalAnnotation = JSON.parse(fs.readFileSync(partialPath, 'utf8'));
+    expect(finalAnnotation.schemaVersion).toBe(3);
     expect(finalAnnotation.status).toBe('complete');
     expect(finalAnnotation.startedAt).toBe(partialBefore.startedAt);
-    expect(finalAnnotation.decisions[0].tags).toEqual(['faire-monter-pour-coincher', 'valet-troisième']);
+    expect(finalAnnotation.decisions[0].divergenceType).toBe('rule-silent');
+    expect(finalAnnotation.decisions[0].divergenceAgreement).toBeNull();
     expect(finalAnnotation.decisions[0].note).toBe('reasserted after resume');
+    expect(finalAnnotation.decisions[0]).not.toHaveProperty('tags');
 
     // No orphan .tmp files
     const tmpFiles = fs.readdirSync(userDir).filter(f => f.endsWith('.tmp'));
@@ -289,70 +282,92 @@ describe('training flow — partial resume', () => {
   });
 });
 
-// ─── Test C: soft-warning ack round-trip ──────────────────────────────────
+// ─── Test C: v3 divergence error paths ───────────────────────────────────
 
-describe('training flow — soft warning ack', () => {
-  const USER_ID = 'test-user-warn';
-  const USERNAME = 'Warn Tester';
+describe('training flow — v3 divergence validation errors', () => {
+  const USER_ID = 'test-user-divergence-errors';
+  const USERNAME = 'Divergence Tester';
+  // Expected = pass; submitting a bid is action-type-different (divergent).
   const SCENARIO = 'opening-petit-jeu-first-to-speak';
 
-  it('submit without trump-hand tag → trainingReasonWarning → ack → trainingCompleted', async () => {
-    const client = connectClient(USER_ID, USERNAME);
-    const events = collectEvents(client, [
-      'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
-      'trainingReasonWarning', 'trainingCompleted', 'error',
-    ]);
-
+  async function startAndAct(client, events) {
     await new Promise(resolve => client.on('connect', resolve));
     client.emit('startTrainingScenario', { scenarioId: SCENARIO });
     await waitFor(() =>
       events.trainingUpdate.some(u => u.trainingState.runState === 'AWAITING-ACTION'),
     );
     const runId = events.trainingStarted[0].trainingState.runId;
-
     client.emit('submitTrainingAction', { runId, action: { type: 'bid', value: 90, suit: 'S' } });
     await waitFor(() => events.trainingAwaitingReason.length > 0);
+    return runId;
+  }
 
-    // No trump-hand tag → trump-hand recommendAtLeastOne triggers a warning.
-    // Server holds the run in AWAITING-REASON; nothing written to status=complete.
-    client.emit('submitTrainingReason', {
-      runId,
-      tags: ['ouverture'],
-      note: 'testing warning path',
-    });
-    await waitFor(() => events.trainingReasonWarning.length > 0);
+  it('rejects divergent submission missing divergenceAgreement', async () => {
+    const client = connectClient(USER_ID, USERNAME);
+    const events = collectEvents(client, [
+      'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
+      'trainingCompleted', 'error',
+    ]);
+    const runId = await startAndAct(client, events);
 
+    client.emit('submitTrainingReason', { runId, divergenceAgreement: null, note: 'has note but no agreement' });
+    await waitFor(() => events.error.length > 0);
     expect(events.trainingCompleted).toHaveLength(0);
-    const warn = events.trainingReasonWarning[0];
-    expect(warn.runId).toBe(runId);
-    expect(warn.warnings[0]).toMatch(/trump-hand/);
-    expect(warn.tags).toEqual(['ouverture']);
+    expect(events.error[events.error.length - 1].code).toBe('MISSING_DIVERGENCE_AGREEMENT');
+    client.disconnect();
+  });
 
-    // On-disk file is still awaiting-reason, not complete
-    const userDir = path.join(SCRATCH_DATA_DIR, USER_ID);
-    const interim = JSON.parse(fs.readFileSync(
-      path.join(userDir, fs.readdirSync(userDir).find(f => f.endsWith('.json') && !f.startsWith('_'))),
-      'utf8',
-    ));
-    expect(interim.status).toBe('awaiting-reason');
+  it('rejects divergent submission with invalid divergenceAgreement value', async () => {
+    const client = connectClient('test-user-invalid-agree', USERNAME);
+    const events = collectEvents(client, [
+      'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
+      'trainingCompleted', 'error',
+    ]);
+    const runId = await startAndAct(client, events);
 
-    // Ack and resubmit — now completion proceeds despite missing trump-hand
+    client.emit('submitTrainingReason', { runId, divergenceAgreement: 'maybe-so', note: 'whatever' });
+    await waitFor(() => events.error.length > 0);
+    expect(events.trainingCompleted).toHaveLength(0);
+    expect(events.error[events.error.length - 1].code).toBe('INVALID_DIVERGENCE_AGREEMENT');
+    client.disconnect();
+  });
+
+  it('rejects divergent submission with empty note', async () => {
+    const client = connectClient('test-user-empty-note', USERNAME);
+    const events = collectEvents(client, [
+      'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
+      'trainingCompleted', 'error',
+    ]);
+    const runId = await startAndAct(client, events);
+
+    client.emit('submitTrainingReason', { runId, divergenceAgreement: 'could-be-either', note: '   ' });
+    await waitFor(() => events.error.length > 0);
+    expect(events.trainingCompleted).toHaveLength(0);
+    expect(events.error[events.error.length - 1].code).toBe('MISSING_REQUIRED_NOTE');
+    client.disconnect();
+  });
+
+  it('accepts valid divergent submission and stores divergenceType', async () => {
+    const client = connectClient('test-user-valid-divergent', USERNAME);
+    const events = collectEvents(client, [
+      'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
+      'trainingCompleted', 'error',
+    ]);
+    const runId = await startAndAct(client, events);
+
     client.emit('submitTrainingReason', {
       runId,
-      tags: ['ouverture'],
-      note: 'testing warning path',
-      ackWarnings: true,
+      divergenceAgreement: 'user-disagrees',
+      note: 'I think 90♠ is the right opening here',
     });
     await waitFor(() => events.trainingCompleted.length > 0);
     expect(events.error).toHaveLength(0);
 
-    const finalAnnotation = JSON.parse(fs.readFileSync(
-      path.join(userDir, fs.readdirSync(userDir).find(f => f.endsWith('.json') && !f.startsWith('_'))),
-      'utf8',
-    ));
-    expect(finalAnnotation.status).toBe('complete');
-    expect(finalAnnotation.decisions[0].tags).toEqual(['ouverture']);
-
+    const decision = events.trainingCompleted[0].annotation.decisions[0];
+    expect(decision.divergenceType).toBe('action-type-different');
+    expect(decision.divergenceAgreement).toBe('user-disagrees');
+    expect(decision.note).toBe('I think 90♠ is the right opening here');
+    expect(decision).not.toHaveProperty('tags');
     client.disconnect();
   });
 });
@@ -364,14 +379,14 @@ describe('training flow — exhaustion session', () => {
   const USERNAME = 'Exhaust Tester';
   const SCENARIO = 'opening-petit-jeu-first-to-speak'; // instant user-turn
 
-  async function submitAlt(client, events, runId, action, tags, note) {
+  async function submitAlt(client, events, runId, action, divergenceAgreement, note) {
     // Clear the completion/prompt trackers for the upcoming alternative.
     const before = events.trainingCompleted.length;
     const beforePrompt = events.trainingScenarioReviewPrompt.length;
     client.emit('submitTrainingAction', { runId, action });
     await waitFor(() => events.trainingAwaitingReason.length >
       events.trainingCompleted.length); // awaiting > completed proves this run reached AWAITING-REASON again
-    client.emit('submitTrainingReason', { runId, tags, note });
+    client.emit('submitTrainingReason', { runId, divergenceAgreement, note });
     await waitFor(() => events.trainingCompleted.length > before);
     await waitFor(() => events.trainingScenarioReviewPrompt.length > beforePrompt);
   }
@@ -398,10 +413,10 @@ describe('training flow — exhaustion session', () => {
     expect(sessionId).toMatch(/^[0-9a-f-]{36}$/);
     expect(started.trainingState.session.alternativeIndex).toBe(0);
 
-    // ── Alternative 0: submit 90♠ ────────────────────────────────────────
+    // ── Alternative 0: submit 90♠ (divergent — expected is pass) ─────────
     await submitAlt(client, events, runId,
       { type: 'bid', value: 90, suit: 'S' },
-      ['ouverture', 'valet-troisième'],
+      'could-be-either',
       'alt 0',
     );
 
@@ -435,10 +450,10 @@ describe('training flow — exhaustion session', () => {
       .filter(f => f.endsWith('.json') && !f.startsWith('_'));
     expect(filesAfterDupAttempt).toHaveLength(1);
 
-    // ── Alt 1 retry: different bid (80♠) ────────────────────────────────
+    // ── Alt 1 retry: different bid (80♠ — also divergent vs expected pass) ──
     await submitAlt(client, events, runId,
       { type: 'bid', value: 80, suit: 'S' },
-      ['ouverture', 'valet-troisième'],
+      'user-disagrees',
       'alt 1',
     );
 

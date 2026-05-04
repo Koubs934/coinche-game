@@ -189,12 +189,27 @@ function listRunsForUser(userId) {
  * Produce a client-facing public view of the training room, reusing the
  * publicGame shape so GameBoard.jsx renders it without a second codepath.
  * Other seats' hands are masked, matching the normal-game filter.
+ *
+ * v3 reveal rule: `expectedAction` is only included in the trainingState
+ * when runState === 'AWAITING-REASON'. Before that (SCRIPT-PLAYING /
+ * AWAITING-ACTION) the user is still choosing — surfacing the expected
+ * answer would bias their decision, which is the original concern that
+ * drove the listScenarios filter and the pickClientScenarioFields
+ * sanitizer. After the user has submitted an action, the divergence
+ * dialogue is the whole point and revealing the expected action there
+ * is by design.
  */
 function publicView(run) {
   const g = run.game;
   const filteredHands = g.hands.map((hand, i) =>
     i === run.userSeat ? hand : Array(hand.length).fill(null)
   );
+
+  const expectedActionForClient = (run.runState === 'AWAITING-REASON' &&
+                                   run.scenario?.expectedAnswer?.action)
+    ? run.scenario.expectedAnswer.action
+    : null;
+
   return {
     trainingState: {
       runId:         run.runId,
@@ -203,8 +218,14 @@ function publicView(run) {
       timelineCursor: run.timelineCursor,
       totalSteps:    run.timeline.length,
       pendingAction: run.pendingAction?.action ?? null,
+      // v3: minimal expected-answer reveal — just the action piece (never
+      // ruleReference / ambiguityFlags / notes). Driven by the runState
+      // gate above so the client can compute divergence post-submit only.
+      // null in two cases: (a) before AWAITING-REASON, (b) rule-silent
+      // scenario (expectedAnswer === null on the scenario itself).
+      expectedAction: expectedActionForClient,
       // Stable across resume — used by the frontend as the localStorage key
-      // for note/tag drafts so an interrupted annotation can be recovered.
+      // for note drafts so an interrupted annotation can be recovered.
       partialId:     run.partialId ?? null,
       // Exhaustion session metadata — optional on the wire (absent for
       // legacy rehydrated runs that pre-date the session model).

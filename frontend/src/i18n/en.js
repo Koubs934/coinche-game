@@ -1,63 +1,7 @@
-// ── Training tag labels (shared fragments) ───────────────────────────────────
-// Mirrors _sharedBidDecisionTagsFr in fr.js. French is canonical; several
-// entries preserve French terms (Maître, Belote, Bicolore, Longue, etc.) —
-// these are conventional names in Coinche / Belote, not translatable.
-const _sharedBidDecisionTagsEn = {
-  // Group 1 — Trump hand
-  'maitre':             'Maître (J+9+A trump)',
-  'valet-second':       'J-second (2 trumps incl. J)',
-  'valet-troisième':    'J-third (3 trumps incl. J)',
-  'valet-quatrième':    'J-fourth (4 trumps incl. J)',
-  'valet-cinquième':    'J-fifth (5 trumps incl. J)',
-  '9-second':           '9-second (2 trumps, no J)',
-  '9-troisième':        '9-third (3 trumps, no J)',
-  '9-quatrième':        '9-fourth (4 trumps, no J)',
-  '9-cinquième':        '9-fifth (5 trumps, no J)',
-  'atout-count-2':      '2 trumps',
-  'atout-count-3':      '3 trumps',
-  'atout-count-4':      '4 trumps',
-  'atout-count-5-plus': '5+ trumps',
-  'belote-possible':    'Belote (K+Q trump)',
-
-  // Group 2 — Non-trump hand
-  'as-extérieur-0': '0 outside Aces',
-  'as-extérieur-1': '1 outside Ace',
-  'as-extérieur-2': '2 outside Aces',
-  'as-extérieur-3': '3 outside Aces',
-  'deux-as-bare':   '2 Aces (informational)',
-  '21':             '21 (A + 10 same suit)',
-  'deux-21':        'Two 21s',
-  'longue':         'Longue (A-10-K in one suit)',
-
-  // Group 3 — Hand shape
-  'bicolore':       'Bicolore (2-suited)',
-  'fausse-carte-1': '1 weak off-suit card',
-  'fausse-carte-2': '2 weak off-suit cards',
-
-  // Group 5 — Partner context
-  'premier-à-parler':              'First to speak',
-  'partenaire-ouverture-80':       'Partner opened 80',
-  'partenaire-ouverture-90':       'Partner opened 90',
-  'partenaire-ouverture-100':      'Partner opened 100',
-  'partenaire-ouverture-110-plus': 'Partner opened 110+',
-  'partenaire-même-couleur':       'Partner in my suit',
-  'partenaire-autre-couleur':      'Partner in different suit',
-
-  // Group 6 — Opponent context
-  'adverse-a-ouvert':     'Opponent opened',
-  'adverse-a-surenchéri': 'Opponent raised',
-
-  // Group 7 — Score context
-  'score-équilibré': 'Score balanced',
-  'score-derrière':  'Behind, need points',
-  'score-avance':    'Ahead, play safe',
-  'dernière-donne':  'Last hand of match',
-
-  // Group 8 — Uncertainty / meta
-  'jugement':  'Judgment',
-  'incertain': 'Uncertain',
-  'autre':     'Other (note required)',
-};
+// v3 (2026-05-04): the structured tag vocabulary was removed alongside the
+// divergence-driven UI rewrite. The shared `_sharedBidDecisionTagsEn`
+// fragment that lived here is gone — git history preserves it. Annotation
+// is now: pick action → (if rules diverge or are silent) free-text note.
 
 export default {
   // Auth
@@ -276,9 +220,7 @@ export default {
     completion: {
       title:        'Scenario complete',
       actionLabel:  'Your action',
-      tagsLabel:    'Tags selected',
       noteLabel:    'Your note',
-      noTags:       '(no tags selected)',
       noNote:       '(no note)',
       backToPicker: 'Back to scenarios',
       nextScenario: 'Next scenario',
@@ -289,35 +231,24 @@ export default {
       // Code-keyed error messages — App.jsx looks these up by the server's
       // error.code before falling back to the raw server message.
       byCode: {
-        DUPLICATE_BID_IN_SESSION: 'This bid was already recorded in this session. Choose a different bid.',
-        UNKNOWN_SESSION:          'Unknown or expired session.',
+        DUPLICATE_BID_IN_SESSION:        'This bid was already recorded in this session. Choose a different bid.',
+        UNKNOWN_SESSION:                 'Unknown or expired session.',
+        MISSING_DIVERGENCE_AGREEMENT:    'Please answer the question before submitting.',
+        INVALID_DIVERGENCE_AGREEMENT:    'Invalid response.',
+        MISSING_REQUIRED_NOTE:           'An explanation is required for this choice.',
+        UNEXPECTED_DIVERGENCE_AGREEMENT: 'Submission error.',
       },
     },
 
     panel: {
-      title:                     'Why this choice?',
-      actionLabel:               'Action taken',
-      notePlaceholderOptional:   'Optional — what pushed you toward this choice?',
-      notePlaceholderRequired:   "Required — what reasoning isn't captured by the tags?",
-      noteLabel:                 'Note',
       submit:                    'Submit',
-      // Client-side validation helpers (mirror tagValidator.js)
-      helperEmpty:               'Pick at least one tag or write a note',
-      helperNoteRequired:        'A note is required for the selected tag',
-      helperMissingRequired:     (groupLabel) => `Pick one tag from "${groupLabel}"`,
-      helperMultipleRequired:    (groupLabel) => `Only one tag allowed in "${groupLabel}"`,
-      requiredBadge:             'Required',
-      // Soft-warning confirmation overlay (server-returned, non-blocking)
-      warningHeading:            'Check your choice',
-      warningContinueBtn:        'Continue',
-      warningBackBtn:            'Go back and add',
       // Post-completion exhaustion review overlay
       reviewPromptTitle:         'Another strategy possible?',
       reviewPromptBody:          'If you can imagine a different read of this hand leading to a different bid, explore it.',
       reviewContinueBtn:         'Yes, another strategy',
       reviewEndBtn:              "No, that's all",
       changeAction:              'Change my action',
-      // Action-display prefixes
+      // Action-display prefixes (used by formatActionText)
       youBid:                    'You bid',
       youPassed:                 'You passed',
       youCoinched:               'You coinched',
@@ -325,82 +256,30 @@ export default {
       youPlayed:                 'You played',
       // Mock-only — not shown outside the mock harness
       mockHarnessHeading:        'Mock mode — reason panel preview',
-      mockSwitcherLabel:         'Action type',
+      mockSwitcherLabel:         'Case',
+      mockStateMatch:            'Match (rule = action)',
+      mockStateDivergent:        'Divergent',
+      mockStateRuleSilent:       'Rule-silent',
     },
-    actions: {
-      bid:         'Bid',
-      pass:        'Pass',
-      coinche:     'Coinche',
-      surcoinche:  'Surcoinche',
-      'play-card': 'Card play',
+    // v3 divergence-driven flow.
+    divergence: {
+      heading: {
+        userChoice:    (action) => `You chose: ${action}`,
+        rulesSuggest:  (action) => `The rules suggest: ${action}`,
+      },
+      question:               (action) => `Could ${action} also work?`,
+      option: {
+        couldBeEither: 'Yes',
+        userDisagrees: 'No',
+      },
     },
-    tags: {
-      groups: {
-        // v2 groups (bid/pass/coinche/surcoinche)
-        'trump-hand':       'Trump hand',
-        'non-trump-hand':   'Non-trump hand',
-        'hand-shape':       'Hand shape',
-        'bidding-action':   'Bidding action',
-        'partner-context':  'Partner context',
-        'opponent-context': 'Opponent context',
-        'score-context':    'Score context',
-        'meta':             'Uncertainty / meta',
-        // Legacy groups — still used by the (v1-carried-over) play-card action
-        'hand-claim':     'Hand strength',
-        'tactical':       'Tactical',
-        'partner-signal': 'Partner signal',
-        'defensive':      'Defensive',
-        'situational':    'Situational',
-        'uncertainty':    'Uncertainty',
-        'other':          'Other',
-      },
-      bid: {
-        ..._sharedBidDecisionTagsEn,
-        // Group 4 — Bidding action (bid-specific)
-        'ouverture':                   'Opening',
-        'monter':                      'Raise (same suit)',
-        'changer':                     'Switch suit',
-        'bloquage':                    'Blocking bid',
-        'faire-monter-pour-coincher':  'Push to draw coinche',
-        'cherche-mon-partenaire':      'Information bid to partner',
-        'surenchère-compétitive':      'Competitive raise',
-      },
-      pass: {
-        ..._sharedBidDecisionTagsEn,
-        // Group 4 — Bidding action (pass-specific)
-        'passer-faible':      'Pass (weak hand)',
-        'passer-stratégique': 'Pass (strategic)',
-      },
-      coinche: {
-        ..._sharedBidDecisionTagsEn,
-        'coincher': 'Coinche',
-      },
-      surcoinche: {
-        ..._sharedBidDecisionTagsEn,
-        'surcoincher': 'Surcoinche',
-      },
-      'play-card': {
-        'cashing-winner-before-cut':  'Cashing winner before cut',
-        'drawing-trump':              'Drawing trump',
-        'promoting-partners-card':    "Promoting partner's card",
-        'letting-partner-win':        'Letting partner win',
-        'signalling-suit-to-partner': 'Signalling suit to partner',
-        'belote-order-signal':        'Belote order signal (K/Q)',
-        'appel-direct':               'Appel direct',
-        'appel-indirect':             'Appel indirect',
-        'protecting-high-card':       'Protecting high card',
-        'saving-trump-for-later':     'Saving trump for later',
-        'dumping-garbage':            'Dumping garbage',
-        'forced-only-legal-card':     'Forced — only legal card',
-        'non-default-winner-choice':  'Non-default winner choice',
-        'shedding-to-create-ruff':    'Shedding to create a ruff',
-        'forcing-opponent-to-trump':  'Forcing opponent to trump',
-        'endgame-positioning':        'Endgame positioning (tricks 6-7)',
-        'last-trick-dix-de-der':      'Dix de der (last trick)',
-        'judgment-call':              'Judgment call',
-        'not-sure':                   'Not sure',
-        'other':                      'Other',
-      },
+    ruleSilent: {
+      intro: "The rules don't cover this case — your reasoning helps build them.",
+    },
+    reasoning: {
+      notePrompt:      'Why this choice?',
+      noteRequired:    '(required)',
+      notePlaceholder: 'Explain your reasoning...',
     },
   },
 };

@@ -113,6 +113,20 @@ function actionMatches(userAction, expectedAction) {
 
 // ─── Section builders ───────────────────────────────────────────────────────
 
+// v3 annotations carry divergenceType / divergenceAgreement directly. v2
+// annotations don't — they predate the divergence schema. Splitting the
+// dataset on schemaVersion lets us emit two distinct sections without
+// guessing.
+function partitionByVersion(annotations) {
+  const v2 = [], v3 = [];
+  for (const a of annotations) {
+    if (a.schemaVersion === 3)      v3.push(a);
+    else if (a.schemaVersion === 2) v2.push(a);
+    else                            v2.push(a); // v1 / unknown — bucket with legacy
+  }
+  return { v2, v3 };
+}
+
 function buildHeader(annotations) {
   const counts   = {};
   const usernames = {};
@@ -198,9 +212,98 @@ function buildPerScenario(annotations, scenarios) {
   return lines;
 }
 
+// v3-only: report on the new divergenceType / divergenceAgreement fields
+// stamped by the server at submission time. The four data classes
+// (match / soft divergence / hard divergence / rule-silent) are the
+// signal the v3 design is meant to surface.
+function buildV3Divergence(v3, scenarios) {
+  const lines = [];
+  lines.push('## 3. v3 divergence breakdown');
+  lines.push('');
+  lines.push('Each v3 annotation carries a server-computed `divergenceType` and the user\'s `divergenceAgreement` answer. The four data classes:');
+  lines.push('- **Match** — `divergenceType === null`. User picked exactly what the rules suggest. No reasoning UI was shown; auto-submitted.');
+  lines.push('- **Soft divergence** — `divergenceAgreement === "could-be-either"`. User picked something else but conceded the rule answer could also work.');
+  lines.push('- **Hard divergence** — `divergenceAgreement === "user-disagrees"`. User picked something else and rejected the rule answer.');
+  lines.push('- **Rule-silent** — `divergenceType === "rule-silent"`. Scenario has no expectedAnswer; user reasoning is the data point.');
+  lines.push('');
+  if (v3.length === 0) {
+    lines.push('_(no v3 annotations in this dataset yet)_');
+    lines.push('');
+    return lines;
+  }
+
+  let match = 0, soft = 0, hard = 0, silent = 0, other = 0;
+  const perScenario = {};
+  for (const a of v3) {
+    for (const d of (a.decisions || [])) {
+      const dt = d.divergenceType;
+      const da = d.divergenceAgreement;
+      const slot = (perScenario[a.scenarioId] = perScenario[a.scenarioId] || {
+        match: [], soft: [], hard: [], silent: [], other: [],
+      });
+      if (dt === null) { match++; slot.match.push(a); }
+      else if (dt === 'rule-silent') { silent++; slot.silent.push(a); }
+      else if (da === 'could-be-either') { soft++; slot.soft.push(a); }
+      else if (da === 'user-disagrees')  { hard++; slot.hard.push(a); }
+      else { other++; slot.other.push(a); }
+    }
+  }
+  const total = match + soft + hard + silent + other;
+  const pct = (n) => total === 0 ? '—' : `${((n / total) * 100).toFixed(0)}%`;
+
+  lines.push('### 3.1 v3 dataset rates');
+  lines.push('');
+  lines.push('| Class | Count | % |');
+  lines.push('|---|---|---|');
+  lines.push(`| Match (no UI) | ${match} | ${pct(match)} |`);
+  lines.push(`| Soft divergence (could-be-either) | ${soft} | ${pct(soft)} |`);
+  lines.push(`| Hard divergence (user-disagrees) | ${hard} | ${pct(hard)} |`);
+  lines.push(`| Rule-silent | ${silent} | ${pct(silent)} |`);
+  if (other > 0) lines.push(`| Other / malformed | ${other} | ${pct(other)} |`);
+  lines.push('');
+
+  lines.push('### 3.2 v3 per-scenario divergence');
+  lines.push('');
+  lines.push('| Scenario | Match | Soft | Hard | Rule-silent |');
+  lines.push('|---|---|---|---|---|');
+  for (const sid of Object.keys(perScenario).sort()) {
+    const s = perScenario[sid];
+    lines.push(`| \`${sid}\` | ${s.match.length} | ${s.soft.length} | ${s.hard.length} | ${s.silent.length} |`);
+  }
+  lines.push('');
+
+  // Notes from divergent + rule-silent annotations, verbatim. These are
+  // the cases where free-text reasoning was required.
+  lines.push('### 3.3 v3 reasoning notes (divergent + rule-silent)');
+  lines.push('');
+  let n = 0;
+  for (const a of v3) {
+    for (const d of (a.decisions || [])) {
+      if (d.divergenceType === null) continue;
+      if (!d.note || d.note.trim() === '') continue;
+      n++;
+      const cls = d.divergenceType === 'rule-silent'
+        ? 'rule-silent'
+        : (d.divergenceAgreement === 'could-be-either' ? 'soft' : 'hard');
+      lines.push(`${n}. **${a.username || a.userId} — \`${a.scenarioId}\` — \`${actionLabel(d.action)}\`** _(${cls})_`);
+      const quoted = d.note.split('\n').map(l => '   > ' + l).join('\n');
+      lines.push(quoted);
+      lines.push('');
+    }
+  }
+  if (n === 0) {
+    lines.push('_(no notes recorded yet on v3 annotations requiring reasoning)_');
+    lines.push('');
+  }
+  return lines;
+}
+
+// Legacy v2 dataset (the 18 pre-cutover annotations). Drives the original
+// expectedAnswer-vs-action consistency check, since v2 records don't carry
+// divergenceType themselves but the scenarios they reference still do.
 function buildRuleConsistency(annotations, scenarios) {
   const lines = [];
-  lines.push('## 3. Rule consistency (NEW — driven by `expectedAnswer`)');
+  lines.push('## 4. Legacy v2 dataset — rule consistency');
   lines.push('');
   lines.push('A decision matches the expected answer when:');
   lines.push('- `type` agrees (bid / pass / coinche)');
@@ -208,6 +311,11 @@ function buildRuleConsistency(annotations, scenarios) {
   lines.push('');
   lines.push('Annotations on scenarios with `expectedAnswer: null` are excluded from the percentages and listed separately under "Rule-discovery zone".');
   lines.push('');
+  if (annotations.length === 0) {
+    lines.push('_(no v2 annotations in this dataset)_');
+    lines.push('');
+    return lines;
+  }
 
   // Per-user rollup
   const perUser = {};
@@ -397,12 +505,15 @@ function main() {
     (a.completedAt || '').localeCompare(b.completedAt || '')
   );
 
+  const { v2, v3 } = partitionByVersion(annotations);
+
   const sections = [
     ...buildHeader(annotations),
     ...buildPerScenario(annotations, scenarios),
-    ...buildRuleConsistency(annotations, scenarios),
+    ...buildV3Divergence(v3, scenarios),
+    ...buildRuleConsistency(v2, scenarios),
     ...buildConvergence(annotations),
-    ...buildTagHistogram(annotations),
+    ...buildTagHistogram(v2), // tag histogram is meaningful only for v2 records
     ...buildNotesCorpus(annotations),
   ];
   fs.writeFileSync(OUT_FILE, sections.join('\n') + '\n');

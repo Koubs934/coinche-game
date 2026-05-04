@@ -98,7 +98,7 @@
  *     "schemaVersion":         1,
  *     "scenarioId":            "...",
  *     "scenarioSchemaVersion": 1,   // from scenario file
- *     "tagsSchemaVersion":     1,   // from reasonTags.json
+ *     "tagsSchemaVersion":     1,   // legacy v2 records only; absent on v3
  *     "userId":                "...",
  *     "username":              "...",         // snapshot; userId is authoritative
  *     "startedAt":             "ISO 8601",

@@ -90,13 +90,16 @@ export default function App() {
   // Training-mode state (kept entirely separate from normal-room state)
   const [trainingView,       setTrainingView]       = useState(null); // 'picker' | 'run' | 'complete' | null
   const [trainingScenarios,  setTrainingScenarios]  = useState([]);
-  const [trainingTags,       setTrainingTags]       = useState(null);
   const [trainingRun,        setTrainingRun]        = useState(null); // { trainingState, room, game, myPosition }
   const [trainingAnnotation, setTrainingAnnotation] = useState(null); // set by trainingCompleted
   const [trainingResumable,  setTrainingResumable]  = useState([]);
-  const [trainingWarnings,   setTrainingWarnings]   = useState(null); // string[]|null — soft warnings awaiting ack
   const [trainingReviewPrompt, setTrainingReviewPrompt] = useState(null); // {runId,sessionId,alternativeIndex}|null
   const [trainingExhausted,  setTrainingExhausted]  = useState([]);   // list from exhaustedScenarios event
+  // v3 (2026-05-04): the structured tag vocabulary was removed. The
+  // getTrainingTags / trainingTags socket events still exist server-side
+  // for contract continuity but the client no longer cares about the
+  // payload — divergence flow is computed from scenario.expectedAction
+  // delivered in trainingState.
 
   // Ref mirrors so the socket handler closure sees current state without re-subscribing
   const gameStateRef = useRef(null);
@@ -144,8 +147,8 @@ export default function App() {
         setTimeout(() => setSocketInfo(''), 3000);
       }
 
-      // Prime training data (cheap, gets cached server-side)
-      socket.emit('getTrainingTags');
+      // Prime the scenario list (cheap, cached server-side). Tag vocabulary
+      // is no longer fetched — v3 has none.
       socket.emit('listTrainingScenarios');
     });
 
@@ -192,7 +195,8 @@ export default function App() {
     });
 
     // ── Training events ────────────────────────────────────────────────
-    socket.on('trainingTags',          ({ tags })      => setTrainingTags(tags));
+    // v3: trainingTags handler dropped — server still emits but the payload
+    // is null; client no longer reads it.
     socket.on('trainingScenariosList', ({ scenarios }) => setTrainingScenarios(scenarios));
     socket.on('trainingResumablePending', ({ partials }) => setTrainingResumable(partials));
 
@@ -205,14 +209,7 @@ export default function App() {
     socket.on('trainingAwaitingReason', (payload) => setTrainingRun(payload));
     socket.on('trainingCompleted', ({ annotation }) => {
       setTrainingAnnotation(annotation);
-      setTrainingWarnings(null);
       setTrainingView('complete');
-    });
-    socket.on('trainingReasonWarning', ({ warnings }) => {
-      // Server accepted validation but wants a non-blocking confirmation
-      // (e.g. no trump-hand tag). ReasonPanel renders the overlay and the
-      // user either confirms (resubmits with ackWarnings) or edits.
-      setTrainingWarnings(warnings);
     });
     // Exhaustion session events (Phase A/B). Review prompt lands on top of
     // the completion summary; yes → back to 'run' view with reset state;
@@ -399,16 +396,12 @@ export default function App() {
             game={trainingRun.game}
             myPosition={trainingRun.myPosition}
             trainingState={trainingRun.trainingState}
-            tagSchema={trainingTags}
-            pendingWarnings={trainingWarnings}
-            onDismissWarnings={() => setTrainingWarnings(null)}
           />
         )}
 
         {trainingView === 'complete' && trainingAnnotation && (
           <CompletionSummary
             annotation={trainingAnnotation}
-            tagSchema={trainingTags}
             onBackToPicker={backToPicker}
             onNextScenario={nextScenario}
             hasNextScenario={hasNextScenario}

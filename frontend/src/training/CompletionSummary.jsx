@@ -1,9 +1,14 @@
-// Brief summary shown after a scenario is completed and the annotation is
-// persisted. Two terminal actions: back to picker, or next scenario — but
-// if the server has emitted an exhaustion-session review prompt, an
-// overlay appears on top asking "Autre stratégie possible ?" and the
-// terminal actions are replaced by Oui / Non answers. See
-// ReviewPromptOverlay.jsx for the overlay component.
+// Brief summary shown after a scenario is annotated and persisted. Two
+// terminal actions: back to picker, or next scenario — but if the server
+// has emitted the exhaustion-session review prompt, an overlay appears on
+// top asking "Autre stratégie possible ?" and the terminal actions are
+// replaced by Oui / Non answers. See ReviewPromptOverlay.jsx.
+//
+// v3 (2026-05-04): tag rendering removed. The annotation now contains only
+// action + divergenceType + divergenceAgreement + note. We render the
+// action and the note (if present); the divergence machinery is plumbed
+// through but not surfaced — users don't need to see "you matched the
+// rule / you diverged" framing on the success screen.
 
 import { useLang } from '../context/LanguageContext';
 import { formatActionText, actionIsRed } from './formatAction';
@@ -11,7 +16,6 @@ import ReviewPromptOverlay from './ReviewPromptOverlay';
 
 export default function CompletionSummary({
   annotation,
-  tagSchema,          // so we can resolve tag labels to the current locale
   onBackToPicker,
   onNextScenario,
   hasNextScenario,
@@ -24,18 +28,10 @@ export default function CompletionSummary({
 
   const decision = annotation?.decisions?.[0];
   const action   = decision?.action;
-  const tags     = decision?.tags ?? [];
   const note     = decision?.note ?? '';
 
   const actionText = formatActionText(action, t);
   const actionRed  = actionIsRed(action);
-
-  // Resolve tag keys → localized labels using the tag schema.
-  const tagLabels = tags.map(key => {
-    const actionType = action?.type;
-    if (!actionType) return key;
-    return t.training.tags[actionType]?.[key] ?? key;
-  });
 
   return (
     <div className="training-completion">
@@ -47,19 +43,6 @@ export default function CompletionSummary({
         <section className="tc-section">
           <div className="tc-section-label">{c.actionLabel}</div>
           <div className={`tc-action${actionRed ? ' tc-red' : ''}`}>{actionText}</div>
-        </section>
-
-        <section className="tc-section">
-          <div className="tc-section-label">{c.tagsLabel}</div>
-          {tagLabels.length > 0 ? (
-            <div className="tc-tag-row">
-              {tagLabels.map((label, i) => (
-                <span key={i} className="tc-tag">{label}</span>
-              ))}
-            </div>
-          ) : (
-            <div className="tc-empty">{c.noTags}</div>
-          )}
         </section>
 
         <section className="tc-section">

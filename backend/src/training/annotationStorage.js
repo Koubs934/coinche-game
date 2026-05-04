@@ -7,8 +7,18 @@
 //
 // Atomicity: writes go through <path>.tmp then fs.renameSync to <path>.
 //
+// v3 (2026-05-04): replaced structured tag vocabulary with a divergence-
+// driven flow. New fields:
+//   - divergenceType:        null | 'value-different' | 'suit-different' |
+//                            'action-type-different' | 'rule-silent'
+//   - divergenceAgreement:   'could-be-either' | 'user-disagrees' | null
+//   - note:                  free text, required when divergent or
+//                            rule-silent, optional on a match
+// Removed: tags array, tagsSchemaVersion. The 18 v2 records on disk are
+// untouched and remain readable by build-training-snapshot.js's legacy path.
+//
 // v2 (2026-04-21): introduced exhaustion sessions. Each annotation carries
-// three new fields:
+// three fields kept across the v3 bump:
 //   - sessionId:          UUID threaded across all alternatives of a session
 //   - alternativeIndex:   0-based position within the session
 //   - sessionStatus:      'in-progress' until the user answers the review
@@ -21,13 +31,8 @@
 const fs   = require('fs');
 const path = require('path');
 
-const reasonTags = require('./reasonTags.json');
-
-// Annotation-record schema (outer shape) and tag-vocabulary schema evolve
-// independently. Record shape = SCHEMA_VERSION here; tag vocabulary is
-// sourced from reasonTags.json so a vocab bump only edits one file.
-const SCHEMA_VERSION          = 2;
-const TAGS_SCHEMA_VERSION     = reasonTags.tagsSchemaVersion;
+// Annotation-record schema bumped from 2 to 3 with the v3 cutover.
+const SCHEMA_VERSION          = 3;
 const PARTIAL_TTL_MS          = 30 * 60 * 1000;
 const STATUS_AWAITING_REASON  = 'awaiting-reason';
 const STATUS_COMPLETE         = 'complete';
@@ -89,7 +94,6 @@ function writePartial(run) {
     schemaVersion:         SCHEMA_VERSION,
     scenarioId:            run.scenarioId,
     scenarioSchemaVersion: run.scenario.schemaVersion,
-    tagsSchemaVersion:     TAGS_SCHEMA_VERSION,
     userId:                run.userId,
     username:              run.username,
     startedAt:             run.startedAt,
@@ -104,9 +108,10 @@ function writePartial(run) {
         timelineStep: run.pendingAction.timelineStep,
         phase:        run.game.phase,
         action:       run.pendingAction.action,
-        tags:         null,
-        note:         null,
-        decidedAt:    null,
+        divergenceType:      null,
+        divergenceAgreement: null,
+        note:                null,
+        decidedAt:           null,
       },
     ],
   };
@@ -115,7 +120,7 @@ function writePartial(run) {
   return partialId;
 }
 
-function writeComplete(run, { tags, note, decidedAt }) {
+function writeComplete(run, { divergenceType, divergenceAgreement, note, decidedAt }) {
   if (!run.partialId) throw new Error('[annotationStorage] writeComplete: no partialId on run');
   if (!run.pendingAction) throw new Error('[annotationStorage] writeComplete: no pendingAction');
 
@@ -126,7 +131,6 @@ function writeComplete(run, { tags, note, decidedAt }) {
     schemaVersion:         SCHEMA_VERSION,
     scenarioId:            run.scenarioId,
     scenarioSchemaVersion: run.scenario.schemaVersion,
-    tagsSchemaVersion:     TAGS_SCHEMA_VERSION,
     userId:                run.userId,
     username:              run.username,
     startedAt:             run.startedAt,
@@ -141,7 +145,8 @@ function writeComplete(run, { tags, note, decidedAt }) {
         timelineStep: run.pendingAction.timelineStep,
         phase:        run.game.phase,
         action:       run.pendingAction.action,
-        tags,
+        divergenceType,
+        divergenceAgreement: divergenceAgreement ?? null,
         note,
         decidedAt,
       },

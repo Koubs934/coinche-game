@@ -1,116 +1,103 @@
-// Mock harness — renders ReasonPanel against hardcoded data so the UX can
-// be reviewed in isolation before sockets are wired. URL: ?mock=training-panel
-// Remove this file after step 4 wiring is signed off.
+// Mock harness for the v3 ReasonPanel. Activated via ?mock=training-panel.
+// Lets the divergence-driven UI be reviewed without an authenticated
+// session. Three preview states are toggled via a switcher in the harness
+// header; each one drives the same ReasonPanel with different
+// (action, expectedAnswer) pairs:
+//
+//   match        — user picked exactly what the rules suggest. The panel
+//                  renders nothing in this state (parent auto-submits).
+//                  We surface a placeholder line so the screenshot shows
+//                  *something*.
+//   divergent    — user picked 90 ♠; rules say pass. ReasonPanel asks
+//                  "could pass also work?" + required note.
+//   rule-silent  — user picked 110 ♦ on a competitive scenario. Rules
+//                  don't cover it; ReasonPanel asks for a note only.
 
 import { useState } from 'react';
 import { useLang } from '../context/LanguageContext';
 import ReasonPanel from './ReasonPanel';
-import ReviewPromptOverlay from './ReviewPromptOverlay';
-import mockTags from './mockTags';
 
-const MOCK_ACTIONS = [
-  { label: 'Bid 90♠',        action: { type: 'bid',        value: 90, suit: 'S' } },
-  { label: 'Pass',            action: { type: 'pass' } },
-  { label: 'Coinche',         action: { type: 'coinche' } },
-  { label: 'Surcoinche',      action: { type: 'surcoinche' } },
-  { label: 'Play J♦',        action: { type: 'play-card', card: { value: 'J', suit: 'D' } } },
-];
+const MOCK_CASES = {
+  match: {
+    label:    (t) => t.training.panel.mockStateMatch,
+    action:   { type: 'pass' },
+    expected: { action: { type: 'pass' }, ruleReference: 'opening:pass-no-pattern-qualifies' },
+  },
+  divergent: {
+    label:    (t) => t.training.panel.mockStateDivergent,
+    action:   { type: 'bid', value: 90, suit: 'S' },
+    expected: { action: { type: 'pass' }, ruleReference: 'opening:pass-no-pattern-qualifies' },
+  },
+  ruleSilent: {
+    label:    (t) => t.training.panel.mockStateRuleSilent,
+    action:   { type: 'bid', value: 110, suit: 'D' },
+    expected: null, // rule-silent
+  },
+};
 
 export default function ReasonPanelMock() {
   const { t } = useLang();
   const p = t.training.panel;
-  const [idx, setIdx] = useState(0);
-  const [lastSubmit, setLastSubmit] = useState(null);
-  const [warningsOverride, setWarningsOverride] = useState(null);
-  const [reviewPreview, setReviewPreview] = useState(false);
-
-  const action = MOCK_ACTIONS[idx].action;
-  const actionType = action.type;
-  const tagsForAction = {
-    ...mockTags.actions[actionType],
-    actionType, // so ReasonPanel can find i18n labels
-  };
-
-  function handleSubmit(tags, note, ackWarnings) {
-    const submission = { action, tags, note, ackWarnings: !!ackWarnings };
-    setLastSubmit(submission);
-    console.log('[mock] submit:', submission);
-    if (ackWarnings) setWarningsOverride(null);
-  }
-
-  function handleChangeAction() {
-    console.log('[mock] change action clicked — would revert to AWAITING-ACTION');
-    window.alert('(mock) Change-my-action would take the user back to the card/bid selection UI. Not simulated here.');
-  }
+  const [stateKey, setStateKey] = useState('divergent');
+  const current = MOCK_CASES[stateKey];
 
   return (
-    <div className="mock-harness">
-      <div className="mock-harness-head">
-        <h1>{p.mockHarnessHeading}</h1>
-        <div className="mock-switcher">
-          <span className="mock-switcher-label">{p.mockSwitcherLabel}:</span>
-          {MOCK_ACTIONS.map((opt, i) => (
-            <button
-              key={i}
-              type="button"
-              className={`mock-switcher-btn${i === idx ? ' on' : ''}`}
-              onClick={() => { setIdx(i); setLastSubmit(null); }}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+    <div>
+      <div style={{
+        padding: '10px 14px', background: '#0c1a25', color: '#8ea9bf',
+        fontSize: '0.82em', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
+      }}>
+        <strong>{p.mockHarnessHeading}</strong>
+        <span>{p.mockSwitcherLabel}:</span>
+        {Object.entries(MOCK_CASES).map(([key, def]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setStateKey(key)}
+            style={{
+              background: stateKey === key ? 'var(--accent)' : 'transparent',
+              color:      stateKey === key ? '#1a1a1a'       : 'var(--text)',
+              border:     '1px solid rgba(255,255,255,0.22)',
+              padding:    '4px 10px',
+              borderRadius: '4px',
+              fontSize:   '0.85em',
+            }}
+          >
+            {def.label(t)}
+          </button>
+        ))}
       </div>
 
-      <div className="mock-warning-toggle">
-        <button
-          type="button"
-          className={`mock-switcher-btn${warningsOverride ? ' on' : ''}`}
-          onClick={() => setWarningsOverride(
-            warningsOverride
-              ? null
-              : ['Aucune étiquette "main d\'atout" — cette décision sera plus difficile à exploiter pour l\'extraction de règles.']
-          )}
-        >
-          Preview soft-warning overlay
-        </button>
-        <button
-          type="button"
-          className={`mock-switcher-btn${reviewPreview ? ' on' : ''}`}
-          onClick={() => setReviewPreview(v => !v)}
-        >
-          Preview review prompt overlay
-        </button>
-      </div>
-
-      <ReasonPanel
-        key={idx} // remount on switch so internal state resets
-        action={action}
-        tagsForAction={tagsForAction}
-        groupsMap={mockTags.groups}
-        onSubmit={handleSubmit}
-        onChangeAction={handleChangeAction}
-        pendingWarnings={warningsOverride}
-        onDismissWarnings={() => setWarningsOverride(null)}
-      />
-
-      {lastSubmit && (
-        <div className="mock-submit-echo">
-          <h3>Last submission</h3>
-          <pre>{JSON.stringify(lastSubmit, null, 2)}</pre>
+      {stateKey === 'match' ? (
+        <div className="training-modal-backdrop">
+          <div className="training-modal-content">
+            <div className="training-reason-panel training-reason-v3">
+              <div className="trp-action-head">
+                <div className="trp-action-line">
+                  {/* In the live flow this state is invisible to the user —
+                      parent component auto-submits and the panel doesn't
+                      mount. The harness shows a placeholder so reviewers
+                      see what the match path looks like in transit. */}
+                  ✓ {t.training.divergence.heading.userChoice('Pass')}
+                  {' — '}
+                  <em style={{ opacity: 0.7 }}>(submit silently — no UI)</em>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
-      {reviewPreview && (
-        <ReviewPromptOverlay
-          onContinue={() => {
-            console.log('[mock] review: continue (would emit submitScenarioReviewAnswer yes)');
-            setReviewPreview(false);
-          }}
-          onEnd={() => {
-            console.log('[mock] review: end (would emit submitScenarioReviewAnswer no, return to picker)');
-            setReviewPreview(false);
-          }}
-        />
+      ) : (
+        <div className="training-modal-backdrop">
+          <div className="training-modal-content">
+            <ReasonPanel
+              action={current.action}
+              expectedAnswer={current.expected}
+              onSubmit={(agreement, note) => console.log('[mock] submit:', { agreement, note })}
+              onChangeAction={() => console.log('[mock] change-action clicked')}
+              draftKey={`mock-${stateKey}`}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

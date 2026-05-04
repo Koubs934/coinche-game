@@ -159,29 +159,27 @@ to the default path.
 - Running totals across rounds; game ends after the round where a team hits the target
 - Disconnected player pauses the game; resumes automatically on reconnect
 
-## Training mode
+## Training mode (divergence-driven)
 
-A solo practice table for playing pre-authored belote scenarios and capturing structured reasoning (tags + freeform note) for every decision. The goal is an annotated dataset of the user's personal convention, which will later drive rule extraction and bot tuning.
+A solo practice table for playing pre-authored belote scenarios. Annotation cost scales with disagreement: when the user's action matches the rules (per `docs/la-feuille-v2.md`) the submission is silent — no UI shown. When the user diverges, the system asks **"Pourriez-vous avoir [expected] aussi ?"** (yes/no) plus a required free-text note. When the rules don't cover the case (rule-silent scenarios), the user is asked for a note only. See [`docs/training-divergence-flow.md`](docs/training-divergence-flow.md) for the full design.
 
 Access it from the Lobby home screen via the **Training** / **Entraînement** button. Scenarios live under `backend/src/training/scenarios/`.
 
 ### Annotation flow — exhaustion sessions
 
-Each scenario run is an *exhaustion session*. The user records one decision, tags it, writes an optional note, and then is prompted **"Autre stratégie possible ?"**:
+Each scenario run is an *exhaustion session*. The user records one decision, the divergence-aware UI captures their reasoning if needed, then prompts **"Autre stratégie possible ?"**:
 
 - **Oui, autre stratégie** — the scenario replays and the user records a different bid (same-bid duplicates are server-refused). All alternatives in a session share a `sessionId`; the annotation record carries a 0-based `alternativeIndex`.
 - **Non, c'est tout** — the session concludes. The scenario is added to the user's `_exhausted.json` sidecar and hidden from the picker. A muted "Afficher les scénarios terminés (N)" toggle reveals exhausted scenarios with a "Terminé" badge and the count of alternatives recorded; starting an exhausted scenario begins a fresh session (and replaces the old `_exhausted.json` entry on conclusion).
 
 ### Data storage
 
-Annotations are written to `backend/data/training/<userId>/<isoStamp>-<scenarioId>.json` (production: the `/data` persistent volume on Railway). Two version fields on every record:
+Annotations are written to `backend/data/training/<userId>/<isoStamp>-<scenarioId>.json` (production: the `/data` persistent volume on Railway). Each v3 record carries:
 
-- **`schemaVersion`** is the annotation record shape. Currently **2** (2026-04-21) — adds `sessionId`, `alternativeIndex`, `sessionStatus` for exhaustion sessions. Legacy `schemaVersion: 1` annotations remain on disk unmigrated; the rule extractor treats them as single-alternative sessions.
-- **`tagsSchemaVersion`** is the tag vocabulary version. Currently **2** — see [`docs/tags-v2-spec.md`](docs/tags-v2-spec.md) for the canonical reference. v1 is archived at `backend/src/training/reasonTags.v1.json` for historical lookups only.
+- **`schemaVersion: 3`** (2026-05-04) — divergence-driven schema. Fields: `divergenceType` (server-computed: `null` / `value-different` / `suit-different` / `action-type-different` / `rule-silent`), `divergenceAgreement` (user's yes/no when shown: `could-be-either` / `user-disagrees` / `null`), `note` (required when divergent or rule-silent, optional on a match).
+- The 18 legacy `schemaVersion: 2` annotations from 2026-04-21 remain on disk untouched; they're surfaced separately by `scripts/build-training-snapshot.js`. The v2 tag vocabulary is archived under `backend/src/training/_archive/`.
 
-The sidecar file `backend/data/training/<userId>/_exhausted.json` indexes the user's exhausted scenarios (schema, sessionId, exhaustedAt, alternativesRecorded). The leading underscore keeps it visually distinct from annotation files; backup, recovery, and annotation-count scripts filter `_`-prefixed filenames.
-
-The validator enforces one tag from the `bidding-action` group per decision and emits a non-blocking confirmation when the `trump-hand` group is empty. Duplicate bids within an exhaustion session are hard-refused with `DUPLICATE_BID_IN_SESSION`. All annotation files and the sidecar are gitignored.
+The sidecar file `backend/data/training/<userId>/_exhausted.json` indexes the user's exhausted scenarios. Duplicate bids within an exhaustion session are hard-refused with `DUPLICATE_BID_IN_SESSION`. All annotation files and the sidecar are gitignored.
 
 ## Game Review
 
