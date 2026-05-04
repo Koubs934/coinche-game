@@ -19,11 +19,90 @@ const LEGAL_EVENTS = new Set(['bid', 'pass', 'coinche', 'surcoinche', 'play-card
 const LEGAL_PHASES = new Set(['BIDDING', 'PLAYING']);
 const LEGAL_BID_VALUES = new Set([80, 90, 100, 110, 120, 130, 140, 150, 160, 'capot']);
 
+// schemaVersion 2 expectedAnswer accepts a wider value range than runtime
+// scenario events, since partner responses under La Feuille V2 can stack
+// past 160 (e.g. 100-opening + outside Aces). Keep this in sync with the
+// rules document if conventions add 270+ tiers later.
+const LEGAL_EXPECTED_BID_VALUES = new Set([
+  80, 90, 100, 110, 120, 130, 140, 150, 160,
+  170, 180, 190, 200, 210, 220, 230, 240, 250,
+  'capot',
+]);
+const LEGAL_EXPECTED_ACTION_TYPES = new Set(['bid', 'pass', 'coinche']);
+
+// ─── schemaVersion 2 — expectedAnswer / ambiguityFlags ─────────────────────
+//
+// Both fields are OPTIONAL. Absent means "no expected answer; treated as v1
+// for analysis". When present:
+//   - expectedAnswer is null (rules don't cover this case) or
+//     { action: { type, value?, suit? }, ruleReference: <non-empty string> }
+//     where action.type ∈ {bid, pass, coinche}; for type==='bid', value must
+//     be a legal expected-bid value and suit must be S/H/D/C or null
+//     (null = "couleur libre", i.e. trump-tie-break unformalized).
+//   - ambiguityFlags is an array of strings (empty array allowed).
+//
+// These fields are consumed by analysis tooling (scripts/build-training-
+// snapshot.js) and MUST NOT be surfaced in the picker / reason-panel UI —
+// that would bias data collection.
+function validateExpectedAnswer(scenario, errs) {
+  if (!('expectedAnswer' in scenario)) return;
+  const ea = scenario.expectedAnswer;
+  if (ea === null) return; // explicit "rules don't determine an answer"
+  if (typeof ea !== 'object') {
+    errs.push('expectedAnswer must be null or an object');
+    return;
+  }
+  if (typeof ea.ruleReference !== 'string' || ea.ruleReference.trim() === '') {
+    errs.push('expectedAnswer.ruleReference must be a non-empty string');
+  }
+  const a = ea.action;
+  if (!a || typeof a !== 'object') {
+    errs.push('expectedAnswer.action is required when expectedAnswer is non-null');
+    return;
+  }
+  if (!LEGAL_EXPECTED_ACTION_TYPES.has(a.type)) {
+    errs.push(`expectedAnswer.action.type must be one of ${[...LEGAL_EXPECTED_ACTION_TYPES].join(', ')}`);
+  }
+  if (a.type === 'bid') {
+    if (!LEGAL_EXPECTED_BID_VALUES.has(a.value)) {
+      errs.push(`expectedAnswer.action.value invalid for bid: ${JSON.stringify(a.value)}`);
+    }
+    if (a.suit !== null && !SUITS.includes(a.suit)) {
+      errs.push(`expectedAnswer.action.suit must be one of S/H/D/C or null, got ${JSON.stringify(a.suit)}`);
+    }
+  }
+}
+
+function validateAmbiguityFlags(scenario, errs) {
+  if (!('ambiguityFlags' in scenario)) return;
+  const f = scenario.ambiguityFlags;
+  if (!Array.isArray(f)) {
+    errs.push('ambiguityFlags must be an array');
+    return;
+  }
+  for (const v of f) {
+    if (typeof v !== 'string' || v.trim() === '') {
+      errs.push(`ambiguityFlags entries must be non-empty strings, got ${JSON.stringify(v)}`);
+    }
+  }
+}
+
 function validateScenario(filename, scenario) {
   const errs = [];
 
   // Required top-level fields
-  if (scenario.schemaVersion !== 1) errs.push('schemaVersion must be 1');
+  if (![1, 2].includes(scenario.schemaVersion)) {
+    errs.push('schemaVersion must be 1 or 2');
+  }
+  // v1 cannot carry the v2-only fields — guard against accidental mixing.
+  if (scenario.schemaVersion === 1) {
+    if ('expectedAnswer' in scenario)  errs.push('expectedAnswer requires schemaVersion 2');
+    if ('ambiguityFlags' in scenario)  errs.push('ambiguityFlags requires schemaVersion 2');
+  }
+  if (scenario.schemaVersion === 2) {
+    validateExpectedAnswer(scenario, errs);
+    validateAmbiguityFlags(scenario, errs);
+  }
   if (!scenario.id) errs.push('missing id');
   if (scenario.id && `${scenario.id}.json` !== filename) errs.push(`id '${scenario.id}' does not match filename '${filename}'`);
   if (![0, 1, 2, 3].includes(scenario.userSeat)) errs.push('userSeat must be 0-3');

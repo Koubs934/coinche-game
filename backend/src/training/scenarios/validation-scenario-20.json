@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "validation-scenario-20",
   "title": {
     "en": "Validation #20 — 80 (couleur libre)",
@@ -34,5 +34,8 @@
 
   "timeline": [
     { "event": "user-turn" }
-  ]
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 80, "suit": null }, "ruleReference": "tie-break-not-formalized" },
+  "ambiguityFlags": ["tie-break-not-formalized"]
 }

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "opening-petit-jeu-first-to-speak",
   "title": {
     "en": "Opening — petit jeu, first to speak",
@@ -40,5 +40,8 @@
 
   "timeline": [
     { "event": "user-turn" }
-  ]
+  ],
+
+  "expectedAnswer": { "action": { "type": "pass" }, "ruleReference": "opening:pass-no-pattern-qualifies" },
+  "ambiguityFlags": []
 }

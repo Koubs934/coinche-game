@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "validation-scenario-18",
   "title": {
     "en": "Validation #18 — 80 ♠",
@@ -34,5 +34,8 @@
 
   "timeline": [
     { "event": "user-turn" }
-  ]
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 80, "suit": "S" }, "ruleReference": "hierarchy:80_priority_over_90" },
+  "ambiguityFlags": []
 }

@@ -159,7 +159,9 @@ describe('training flow — happy path', () => {
 
     const annotation = JSON.parse(fs.readFileSync(partialPath, 'utf8'));
     expect(annotation.schemaVersion).toBe(2);
-    expect(annotation.scenarioSchemaVersion).toBe(1);
+    // scenarioSchemaVersion mirrors the live scenario file. Bumped from 1 to
+    // 2 when expectedAnswer / ambiguityFlags fields landed.
+    expect(annotation.scenarioSchemaVersion).toBe(2);
     expect(annotation.tagsSchemaVersion).toBe(2);
     expect(annotation.status).toBe('complete');
     expect(annotation.sessionId).toMatch(/^[0-9a-f-]{36}$/);

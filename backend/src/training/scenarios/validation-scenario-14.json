@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "validation-scenario-14",
   "title": {
     "en": "Validation #14 — 120 bicolore ♥",
@@ -31,5 +31,8 @@
 
   "timeline": [
     { "event": "user-turn" }
-  ]
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 120, "suit": "H" }, "ruleReference": "opening:120-bicolore" },
+  "ambiguityFlags": []
 }

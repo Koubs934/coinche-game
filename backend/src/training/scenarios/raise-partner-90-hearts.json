@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "raise-partner-90-hearts",
   "title": {
     "en": "Raise partner's 90♥ with 9♥ + one outside Ace",
@@ -47,5 +47,8 @@
       "authorIntent": "Seat 3 has no qualifying petit-jeu (4♦ without outside Ace), no maître, 0 Aces. Cannot open. Passes."
     },
     { "event": "user-turn" }
-  ]
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 120, "suit": "H" }, "ruleReference": "response-to-90:120:piece-2nd" },
+  "ambiguityFlags": []
 }

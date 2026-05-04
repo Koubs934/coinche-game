@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "validation-scenario-13",
   "title": {
     "en": "Validation #13 — 110 ♣",
@@ -34,5 +34,8 @@
 
   "timeline": [
     { "event": "user-turn" }
-  ]
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 110, "suit": "C" }, "ruleReference": "opening:110:maitre+1as_ext" },
+  "ambiguityFlags": []
 }

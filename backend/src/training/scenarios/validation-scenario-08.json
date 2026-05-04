@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "validation-scenario-08",
   "title": {
     "en": "Validation #8 — 90 ♠",
@@ -34,5 +34,8 @@
 
   "timeline": [
     { "event": "user-turn" }
-  ]
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 90, "suit": "S" }, "ruleReference": "opening:90:valet-3rd+belote+as-ext" },
+  "ambiguityFlags": []
 }

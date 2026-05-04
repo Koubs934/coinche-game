@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "validation-scenario-03",
   "title": {
     "en": "Validation #3 — PASS",
@@ -34,5 +34,8 @@
 
   "timeline": [
     { "event": "user-turn" }
-  ]
+  ],
+
+  "expectedAnswer": { "action": { "type": "pass" }, "ruleReference": "opening:80-needs-exactly-2-aces" },
+  "ambiguityFlags": []
 }

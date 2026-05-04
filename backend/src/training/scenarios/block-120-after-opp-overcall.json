@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "block-120-after-opp-overcall",
   "title": {
     "en": "Partner 80♠, opponent 100♥ — block at 120?",
@@ -47,5 +47,8 @@
       "authorIntent": "Opponent overcalls with a maître claim in ♥: J♥+9♥+A♥ (plus 8♥). No outside Aces, no exploitable second suit → exactly 100, no 110/120 escalation."
     },
     { "event": "user-turn" }
-  ]
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["competitive-bidding-not-formalized"]
 }

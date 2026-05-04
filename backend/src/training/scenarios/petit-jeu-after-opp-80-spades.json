@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "petit-jeu-after-opp-80-spades",
   "title": {
     "en": "Petit-jeu hand after opponent opened 80♠",
@@ -44,5 +44,8 @@
       "authorIntent": "Information-80 opening: seat 3 holds A♠+A♥+A♣ (3 Aces) and no qualifying trump holding. Suit ♠ is chosen because it has the highest trumpPtsSum among seat 3's suits (A=11, 9=14, 7=0 → 25). This is a signalling bid to partner, not a claim on ♠."
     },
     { "event": "user-turn" }
-  ]
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["competitive-bidding-not-formalized"]
 }

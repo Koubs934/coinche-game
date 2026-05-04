@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "validation-scenario-05",
   "title": {
     "en": "Validation #5 — 80 ♦",
@@ -34,5 +34,8 @@
 
   "timeline": [
     { "event": "user-turn" }
-  ]
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 80, "suit": "D" }, "ruleReference": "opening:80:two-aces+petit-jeu" },
+  "ambiguityFlags": []
 }

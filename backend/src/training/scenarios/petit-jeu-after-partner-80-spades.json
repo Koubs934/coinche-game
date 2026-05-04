@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "petit-jeu-after-partner-80-spades",
   "title": {
     "en": "Petit-jeu hand after partner opened 80♠",
@@ -48,5 +48,8 @@
       "authorIntent": "Weak hand (0 Aces, no trump claim). Seat 3 has no qualifying petit-jeu or maître in any suit and cannot info-80. Passes."
     },
     { "event": "user-turn" }
-  ]
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 130, "suit": "S" }, "ruleReference": "response-to-80:130:piece-3rd+1as" },
+  "ambiguityFlags": []
 }
