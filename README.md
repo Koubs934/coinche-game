@@ -205,3 +205,4 @@ node scripts/build-games-report.js  # rebuild docs/games-report.html
 Open `docs/games-report.html` directly in a browser (no server needed). The report is self-contained — inlined CSS + vanilla JS, works offline. Usernames are mapped to short codes (2–3 chars); the mapping is shown in a legend at the top of the report. Real `userId`s never appear in the HTML.
 
 The mirror directory `backend/data/games-mirror/` and the generated `docs/games-report.html` are both gitignored — re-run sync to fetch new rounds, then rebuild. Requires the `railway` CLI on PATH and `backend/.env.railway.local` holding a valid `RAILWAY_TOKEN`; on Windows, Git Bash (or another bash in PATH) is required so the remote `tar | base64` pipeline quotes correctly. The sync is read-only — production data is never mutated.
+
