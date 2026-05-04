@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "validation-scenario-14",
+  "title": {
+    "en": "Validation #14 — 120 bicolore ♥",
+    "fr": "Validation n°14 — 120 bicolore ♥"
+  },
+  "description": {
+    "en": "Row 14 of the 20-row validation table from la-feuille-v2.md. User is first to speak; expected opening per the V2 convention is 120 bicolore ♥.",
+    "fr": "Ligne 14 du tableau de validation à 20 mains de la-feuille-v2.md. L'utilisateur parle en premier ; ouverture attendue selon la convention V2 : 120 bicolore ♥."
+  },
+  "notes": {
+    "en": "Drawn verbatim from la-feuille-v2.md row #14. Hand is exact; the other three hands are filled with the canonical-order remainder of the 32-card deck and never act (single user-turn timeline). Maitre ♥ + ≥1 other trump + cards in strictly 2 suits (♥ and ♣) → 120 bicolore ♥.",
+    "fr": "Repris tel quel de la ligne 14 de la-feuille-v2.md. Main exacte ; les trois autres mains sont remplies avec le reste du jeu de 32 cartes en ordre canonique et n'agissent pas (timeline à un seul user-turn). Maître ♥ + ≥1 autre atout + cartes en strictement 2 couleurs (♥ et ♣) → 120 bicolore ♥."
+  },
+
+  "userSeat": 0,
+  "dealer": 3,
+
+  "hands": {
+    "0": [ {"suit":"H","value":"J"}, {"suit":"H","value":"9"}, {"suit":"H","value":"A"}, {"suit":"H","value":"K"},
+           {"suit":"C","value":"A"}, {"suit":"C","value":"10"}, {"suit":"C","value":"9"}, {"suit":"C","value":"8"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"8"}, {"suit":"S","value":"9"}, {"suit":"S","value":"10"}, {"suit":"S","value":"J"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"K"}, {"suit":"S","value":"A"} ],
+    "2": [ {"suit":"H","value":"7"}, {"suit":"H","value":"8"}, {"suit":"H","value":"10"}, {"suit":"H","value":"Q"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"8"}, {"suit":"D","value":"9"}, {"suit":"D","value":"10"} ],
+    "3": [ {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"}, {"suit":"D","value":"A"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    { "event": "user-turn" }
+  ]
+}

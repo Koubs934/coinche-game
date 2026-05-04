@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "validation-scenario-11",
+  "title": {
+    "en": "Validation #11 — 100 ♣",
+    "fr": "Validation n°11 — 100 ♣"
+  },
+  "description": {
+    "en": "Row 11 of the 20-row validation table from la-feuille-v2.md. User is first to speak; expected opening per the V2 convention is 100 ♣.",
+    "fr": "Ligne 11 du tableau de validation à 20 mains de la-feuille-v2.md. L'utilisateur parle en premier ; ouverture attendue selon la convention V2 : 100 ♣."
+  },
+  "notes": {
+    "en": "Drawn verbatim from la-feuille-v2.md row #11. Hand is exact; the other three hands are filled with the canonical-order remainder of the 32-card deck and never act (single user-turn timeline). Maitre ♣ (5 trumps incl. J+9+A) and 0 outside Aces. Side cards in 2 different suits (♥ + ♦) — not strictly bicolore → 100, not 120.",
+    "fr": "Repris tel quel de la ligne 11 de la-feuille-v2.md. Main exacte ; les trois autres mains sont remplies avec le reste du jeu de 32 cartes en ordre canonique et n'agissent pas (timeline à un seul user-turn). Maître ♣ (5 atouts dont V+9+A), 0 As extérieur. Cartes hors-atout réparties sur 2 couleurs (♥ + ♦) — pas strictement bicolore → 100, pas 120."
+  },
+
+  "userSeat": 0,
+  "dealer": 3,
+
+  "hands": {
+    "0": [ {"suit":"H","value":"10"},
+           {"suit":"D","value":"J"}, {"suit":"D","value":"8"},
+           {"suit":"C","value":"J"}, {"suit":"C","value":"9"}, {"suit":"C","value":"A"}, {"suit":"C","value":"K"}, {"suit":"C","value":"Q"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"8"}, {"suit":"S","value":"9"}, {"suit":"S","value":"10"}, {"suit":"S","value":"J"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"K"}, {"suit":"S","value":"A"} ],
+    "2": [ {"suit":"H","value":"7"}, {"suit":"H","value":"8"}, {"suit":"H","value":"9"}, {"suit":"H","value":"J"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"K"}, {"suit":"H","value":"A"},
+           {"suit":"D","value":"7"} ],
+    "3": [ {"suit":"D","value":"9"}, {"suit":"D","value":"10"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"}, {"suit":"D","value":"A"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"8"}, {"suit":"C","value":"10"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    { "event": "user-turn" }
+  ]
+}

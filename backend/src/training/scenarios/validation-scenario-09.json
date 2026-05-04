@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "validation-scenario-09",
+  "title": {
+    "en": "Validation #9 — 90 ♠",
+    "fr": "Validation n°9 — 90 ♠"
+  },
+  "description": {
+    "en": "Row 9 of the 20-row validation table from la-feuille-v2.md. User is first to speak; expected opening per the V2 convention is 90 ♠.",
+    "fr": "Ligne 9 du tableau de validation à 20 mains de la-feuille-v2.md. L'utilisateur parle en premier ; ouverture attendue selon la convention V2 : 90 ♠."
+  },
+  "notes": {
+    "en": "Drawn verbatim from la-feuille-v2.md row #9. Hand is exact; the other three hands are filled with the canonical-order remainder of the 32-card deck and never act (single user-turn timeline). J + 9 + 1 other trump (8♠) + 1 outside Ace (A♥) → 90 ♠.",
+    "fr": "Repris tel quel de la ligne 9 de la-feuille-v2.md. Main exacte ; les trois autres mains sont remplies avec le reste du jeu de 32 cartes en ordre canonique et n'agissent pas (timeline à un seul user-turn). V + 9 + 1 autre atout (8♠) + 1 As extérieur (A♥) → 90 ♠."
+  },
+
+  "userSeat": 0,
+  "dealer": 3,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"J"}, {"suit":"S","value":"9"}, {"suit":"S","value":"8"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"K"}, {"suit":"H","value":"Q"},
+           {"suit":"D","value":"7"},
+           {"suit":"C","value":"10"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"10"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"K"}, {"suit":"S","value":"A"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"8"}, {"suit":"H","value":"9"} ],
+    "2": [ {"suit":"H","value":"10"}, {"suit":"H","value":"J"},
+           {"suit":"D","value":"8"}, {"suit":"D","value":"9"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"} ],
+    "3": [ {"suit":"D","value":"A"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"8"}, {"suit":"C","value":"9"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    { "event": "user-turn" }
+  ]
+}
