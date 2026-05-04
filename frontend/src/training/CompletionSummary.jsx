@@ -1,8 +1,10 @@
 // Brief summary shown after a scenario is annotated and persisted. Two
-// terminal actions: back to picker, or next scenario — but if the server
-// has emitted the exhaustion-session review prompt, an overlay appears on
-// top asking "Autre stratégie possible ?" and the terminal actions are
-// replaced by Oui / Non answers. See ReviewPromptOverlay.jsx.
+// terminal actions: back to picker, or next scenario.
+//
+// v3.1 (2026-05-04): the post-submit "Autre stratégie possible ?" overlay
+// was removed; every annotation auto-concludes server-side. The
+// pendingReview / onReviewContinue / onReviewEnd props are gone, and so
+// is the ReviewPromptOverlay component.
 //
 // v3 (2026-05-04): tag rendering removed. The annotation now contains only
 // action + divergenceType + divergenceAgreement + note. We render the
@@ -12,16 +14,12 @@
 
 import { useLang } from '../context/LanguageContext';
 import { formatActionText, actionIsRed } from './formatAction';
-import ReviewPromptOverlay from './ReviewPromptOverlay';
 
 export default function CompletionSummary({
   annotation,
   onBackToPicker,
   onNextScenario,
   hasNextScenario,
-  pendingReview,      // {runId,sessionId,alternativeIndex}|null — shows overlay when set
-  onReviewContinue,   // user clicked "Oui, autre stratégie"
-  onReviewEnd,        // user clicked "Non, c'est tout"
 }) {
   const { t } = useLang();
   const c = t.training.completion;
@@ -65,12 +63,6 @@ export default function CompletionSummary({
           )}
         </div>
       </div>
-      {pendingReview && (
-        <ReviewPromptOverlay
-          onContinue={onReviewContinue}
-          onEnd={onReviewEnd}
-        />
-      )}
     </div>
   );
 }

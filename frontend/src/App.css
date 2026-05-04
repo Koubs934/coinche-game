@@ -2160,6 +2160,98 @@ a      { color: var(--accent); }
 .trp-review-end:hover  { background: rgba(255, 255, 255, 0.06); }
 .trp-review-end:active { transform: scale(0.98); }
 
+/* ─── v3.1 divergence panel layout (2026-05-04) ──────────────────────────
+   Replaces the v3 trp-action-head / trp-pill grid. The change-action
+   button lives in a top bar above the action labels (no overlap with
+   headings), and the action labels are large + mobile-friendly. */
+.training-reason-v31 {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.training-reason-v31 .trp-topbar {
+  display: flex;
+  justify-content: flex-end;
+  /* Reserve a min-height so the panel layout stays stable even when
+     onChangeAction is omitted (mock previews). */
+  min-height: 28px;
+}
+/* Override the pre-v3.1 floating layout from .trp-change-action — the
+   button now sits inline in the top bar. */
+.training-reason-v31 .trp-change-action {
+  position: static;
+  margin: 0;
+}
+.training-reason-v31 .trp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.training-reason-v31 .trp-section-label {
+  margin: 0;
+  font-size: 0.82em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.training-reason-v31 .trp-action-large {
+  font-size: 2em;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  /* Mobile: keep readable but never overflow on 375px */
+  word-break: keep-all;
+}
+@media (max-width: 420px) {
+  .training-reason-v31 .trp-action-large { font-size: 1.7em; }
+}
+.training-reason-v31 .trp-suit { font-weight: 700; }
+.training-reason-v31 .trp-suit-red { color: var(--accent2); }
+.training-reason-v31 .trp-action-free-color {
+  font-size: 0.6em;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+.training-reason-v31 .trp-agreement-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.training-reason-v31 .trp-agreement-btn {
+  flex: 1 1 140px;
+  padding: 12px 18px;
+  font-size: 1em;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.08s;
+}
+.training-reason-v31 .trp-agreement-btn:hover  { background: rgba(255, 255, 255, 0.08); }
+.training-reason-v31 .trp-agreement-btn:active { transform: scale(0.97); }
+.training-reason-v31 .trp-agreement-on {
+  background: var(--accent);
+  color: #1a1a1a;
+  border-color: var(--accent);
+}
+.training-reason-v31 .trp-agreement-on:hover { background: #ffb821; }
+.training-reason-v31 .trp-rule-silent-intro {
+  margin: 0;
+  font-size: 0.95em;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.training-reason-v31 .trp-note-required-tag {
+  font-style: normal;
+  font-size: 0.85em;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
 /* ─── Mock harness (review-only; not shipped to users) ──────────────────── */
 .mock-harness {
   min-height: 100vh;

@@ -71,18 +71,15 @@ export default function ReasonPanelMock() {
       {stateKey === 'match' ? (
         <div className="training-modal-backdrop">
           <div className="training-modal-content">
-            <div className="training-reason-panel training-reason-v3">
-              <div className="trp-action-head">
-                <div className="trp-action-line">
-                  {/* In the live flow this state is invisible to the user —
-                      parent component auto-submits and the panel doesn't
-                      mount. The harness shows a placeholder so reviewers
-                      see what the match path looks like in transit. */}
-                  ✓ {t.training.divergence.heading.userChoice('Pass')}
-                  {' — '}
-                  <em style={{ opacity: 0.7 }}>(submit silently — no UI)</em>
-                </div>
-              </div>
+            <div className="training-reason-panel training-reason-v31">
+              <div className="trp-topbar" />
+              <section className="trp-section">
+                <h3 className="trp-section-label">{t.training.divergence.label.userAction}</h3>
+                <div className="trp-action-large">Pass</div>
+              </section>
+              <p className="trp-rule-silent-intro" style={{ opacity: 0.7 }}>
+                ✓ {t.training.panel.mockStateMatch} — submit silently, no UI
+              </p>
             </div>
           </div>
         </div>

@@ -159,7 +159,8 @@ describe('training flow — happy path (match case, v3)', () => {
     expect(annotation.status).toBe('complete');
     expect(annotation.sessionId).toMatch(/^[0-9a-f-]{36}$/);
     expect(annotation.alternativeIndex).toBe(0);
-    expect(annotation.sessionStatus).toBe('in-progress');
+    // v3.1: auto-conclude on submit — every annotation lands as 'concluded'.
+    expect(annotation.sessionStatus).toBe('concluded');
     expect(annotation.userId).toBe(USER_ID);
     expect(annotation.username).toBe(USERNAME);
     expect(annotation.scenarioId).toBe(SCENARIO);
@@ -372,33 +373,27 @@ describe('training flow — v3 divergence validation errors', () => {
   });
 });
 
-// ─── Test D: full exhaustion session (multi-alternative + duplicate refusal) ──
+// ─── Test D: v3.1 auto-conclude — no review prompt ────────────────────────
+//
+// In v3.1 every annotation auto-concludes as a single-alternative session.
+// trainingScenarioReviewPrompt is no longer emitted; trainingScenarioExhausted
+// fires immediately after every successful submit; the run is GC'd. The
+// underlying socket events (submitScenarioReviewAnswer / trainingScenarioReviewed)
+// remain on the server for contract continuity but are unreachable from the
+// new flow.
 
-describe('training flow — exhaustion session', () => {
-  const USER_ID = 'test-user-exhaust';
-  const USERNAME = 'Exhaust Tester';
-  const SCENARIO = 'opening-petit-jeu-first-to-speak'; // instant user-turn
+describe('training flow — v3.1 auto-conclude', () => {
+  const USER_ID = 'test-user-autoconclude';
+  const USERNAME = 'AutoConclude Tester';
+  const SCENARIO = 'opening-petit-jeu-first-to-speak';
 
-  async function submitAlt(client, events, runId, action, divergenceAgreement, note) {
-    // Clear the completion/prompt trackers for the upcoming alternative.
-    const before = events.trainingCompleted.length;
-    const beforePrompt = events.trainingScenarioReviewPrompt.length;
-    client.emit('submitTrainingAction', { runId, action });
-    await waitFor(() => events.trainingAwaitingReason.length >
-      events.trainingCompleted.length); // awaiting > completed proves this run reached AWAITING-REASON again
-    client.emit('submitTrainingReason', { runId, divergenceAgreement, note });
-    await waitFor(() => events.trainingCompleted.length > before);
-    await waitFor(() => events.trainingScenarioReviewPrompt.length > beforePrompt);
-  }
-
-  it('alt 0 → yes → alt 1 (duplicate refused) → alt 1 (different bid) → no → exhausted', async () => {
+  it('single submit auto-concludes: trainingScenarioExhausted fires; no review prompt', async () => {
     const client = connectClient(USER_ID, USERNAME);
     const events = collectEvents(client, [
       'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
       'trainingCompleted', 'trainingScenarioReviewPrompt',
       'trainingScenarioReviewed', 'trainingScenarioExhausted',
-      'exhaustedScenarios',
-      'error',
+      'exhaustedScenarios', 'error',
     ]);
 
     await new Promise(resolve => client.on('connect', resolve));
@@ -407,92 +402,50 @@ describe('training flow — exhaustion session', () => {
       events.trainingUpdate.some(u => u.trainingState.runState === 'AWAITING-ACTION'),
     );
 
-    const started = events.trainingStarted[0];
+    const started   = events.trainingStarted[0];
     const runId     = started.trainingState.runId;
     const sessionId = started.trainingState.session.sessionId;
     expect(sessionId).toMatch(/^[0-9a-f-]{36}$/);
     expect(started.trainingState.session.alternativeIndex).toBe(0);
 
-    // ── Alternative 0: submit 90♠ (divergent — expected is pass) ─────────
-    await submitAlt(client, events, runId,
-      { type: 'bid', value: 90, suit: 'S' },
-      'could-be-either',
-      'alt 0',
-    );
-
-    const prompt0 = events.trainingScenarioReviewPrompt[0];
-    expect(prompt0.sessionId).toBe(sessionId);
-    expect(prompt0.alternativeIndex).toBe(0);
-
-    // Yes → next alternative
-    client.emit('submitScenarioReviewAnswer', { runId, sessionId, answer: 'yes' });
-    await waitFor(() => events.trainingScenarioReviewed.length > 0);
-    expect(events.trainingScenarioReviewed[0].trainingState.session.alternativeIndex).toBe(1);
-
-    // Scenario replays (instantly for this one) and returns to AWAITING-ACTION
-    await waitFor(() =>
-      events.trainingUpdate.some(u =>
-        u.trainingState.runState === 'AWAITING-ACTION' &&
-        u.trainingState.session?.alternativeIndex === 1,
-      ),
-    );
-
-    // ── Alt 1 attempt: duplicate 90♠ — must be refused ──────────────────
-    const errorsBeforeDup = events.error.length;
+    // Submit a divergent action (expected is pass; user picks 90♠)
     client.emit('submitTrainingAction', { runId, action: { type: 'bid', value: 90, suit: 'S' } });
-    await waitFor(() => events.error.length > errorsBeforeDup);
-    const dupErr = events.error[events.error.length - 1];
-    expect(dupErr.code).toBe('DUPLICATE_BID_IN_SESSION');
+    await waitFor(() => events.trainingAwaitingReason.length > 0);
+    client.emit('submitTrainingReason', {
+      runId,
+      divergenceAgreement: 'could-be-either',
+      note: 'auto-conclude smoke',
+    });
 
-    // No new partial file was written for the failed attempt — count stays at 1
-    const userDir = path.join(SCRATCH_DATA_DIR, USER_ID);
-    const filesAfterDupAttempt = fs.readdirSync(userDir)
-      .filter(f => f.endsWith('.json') && !f.startsWith('_'));
-    expect(filesAfterDupAttempt).toHaveLength(1);
-
-    // ── Alt 1 retry: different bid (80♠ — also divergent vs expected pass) ──
-    await submitAlt(client, events, runId,
-      { type: 'bid', value: 80, suit: 'S' },
-      'user-disagrees',
-      'alt 1',
-    );
-
-    const prompt1 = events.trainingScenarioReviewPrompt[1];
-    expect(prompt1.sessionId).toBe(sessionId);
-    expect(prompt1.alternativeIndex).toBe(1);
-
-    // Now say no — concludes session, writes _exhausted.json
-    client.emit('submitScenarioReviewAnswer', { runId, sessionId, answer: 'no' });
+    // Both completion AND exhausted fire on the SAME submit
+    await waitFor(() => events.trainingCompleted.length > 0);
     await waitFor(() => events.trainingScenarioExhausted.length > 0);
+    expect(events.error).toHaveLength(0);
+
+    // The review-prompt path is gone in v3.1
+    expect(events.trainingScenarioReviewPrompt).toHaveLength(0);
+    expect(events.trainingScenarioReviewed).toHaveLength(0);
+
     const exhaustedEvt = events.trainingScenarioExhausted[0];
     expect(exhaustedEvt.sessionId).toBe(sessionId);
     expect(exhaustedEvt.scenarioId).toBe(SCENARIO);
-    expect(exhaustedEvt.alternativesRecorded).toBe(2);
+    expect(exhaustedEvt.alternativesRecorded).toBe(1);
     expect(exhaustedEvt.exhaustedScenarios).toHaveLength(1);
     expect(exhaustedEvt.exhaustedScenarios[0].scenarioId).toBe(SCENARIO);
 
     // ── Disk checks ─────────────────────────────────────────────────────
-    // 2 annotation files with matching sessionId + incrementing alternativeIndex
+    const userDir = path.join(SCRATCH_DATA_DIR, USER_ID);
     const annotFiles = fs.readdirSync(userDir)
-      .filter(f => f.endsWith('.json') && !f.startsWith('_'))
-      .sort();
-    expect(annotFiles).toHaveLength(2);
+      .filter(f => f.endsWith('.json') && !f.startsWith('_'));
+    expect(annotFiles).toHaveLength(1);
 
-    const alts = annotFiles.map(f =>
-      JSON.parse(fs.readFileSync(path.join(userDir, f), 'utf8')),
-    ).sort((a, b) => a.alternativeIndex - b.alternativeIndex);
+    const annot = JSON.parse(fs.readFileSync(path.join(userDir, annotFiles[0]), 'utf8'));
+    expect(annot.sessionId).toBe(sessionId);
+    expect(annot.alternativeIndex).toBe(0);
+    expect(annot.sessionStatus).toBe('concluded'); // auto-concluded on submit
+    expect(annot.decisions[0].action).toEqual({ type: 'bid', value: 90, suit: 'S' });
+    expect(annot.decisions[0].divergenceType).toBe('action-type-different');
 
-    expect(alts[0].sessionId).toBe(sessionId);
-    expect(alts[0].alternativeIndex).toBe(0);
-    expect(alts[0].sessionStatus).toBe('concluded');
-    expect(alts[0].decisions[0].action).toEqual({ type: 'bid', value: 90, suit: 'S' });
-
-    expect(alts[1].sessionId).toBe(sessionId);
-    expect(alts[1].alternativeIndex).toBe(1);
-    expect(alts[1].sessionStatus).toBe('concluded');
-    expect(alts[1].decisions[0].action).toEqual({ type: 'bid', value: 80, suit: 'S' });
-
-    // _exhausted.json exists with the one entry
     const exhaustedPath = path.join(userDir, '_exhausted.json');
     expect(fs.existsSync(exhaustedPath)).toBe(true);
     const exhaustedRec = JSON.parse(fs.readFileSync(exhaustedPath, 'utf8'));
@@ -500,7 +453,7 @@ describe('training flow — exhaustion session', () => {
     expect(exhaustedRec.exhaustedScenarios[0]).toMatchObject({
       scenarioId:          SCENARIO,
       sessionId,
-      alternativesRecorded: 2,
+      alternativesRecorded: 1,
     });
 
     client.disconnect();

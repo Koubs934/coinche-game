@@ -224,9 +224,13 @@
 //       INVALID_DIVERGENCE_AGREEMENT     — agreement value not in legal set
 //       MISSING_REQUIRED_NOTE            — divergent or rule-silent with empty note
 //       UNEXPECTED_DIVERGENCE_AGREEMENT  — agreement provided on a match or rule-silent case
-//     After trainingCompleted, the server ALSO emits
-//     'trainingScenarioReviewPrompt' so the client can prompt "Autre
-//     stratégie possible ?" — see below.
+//     v3.1 (2026-05-04): every annotation auto-concludes as a single-
+//     alternative session. After trainingCompleted, the server emits
+//     'trainingScenarioExhausted' immediately (alternativesRecorded: 1)
+//     and GCs the run. The previous 'trainingScenarioReviewPrompt' /
+//     'submitScenarioReviewAnswer' / 'trainingScenarioReviewed' round-
+//     trip is no longer driven. The handlers remain (socket-contract
+//     continuity) but are unreachable from the new flow.
 //
 //   'submitScenarioReviewAnswer'({ runId, sessionId, answer:'yes'|'no' })
 //     Response to the review prompt. 'yes' resets the run to SCRIPT-PLAYING

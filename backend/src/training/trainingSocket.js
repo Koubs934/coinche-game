@@ -191,9 +191,17 @@ function registerTrainingHandlers(socket) {
     run.decisions.push(completedDecision);
     run.runState = 'COMPLETE';
 
-    let annotationPath;
+    // v3.1 (2026-05-04): the post-submit "Autre stratégie possible ?"
+    // overlay was removed. Every annotation auto-concludes as a single-
+    // alternative session. Stamp reviewAnswered=true BEFORE writeComplete
+    // so the on-disk record carries sessionStatus='concluded' from the
+    // start. Schema fields (sessionId, alternativeIndex, sessionStatus,
+    // _exhausted.json sidecar) are unchanged — the user no longer
+    // chooses, the server just commits.
+    if (run.session) run.session.reviewAnswered = true;
+
     try {
-      annotationPath = annotationStorage.writeComplete(run, {
+      annotationStorage.writeComplete(run, {
         divergenceType:      v.divergenceType,
         divergenceAgreement: divergenceAgreement ?? null,
         note:                trimmedNote,
@@ -204,7 +212,24 @@ function registerTrainingHandlers(socket) {
       // Roll back to AWAITING-REASON so the user can retry without losing partial.
       run.decisions.pop();
       run.runState = 'AWAITING-REASON';
+      if (run.session) run.session.reviewAnswered = false;
       return emitError(socket, 'Could not save your reasoning — please retry');
+    }
+
+    // Auto-conclude: append the scenario to the user's _exhausted.json.
+    // alternativesRecorded is always 1 in v3.1 (no multi-alt path remains).
+    let exhaustedRecord = null;
+    try {
+      exhaustedRecord = exhaustionStorage.addExhausted(run.userId, {
+        scenarioId:           run.scenarioId,
+        sessionId:            run.session.sessionId,
+        alternativesRecorded: run.session.alternativeIndex + 1,
+      });
+    } catch (err) {
+      // Sidecar write failed — annotation is on disk but the picker won't
+      // hide the scenario until the next time addExhausted succeeds. Log
+      // and fall through; the user shouldn't be blocked on a sidecar issue.
+      console.error(`[training] auto-conclude addExhausted failed: ${err.message}`);
     }
 
     socket.emit('trainingCompleted', {
@@ -218,16 +243,20 @@ function registerTrainingHandlers(socket) {
       },
     });
 
-    // Exhaustion prompt: server still holds the run in COMPLETE awaiting the
-    // user's yes/no. Emitting this right after trainingCompleted lets the
-    // client render the completion screen AND overlay the review prompt —
-    // the overlay handlers call submitScenarioReviewAnswer below.
-    socket.emit('trainingScenarioReviewPrompt', {
-      runId:            run.runId,
-      scenarioId:       run.scenarioId,
-      sessionId:        run.session.sessionId,
-      alternativeIndex: run.session.alternativeIndex,
-    });
+    if (exhaustedRecord) {
+      socket.emit('trainingScenarioExhausted', {
+        runId:                 run.runId,
+        scenarioId:            run.scenarioId,
+        sessionId:             run.session.sessionId,
+        alternativesRecorded:  run.session.alternativeIndex + 1,
+        exhaustedScenarios:    exhaustedRecord.exhaustedScenarios,
+      });
+    }
+
+    // GC the run — completion screen lives client-side, server doesn't
+    // need to retain in-memory state.
+    trainingRooms.deleteRun(run.runId);
+    ownedRunIds.delete(run.runId);
   });
 
   // ── Exhaustion review answer ───────────────────────────────────────────

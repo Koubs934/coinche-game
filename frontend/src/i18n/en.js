@@ -242,13 +242,10 @@ export default {
 
     panel: {
       submit:                    'Submit',
-      // Post-completion exhaustion review overlay
-      reviewPromptTitle:         'Another strategy possible?',
-      reviewPromptBody:          'If you can imagine a different read of this hand leading to a different bid, explore it.',
-      reviewContinueBtn:         'Yes, another strategy',
-      reviewEndBtn:              "No, that's all",
       changeAction:              'Change my action',
-      // Action-display prefixes (used by formatActionText)
+      // Action-display prefixes — kept for legacy formatActionText callers
+      // (e.g. picker resumable rows, completion summary). The new compact
+      // labels live in formatActionLabel.jsx and use training.divergence.*.
       youBid:                    'You bid',
       youPassed:                 'You passed',
       youCoinched:               'You coinched',
@@ -261,25 +258,25 @@ export default {
       mockStateDivergent:        'Divergent',
       mockStateRuleSilent:       'Rule-silent',
     },
-    // v3 divergence-driven flow.
+    // v3.1 divergence-driven flow — section labels + agree/disagree copy.
     divergence: {
-      heading: {
-        userChoice:    (action) => `You chose: ${action}`,
-        rulesSuggest:  (action) => `The rules suggest: ${action}`,
+      label: {
+        userAction:       'Your call',
+        feuilleSuggests:  'La Feuille suggests',
       },
-      question:               (action) => `Could ${action} also work?`,
       option: {
-        couldBeEither: 'Yes',
-        userDisagrees: 'No',
+        agree:    'Agree',
+        disagree: 'Disagree',
       },
+      freeColor: '(free suit)',
     },
     ruleSilent: {
-      intro: "The rules don't cover this case — your reasoning helps build them.",
+      intro: "La Feuille doesn't cover this case — your reasoning helps build it.",
     },
     reasoning: {
-      notePrompt:      'Why this choice?',
-      noteRequired:    '(required)',
-      notePlaceholder: 'Explain your reasoning...',
+      label:       'Reasoning',
+      required:    '(required)',
+      placeholder: 'Explain your reasoning...',
     },
   },
 };

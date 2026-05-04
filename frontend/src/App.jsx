@@ -93,7 +93,6 @@ export default function App() {
   const [trainingRun,        setTrainingRun]        = useState(null); // { trainingState, room, game, myPosition }
   const [trainingAnnotation, setTrainingAnnotation] = useState(null); // set by trainingCompleted
   const [trainingResumable,  setTrainingResumable]  = useState([]);
-  const [trainingReviewPrompt, setTrainingReviewPrompt] = useState(null); // {runId,sessionId,alternativeIndex}|null
   const [trainingExhausted,  setTrainingExhausted]  = useState([]);   // list from exhaustedScenarios event
   // v3 (2026-05-04): the structured tag vocabulary was removed. The
   // getTrainingTags / trainingTags socket events still exist server-side
@@ -211,29 +210,16 @@ export default function App() {
       setTrainingAnnotation(annotation);
       setTrainingView('complete');
     });
-    // Exhaustion session events (Phase A/B). Review prompt lands on top of
-    // the completion summary; yes → back to 'run' view with reset state;
-    // no → back to 'picker' with the new exhaustion entry reflected.
-    socket.on('trainingScenarioReviewPrompt', (payload) => {
-      setTrainingReviewPrompt(payload);
-    });
-    socket.on('trainingScenarioReviewed', (payload) => {
-      // Server has reset the run for the next alternative. Drop the old
-      // annotation display; transition back to the run view so the user
-      // can submit a different bid. `payload` is a full trainingSync.
-      setTrainingAnnotation(null);
-      setTrainingReviewPrompt(null);
-      setTrainingRun(payload);
-      setTrainingView('run');
-    });
+    // v3.1 (2026-05-04): the post-submit "Autre stratégie possible ?"
+    // overlay was removed. Every annotation auto-concludes server-side as
+    // a single-alternative session, so trainingScenarioExhausted now fires
+    // immediately after every successful submit and we just refresh the
+    // picker's exhausted list. The trainingScenarioReviewPrompt /
+    // trainingScenarioReviewed handlers were dropped — the underlying
+    // socket events still exist on the server for contract continuity but
+    // are unreachable from the new flow.
     socket.on('trainingScenarioExhausted', ({ exhaustedScenarios }) => {
-      // User said "Non, c'est tout" — session concluded, scenario marked
-      // exhausted in the user's `_exhausted.json`. Return to picker.
       if (Array.isArray(exhaustedScenarios)) setTrainingExhausted(exhaustedScenarios);
-      setTrainingReviewPrompt(null);
-      setTrainingAnnotation(null);
-      setTrainingRun(null);
-      setTrainingView('picker');
     });
     socket.on('exhaustedScenarios', ({ exhaustedScenarios }) => {
       // Auto-surfaced on connect and fetchable on demand. Used by the
@@ -258,7 +244,6 @@ export default function App() {
         // can pick up where they left off.
         setTrainingRun(null);
         setTrainingAnnotation(null);
-        setTrainingReviewPrompt(null);
         setTrainingView('picker');
         socket.emit('getResumablePartials');
         setSocketInfo(t.training.errors.sessionInterrupted);
@@ -327,15 +312,8 @@ export default function App() {
     setTrainingRun(null);
     socketRef.current?.emit('startTrainingScenario', { scenarioId: next.id });
   }
-  function reviewAnswer(answer) {
-    if (!trainingReviewPrompt) return;
-    const { runId, sessionId } = trainingReviewPrompt;
-    socketRef.current?.emit('submitScenarioReviewAnswer', { runId, sessionId, answer });
-    // Optimistic: hide the overlay immediately while we wait for the
-    // server's trainingScenarioReviewed (yes) or trainingScenarioExhausted
-    // (no) event. Both handlers clear any stale state.
-    setTrainingReviewPrompt(null);
-  }
+  // v3.1: reviewAnswer() removed. Sessions auto-conclude server-side; the
+  // user no longer chooses "Oui, autre stratégie / Non, c'est tout".
 
   const hasNextScenario = (() => {
     if (!trainingAnnotation || !trainingScenarios?.length) return false;
@@ -405,9 +383,6 @@ export default function App() {
             onBackToPicker={backToPicker}
             onNextScenario={nextScenario}
             hasNextScenario={hasNextScenario}
-            pendingReview={trainingReviewPrompt}
-            onReviewContinue={() => reviewAnswer('yes')}
-            onReviewEnd={()     => reviewAnswer('no')}
           />
         )}
         <EnvBadge />

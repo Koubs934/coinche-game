@@ -1,4 +1,4 @@
-// v3 reason panel — divergence-driven flow.
+// v3.1 reason panel — divergence-driven flow with cleaner layout.
 //
 // Three states, derived from the scenario's expectedAnswer (passed in) and
 // the user's pendingAction:
@@ -6,18 +6,16 @@
 //   match        → no UI; the parent auto-submits with null agreement and
 //                  empty note. This component renders nothing in that case
 //                  (the parent decides whether to mount it at all).
-//   divergent    → "You chose: X. Rules suggest: Y. Could Y also work? Yes/No"
-//                  + required free-text note. Submit disabled until both
-//                  fields are set.
-//   rule-silent  → "You chose: X. The rules don't cover this case." +
-//                  required free-text note. No yes/no.
+//   divergent    → "Annonce: X / La Feuille suggère: Y / D'accord-Pas d'accord
+//                   / Raisonnement (requis)"
+//   rule-silent  → "Annonce: X / [explanatory line] / Raisonnement (requis)"
 //
 // The server recomputes divergence on submit and is the source of truth;
-// this component's job is to gather the inputs and call onSubmit.
+// this component's job is to gather inputs and call onSubmit.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLang } from '../context/LanguageContext';
-import { formatActionText, actionIsRed } from './formatAction';
+import formatActionLabel from './formatActionLabel';
 import { readDraft, writeDraft, clearDraft } from './noteDraft';
 import { computeDivergenceType } from './divergence';
 
@@ -35,36 +33,19 @@ export default function ReasonPanel({
   const { t } = useLang();
   const p = t.training.panel;
 
-  const divergenceType = useMemo(
-    () => computeDivergenceType(expectedAnswer, action),
-    [expectedAnswer, action],
-  );
+  const divergenceType = computeDivergenceType(expectedAnswer, action);
 
   const [agreement, setAgreement] = useState(null);            // 'could-be-either' | 'user-disagrees' | null
   const [note,      setNote]      = useState(() => readDraft(draftKey)?.note ?? '');
 
-  // Match path: parent decides whether to mount this. If it does mount us
-  // on a match, render nothing (defensive — parent handles auto-submit).
-  if (divergenceType === null) return null;
-
-  const isDivergent = divergenceType !== 'rule-silent';
-  const noteTrimmed = note.trim();
-  const noteOK      = noteTrimmed.length > 0;
-  const agreementOK = !isDivergent || agreement !== null;
-  const canSubmit   = noteOK && agreementOK;
-
   // ── Draft persistence (debounced + on unmount) ────────────────────────
-  // Only the note is persisted; agreement is a quick yes/no the user can
-  // re-click and not worth localStorage round-trips.
   const latestRef   = useRef({ note });
   const finishedRef = useRef(false);
   useEffect(() => { latestRef.current = { note }; }, [note]);
 
   useEffect(() => {
     if (!draftKey) return;
-    const timer = setTimeout(() => {
-      writeDraft(draftKey, [], note); // tags arg kept for back-compat with helper signature
-    }, 500);
+    const timer = setTimeout(() => writeDraft(draftKey, [], note), 500);
     return () => clearTimeout(timer);
   }, [note, draftKey]);
 
@@ -75,29 +56,25 @@ export default function ReasonPanel({
     };
   }, [draftKey]);
 
+  // Match path: parent auto-submits and doesn't mount us. Defensive return.
+  if (divergenceType === null) return null;
+
+  const isDivergent = divergenceType !== 'rule-silent';
+  const noteTrimmed = note.trim();
+  const noteOK      = noteTrimmed.length > 0;
+  const agreementOK = !isDivergent || agreement !== null;
+  const canSubmit   = noteOK && agreementOK;
+
   function handleSubmit(e) {
     e.preventDefault();
     if (!canSubmit) return;
     onSubmit(isDivergent ? agreement : null, noteTrimmed);
   }
 
-  const userActionLabel = formatActionText(action, t);
-  const userActionRed   = actionIsRed(action);
-  const expectedActionLabel = expectedAnswer?.action
-    ? formatActionText({ ...expectedAnswer.action, type: expectedAnswer.action.type }, t).replace(/^[^\s]+\s/, '')
-    : '';
-  // ^ formatActionText prepends "Vous avez annoncé / You bid" — for the
-  // "rules suggest" line we want just the bare action ("110 ♠"). Strip
-  // the leading prefix to get the clean action label.
-  const expectedActionRed = expectedAnswer?.action ? actionIsRed({ ...expectedAnswer.action, type: expectedAnswer.action.type }) : false;
-
   return (
-    <div className="training-reason-panel training-reason-v3">
-      {/* ── User's chosen action ─────────────────────────────────────── */}
-      <div className="trp-action-head">
-        <div className={`trp-action-line${userActionRed ? ' trp-red' : ''}`}>
-          {t.training.divergence.heading.userChoice(userActionLabel)}
-        </div>
+    <div className="training-reason-panel training-reason-v31">
+      {/* ── Top bar — change-action lives here, NOT floating over content ── */}
+      <div className="trp-topbar">
         {onChangeAction && (
           <button
             type="button"
@@ -113,37 +90,40 @@ export default function ReasonPanel({
         )}
       </div>
 
+      {/* ── User's chosen action ─────────────────────────────────────── */}
+      <section className="trp-section">
+        <h3 className="trp-section-label">{t.training.divergence.label.userAction}</h3>
+        <div className="trp-action-large">{formatActionLabel(action, t)}</div>
+      </section>
+
       {/* ── State 2: divergent ────────────────────────────────────────── */}
       {isDivergent && expectedAnswer?.action && (
         <>
-          <div className={`trp-rules-line${expectedActionRed ? ' trp-red' : ''}`}>
-            {t.training.divergence.heading.rulesSuggest(expectedActionLabel)}
+          <section className="trp-section">
+            <h3 className="trp-section-label">{t.training.divergence.label.feuilleSuggests}</h3>
+            <div className="trp-action-large">{formatActionLabel(expectedAnswer.action, t)}</div>
+          </section>
+
+          <div className="trp-agreement-row" role="radiogroup">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={agreement === 'could-be-either'}
+              className={`trp-agreement-btn${agreement === 'could-be-either' ? ' trp-agreement-on' : ''}`}
+              onClick={() => setAgreement('could-be-either')}
+            >
+              {t.training.divergence.option.agree}
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={agreement === 'user-disagrees'}
+              className={`trp-agreement-btn${agreement === 'user-disagrees' ? ' trp-agreement-on' : ''}`}
+              onClick={() => setAgreement('user-disagrees')}
+            >
+              {t.training.divergence.option.disagree}
+            </button>
           </div>
-          <fieldset className="trp-agreement">
-            <legend className="trp-agreement-question">
-              {t.training.divergence.question(expectedActionLabel)}
-            </legend>
-            <label className="trp-agreement-option">
-              <input
-                type="radio"
-                name="divergence-agreement"
-                value="could-be-either"
-                checked={agreement === 'could-be-either'}
-                onChange={() => setAgreement('could-be-either')}
-              />
-              {' '}{t.training.divergence.option.couldBeEither}
-            </label>
-            <label className="trp-agreement-option">
-              <input
-                type="radio"
-                name="divergence-agreement"
-                value="user-disagrees"
-                checked={agreement === 'user-disagrees'}
-                onChange={() => setAgreement('user-disagrees')}
-              />
-              {' '}{t.training.divergence.option.userDisagrees}
-            </label>
-          </fieldset>
         </>
       )}
 
@@ -152,18 +132,18 @@ export default function ReasonPanel({
         <p className="trp-rule-silent-intro">{t.training.ruleSilent.intro}</p>
       )}
 
-      {/* ── Note (always required in both v3 states) ──────────────────── */}
+      {/* ── Reasoning (required in both v3.1 states) ─────────────────── */}
       <form className="trp-form" onSubmit={handleSubmit}>
         <label className="trp-note-label">
           <span className="trp-note-heading">
-            {t.training.reasoning.notePrompt}{' '}
-            <em className="trp-note-required-tag">{t.training.reasoning.noteRequired}</em>
+            {t.training.reasoning.label}{' '}
+            <em className="trp-note-required-tag">{t.training.reasoning.required}</em>
           </span>
           <textarea
             className="trp-note"
             value={note}
             onChange={e => setNote(e.target.value)}
-            placeholder={t.training.reasoning.notePlaceholder}
+            placeholder={t.training.reasoning.placeholder}
             rows={4}
             maxLength={2000}
           />

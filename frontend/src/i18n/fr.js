@@ -242,13 +242,10 @@ export default {
 
     panel: {
       submit:                    'Valider',
-      // Post-completion exhaustion review overlay
-      reviewPromptTitle:         'Autre stratégie possible ?',
-      reviewPromptBody:          'Si vous pouvez imaginer une autre lecture de cette main menant à une enchère différente, explorez-la.',
-      reviewContinueBtn:         'Oui, autre stratégie',
-      reviewEndBtn:              'Non, c\'est tout',
       changeAction:              'Changer mon action',
-      // Action-display prefixes (used by formatActionText)
+      // Action-display prefixes — kept for legacy formatActionText callers
+      // (e.g. picker resumable rows, completion summary). The new compact
+      // labels live in formatActionLabel.jsx and use training.divergence.*.
       youBid:                    'Vous avez annoncé',
       youPassed:                 'Vous avez passé',
       youCoinched:               'Vous avez coinché',
@@ -261,25 +258,25 @@ export default {
       mockStateDivergent:        'Divergence',
       mockStateRuleSilent:       'Règle silencieuse',
     },
-    // v3 divergence-driven flow.
+    // v3.1 divergence-driven flow — section labels + agree/disagree copy.
     divergence: {
-      heading: {
-        userChoice:    (action) => `Vous avez choisi : ${action}`,
-        rulesSuggest:  (action) => `Les règles suggèrent : ${action}`,
+      label: {
+        userAction:       'Annonce',
+        feuilleSuggests:  'La Feuille suggère',
       },
-      question:               (action) => `Pourriez-vous avoir ${action} aussi ?`,
       option: {
-        couldBeEither: 'Oui',
-        userDisagrees: 'Non',
+        agree:    'D\'accord',
+        disagree: 'Pas d\'accord',
       },
+      freeColor: '(couleur libre)',
     },
     ruleSilent: {
-      intro: 'Les règles ne couvrent pas ce cas — votre raisonnement nous aide à les construire.',
+      intro: 'La Feuille ne couvre pas ce cas — votre raisonnement nous aide à la construire.',
     },
     reasoning: {
-      notePrompt:      'Pourquoi ce choix ?',
-      noteRequired:    '(requis)',
-      notePlaceholder: 'Expliquez votre raisonnement...',
+      label:       'Raisonnement',
+      required:    '(requis)',
+      placeholder: 'Expliquez votre raisonnement...',
     },
   },
 };
