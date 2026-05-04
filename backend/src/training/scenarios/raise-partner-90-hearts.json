@@ -6,12 +6,12 @@
     "fr": "Relancer le 90♥ du partenaire avec le 9♥ + un As extérieur"
   },
   "description": {
-    "en": "Partner opened 90♥ (petit-jeu Pattern A). User holds the trump 9 and one outside Ace. Probes the 90→100 support decision.",
-    "fr": "Le partenaire a ouvert 90♥ (petit jeu Pattern A). L'utilisateur détient le 9 d'atout et un As extérieur. Éprouve la décision de soutien 90→100."
+    "en": "Partner opened 90♥ (petit-jeu Pattern A). User holds 9♥+10♥ (pièce 2nde) and one outside Ace (A♦). Probes the 90→110 support decision per V2.1.",
+    "fr": "Le partenaire a ouvert 90♥ (petit jeu Pattern A). L'utilisateur détient 9♥+10♥ (pièce 2nde) et un As extérieur (A♦). Éprouve la décision de soutien 90→110 selon V2.1."
   },
   "notes": {
-    "en": "Partner's 90♥ implies either Pattern A (J+3rd) or Pattern B (9+4th+outside A). User holds 9♥+10♥, which confirms partner's pattern is A and supplies the missing 9 — the textbook reason for a 90→100 same-suit raise under the convention, independent of Ace contribution. The additional outside A♦ reinforces the raise but is not its primary justification. Probes whether user tags missing-trump-honour-plus-aces-raise-in-partner-suit vs a generic supporting-partner when both apply.",
-    "fr": "Le 90♥ du partenaire implique soit le Pattern A (J+3e) soit le Pattern B (9+4e+As extérieur). L'utilisateur détient 9♥+10♥, ce qui confirme que le pattern du partenaire est A et apporte le 9 manquant — raison classique d'une relance 90→100 dans la même couleur selon la convention, indépendamment de la contribution par As. L'As extérieur A♦ additionnel renforce la relance sans en être la justification principale. Éprouve si l'utilisateur étiquette honneur-d'atout-manquant-plus-as-relance-couleur-partenaire contre un soutien-au-partenaire générique lorsque les deux s'appliquent."
+    "en": "Partner's 90♥ implies either Pattern A (J+3rd) or Pattern B (9+4th+outside A). User holds 9♥+10♥ = pièce 2nde with 1 outside Ace (A♦). Per V2.1 response-to-90 table: pièce 2nde + 1 As → 110♥ (V2 had erroneously said 120 — corrected after the training-mode dataset showed all annotators converged on 110). Probes whether user tags missing-trump-honour-plus-aces-raise-in-partner-suit vs a generic supporting-partner when both apply.",
+    "fr": "Le 90♥ du partenaire implique soit le Pattern A (V+3e) soit le Pattern B (9+4e+As extérieur). L'utilisateur détient 9♥+10♥ = pièce 2nde avec 1 As extérieur (A♦). Selon le tableau réponse-à-90 V2.1 : pièce 2nde + 1 As → 110♥ (la V2 indiquait 120 par erreur — corrigée après que le mode entraînement a montré la convergence des annotateurs sur 110). Éprouve si l'utilisateur étiquette honneur-d'atout-manquant-plus-as-relance-couleur-partenaire contre un soutien-au-partenaire générique lorsque les deux s'appliquent."
   },
 
   "userSeat": 0,
@@ -49,6 +49,6 @@
     { "event": "user-turn" }
   ],
 
-  "expectedAnswer": { "action": { "type": "bid", "value": 120, "suit": "H" }, "ruleReference": "response-to-90:120:piece-2nd" },
+  "expectedAnswer": { "action": { "type": "bid", "value": 110, "suit": "H" }, "ruleReference": "response-to-90:110:piece-2nd" },
   "ambiguityFlags": []
 }

@@ -95,7 +95,12 @@ function registerTrainingHandlers(socket) {
   socket.on('getTrainingScenario', ({ scenarioId } = {}) => {
     const scenario = scenarioLoader.getScenario(scenarioId);
     if (!scenario) return emitError(socket, `Unknown scenario: ${scenarioId}`);
-    socket.emit('trainingScenario', { scenario });
+    // Sanitize before emit — the cached scenario carries expectedAnswer,
+    // ambiguityFlags, all four hands, authoring notes, and per-event
+    // authorIntent strings; none of those should reach the client.
+    socket.emit('trainingScenario', {
+      scenario: scenarioLoader.pickClientScenarioFields(scenario),
+    });
   });
 
   // ── Lifecycle events ─────────────────────────────────────────────────────
