@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 2,
+  "id": "response-110-02-two-extra-aces",
+  "title": {
+    "en": "On 110♠ — 2 outside Aces → 130",
+    "fr": "Réponse à 110♠ — 2 As ext → 130"
+  },
+  "description": {
+    "en": "Partner 110♠. User: A♦+A♣. +20 → 130.",
+    "fr": "Partenaire 110 ♠. User : A♦+A♣. +20 → 130."
+  },
+  "notes": {
+    "en": "+10/Ace → 130.",
+    "fr": "+10/As, ici 130."
+  },
+
+  "userSeat": 0,
+  "dealer": 1,
+
+  "hands": {
+    "0": [ {"suit":"H","value":"9"}, {"suit":"H","value":"7"},
+           {"suit":"D","value":"A"}, {"suit":"D","value":"10"}, {"suit":"D","value":"8"},
+           {"suit":"C","value":"A"}, {"suit":"C","value":"K"}, {"suit":"C","value":"8"} ],
+    "1": [ {"suit":"S","value":"8"}, {"suit":"S","value":"10"}, {"suit":"S","value":"K"},
+           {"suit":"H","value":"8"}, {"suit":"H","value":"J"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"K"},
+           {"suit":"D","value":"9"} ],
+    "2": [ {"suit":"S","value":"J"}, {"suit":"S","value":"9"}, {"suit":"S","value":"A"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"7"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"10"},
+           {"suit":"D","value":"7"} ],
+    "3": [ {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"9"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 110,
+      "suit": "S",
+      "authorIntent": "Opens 110 ♠: J+9+A♠ + A♥ + side cards (all 4 suits)."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "No qualifying call."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 130, "suit": "S" }, "ruleReference": "response-to-110:+10/ace" },
+  "ambiguityFlags": []
+}

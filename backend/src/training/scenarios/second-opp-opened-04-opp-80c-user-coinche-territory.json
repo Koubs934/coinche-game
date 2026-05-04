@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 2,
+  "id": "second-opp-opened-04-opp-80c-user-coinche-territory",
+  "title": {
+    "en": "Opp 80♣ — user has 3 Aces",
+    "fr": "Adverse 80♣ — user a 3 As"
+  },
+  "description": {
+    "en": "Opp 80♣. User has 3 Aces. Coinche? Overcall?",
+    "fr": "Adverse 80 ♣. User a 3 As. Coincher ? Surenchérir ?"
+  },
+  "notes": {
+    "en": "With 3 As user blocks the 80-info convention.",
+    "fr": "Avec 3 As user empêche les 80-info de se concrétiser."
+  },
+
+  "userSeat": 0,
+  "dealer": 2,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"A"}, {"suit":"S","value":"7"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"9"},
+           {"suit":"D","value":"A"}, {"suit":"D","value":"10"},
+           {"suit":"C","value":"9"}, {"suit":"C","value":"8"} ],
+    "1": [ {"suit":"S","value":"8"}, {"suit":"S","value":"10"}, {"suit":"S","value":"J"}, {"suit":"S","value":"Q"},
+           {"suit":"H","value":"10"}, {"suit":"H","value":"J"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"K"} ],
+    "2": [ {"suit":"D","value":"7"}, {"suit":"D","value":"8"}, {"suit":"D","value":"9"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"A"} ],
+    "3": [ {"suit":"S","value":"K"}, {"suit":"S","value":"9"},
+           {"suit":"H","value":"8"}, {"suit":"H","value":"7"},
+           {"suit":"C","value":"J"}, {"suit":"C","value":"K"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"10"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 3,
+      "value": 80,
+      "suit": "C",
+      "authorIntent": "Information-80: 2 As (A♠+A♥) + petit-jeu ♣ via 9♣+10♣+8♣+7♣ (no piece, but 4 trumps with belote? need K+Q♣). Use K+Q+10+8 for 4-trumps-with-belote."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["competitive-bidding-not-formalized"]
+}

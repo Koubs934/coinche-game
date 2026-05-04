@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 2,
+  "id": "second-opp-opened-09-opp-90d-user-bicolore",
+  "title": {
+    "en": "Opp 90♦ — user has 120 bicolore ♠",
+    "fr": "Adverse 90♦ — user 120 bicolore ♠"
+  },
+  "description": {
+    "en": "Opp 90♦. User: 120 bicolore ♠. Overcall.",
+    "fr": "Adverse 90 ♦. User a 120 bicolore. Surenchérir."
+  },
+  "notes": {
+    "en": "Honest overcall.",
+    "fr": "Surenchère \"honnête\"."
+  },
+
+  "userSeat": 0,
+  "dealer": 2,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"J"}, {"suit":"S","value":"9"}, {"suit":"S","value":"A"}, {"suit":"S","value":"K"}, {"suit":"S","value":"Q"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"10"}, {"suit":"H","value":"7"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"8"}, {"suit":"S","value":"10"},
+           {"suit":"H","value":"8"}, {"suit":"H","value":"9"}, {"suit":"H","value":"J"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"K"} ],
+    "2": [ {"suit":"D","value":"7"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"}, {"suit":"D","value":"A"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"9"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"} ],
+    "3": [ {"suit":"D","value":"J"}, {"suit":"D","value":"9"}, {"suit":"D","value":"10"}, {"suit":"D","value":"8"},
+           {"suit":"C","value":"A"}, {"suit":"C","value":"K"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"8"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 3,
+      "value": 90,
+      "suit": "D",
+      "authorIntent": "90 ♦ via V♦+9♦+1 other + 1 outside Ace."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["competitive-bidding-not-formalized"]
+}

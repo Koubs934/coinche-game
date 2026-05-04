@@ -56,3 +56,42 @@ Drawn verbatim from `la-feuille-v2.md` §"20 scénarios de validation". Each is 
 | `validation-scenario-18.json` | J♠ 9♠ 8♠ A♥ K♥ Q♥ 8♦ A♣ | 80 ♠ | `hierarchy:80_priority_over_90` |
 | `validation-scenario-19.json` | J♠ 9♠ 8♠ 7♠ J♥ K♥ Q♥ A♦ | 90 (couleur libre) | `tie-break-not-formalized`, flag `tie-break-not-formalized` |
 | `validation-scenario-20.json` | J♠ 9♠ 8♠ J♥ 9♥ K♥ A♦ A♣ | 80 (couleur libre) | `tie-break-not-formalized`, flag `tie-break-not-formalized` |
+
+---
+
+## Authored — Round 2 (2026-05-04)
+
+100 hand-designed scenarios systematically covering La Feuille V2.1's formalized clauses and surfacing rule-silent zones. Generator is at `backend/scripts/gen-round-2.js` (+ `gen-round-2-data.js` for the spec table); deleted from the repo before commit but preserved here in BACKLOG for the audit trail of how each scenario was constructed.
+
+70 of these 100 carry `expectedAnswer: null` — they're rule-silent probes for future formalization.
+
+### opening-NN-* (15) — first-to-speak openings beyond the validation set
+`maitre-and-3-outside-aces`, `piece-4th-no-outside-ace`, `borderline-80-vs-90-piece-3rd-belote`, `maitre-bicolore-7-1-side`, `maitre-bicolore-6-2-side`, `no-piece-4-trumps-belote`, `no-piece-5-trumps`, `one-ace-piece-3rd-belote`, `one-ace-J-9-1-other`, `two-aces-no-petit-jeu`, `maitre-outside-J-no-bicolore`, `maitre-110-ace-in-singleton`, `three-aces-no-piece`, `piece-4th-second-pattern-9-fourth`, `maitre-with-side-piece-not-exploitable`.
+
+### response-XX-NN-* (15) — 3 each on partner 80/90/100/110/120
+`response-80`: piece-3rd-no-aces, piece-2nd-2-aces, no-piece-no-aces-pass.
+`response-90` (V2.1 corrected): piece-2nd-1-ace, three-aces-self-contradicts, one-ace-no-piece-pass.
+`response-100`: one-outside-ace, two-outside-aces, no-outside-ace-silent.
+`response-110`: one-extra-ace, two-extra-aces, no-extra-ace-silent.
+`response-120` (bicolore): three-aces, piece-of-trump, two-aces-no-piece-pass.
+
+### second-pass-NN-* (15) — partner passed first; rule-silent
+strong-110-after-partner-pass, borderline-90-after-partner-pass, weak-pass-after-partner-pass, maitre-no-ace-after-partner-pass, eighty-info-after-partner-pass, bicolore-120-after-partner-pass, one-piece-1-ace-marginal, two-aces-no-petit-jeu-after-pass, three-aces-no-piece-after-pass, long-trump-no-ace-after-pass, piece-2nd-marginal-90, maitre-bicolore-pure, piece-4th-with-ace-after-pass, three-pieces-different-suits, border-between-pass-and-90.
+
+### second-opp-opened-NN-* (20) — opp opened first; rule-silent
+opp-80h-user-strong-other, opp-80s-user-petit-jeu-clubs, opp-80d-user-pass, opp-80c-user-coinche-territory, opp-80h-user-same-suit-strong, opp-90s-user-strong-clubs, opp-90h-user-90-spades, opp-90c-user-pass, opp-90d-user-bicolore, opp-90s-user-coinche, opp-100h-user-strong-spades, opp-100s-user-pass, opp-100d-user-coinche-attempt, opp-100c-user-bicolore, opp-110s-user-bicolore-other, opp-110h-user-coinche, opp-110d-user-pass, opp-120s-user-three-aces, opp-120h-user-coinche, opp-120d-user-pass.
+
+### partner-opened-opp-overcalled-NN-* (15) — competitive; rule-silent
+partner-80s-opp-90h, partner-100s-opp-110h, partner-90h-opp-100s, partner-80h-opp-coinche-territory, partner-110s-opp-120h, partner-90s-opp-90h, partner-100h-opp-110s, plus competitive-8 through competitive-15 (8 scenarios with shared partner 80♠ + opp 90♥ context, varying user hands).
+
+### fourth-position-NN-* (10) — rule-silent
+all-passed-1, all-passed-2, all-passed-3, all-passed-4, opp-left-opened-1, opp-left-opened-2, opp-left-opened-3, partner-overcalled-1, partner-overcalled-2, partner-overcalled-3.
+
+### coinche-NN-* (5) — rule-silent
+simple-coinche-opp-100, simple-coinche-opp-110, opp-coinche-partner-bid, surcoinche-after-opp-coinche, surcoinche-of-opp-coinche-of-partner-110.
+
+### exotic-NN-* (5) — rule-silent
+capot-potential-7-trumps, long-suit-no-piece, all-singletons-3-aces, eight-zero-zero-zero-impossible, maitre-with-quasi-bicolore.
+
+### Picker order
+The picker no longer sorts scenarios alphabetically. `scenarioLoader.listScenarios()` now hash-shuffles by SHA-256(id) so categories interleave in the picker rather than appearing as long blocks. Order is deterministic — same across users and across loads. See `scenarioLoader.test.js` for the determinism test.

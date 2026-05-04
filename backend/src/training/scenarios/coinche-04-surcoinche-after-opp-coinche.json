@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 2,
+  "id": "coinche-04-surcoinche-after-opp-coinche",
+  "title": {
+    "en": "Surcoinche after opp coinche",
+    "fr": "Surcoinche après coinche adverse"
+  },
+  "description": {
+    "en": "Partner 110, opp coinches. User confident → surcoinche.",
+    "fr": "Partenaire ouvre 110, adverse coinche. User est sûr du contrat → surcoinche."
+  },
+  "notes": {
+    "en": "Variant.",
+    "fr": "Variante."
+  },
+
+  "userSeat": 0,
+  "dealer": 1,
+
+  "hands": {
+    "0": [ {"suit":"D","value":"A"}, {"suit":"D","value":"10"}, {"suit":"D","value":"9"}, {"suit":"D","value":"7"},
+           {"suit":"C","value":"A"}, {"suit":"C","value":"9"}, {"suit":"C","value":"8"}, {"suit":"C","value":"7"} ],
+    "1": [ {"suit":"S","value":"10"},
+           {"suit":"H","value":"9"},
+           {"suit":"D","value":"8"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"},
+           {"suit":"C","value":"J"}, {"suit":"C","value":"K"} ],
+    "2": [ {"suit":"S","value":"J"}, {"suit":"S","value":"9"}, {"suit":"S","value":"A"}, {"suit":"S","value":"K"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"8"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"K"} ],
+    "3": [ {"suit":"S","value":"7"},
+           {"suit":"H","value":"J"}, {"suit":"H","value":"10"}, {"suit":"H","value":"8"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"7"},
+           {"suit":"C","value":"10"}, {"suit":"C","value":"Q"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 110,
+      "suit": "S",
+      "authorIntent": "Partner 110 ♠."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "Pass."
+    },
+    {
+      "event": "coinche",
+      "seat": 1,
+      "authorIntent": "Coinche."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["coinche-not-formalized"]
+}

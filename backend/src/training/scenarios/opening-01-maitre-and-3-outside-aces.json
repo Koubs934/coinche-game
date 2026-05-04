@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-01-maitre-and-3-outside-aces",
+  "title": {
+    "en": "Opening — maître + 3 outside Aces",
+    "fr": "Ouverture — maître + 3 As extérieurs"
+  },
+  "description": {
+    "en": "Maître ♠ with all 3 outside Aces. V2 opening palier stays at 110 even with multiple outside Aces.",
+    "fr": "Maître ♠ avec les 3 As extérieurs. Le palier d'ouverture reste 110 selon V2 même avec 2+ As ext."
+  },
+  "notes": {
+    "en": "Tests the opening ceiling on maitre + outside-aces hands: V2 says 110 from the first outside Ace, regardless of additional ones.",
+    "fr": "Teste le plafond de l'ouverture sur main maître + as extérieurs : V2 dit 110 dès le 1er As, indépendant du nombre supplémentaire (la réponse partenaire utilisera +10/As, pas l'ouverture)."
+  },
+
+  "userSeat": 0,
+  "dealer": 3,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"J"}, {"suit":"S","value":"9"}, {"suit":"S","value":"A"}, {"suit":"S","value":"K"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"7"},
+           {"suit":"D","value":"A"},
+           {"suit":"C","value":"A"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"8"}, {"suit":"S","value":"10"}, {"suit":"S","value":"Q"},
+           {"suit":"H","value":"8"}, {"suit":"H","value":"9"}, {"suit":"H","value":"10"}, {"suit":"H","value":"J"} ],
+    "2": [ {"suit":"H","value":"Q"}, {"suit":"H","value":"K"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"8"}, {"suit":"D","value":"9"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"} ],
+    "3": [ {"suit":"D","value":"K"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"8"}, {"suit":"C","value":"9"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 110, "suit": "S" }, "ruleReference": "opening:110:maitre+1as_ext" },
+  "ambiguityFlags": []
+}

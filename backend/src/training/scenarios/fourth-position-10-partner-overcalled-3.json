@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 2,
+  "id": "fourth-position-10-partner-overcalled-3",
+  "title": {
+    "en": "4th position — partner opens, opp overcalls (3)",
+    "fr": "4e position — partenaire ouvre, adverse surenchérit (3)"
+  },
+  "description": {
+    "en": "Partner opens, left opp overcalls, right opp passes.",
+    "fr": "Partenaire (siège 2) ouvre, adverse à gauche (siège 1) surenchérit, adverse droite (siège 3) passe."
+  },
+  "notes": {
+    "en": "Post-overcall competitive.",
+    "fr": "Compétitif post-surenchère."
+  },
+
+  "userSeat": 0,
+  "dealer": 0,
+
+  "hands": {
+    "0": [ {"suit":"H","value":"K"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"10"}, {"suit":"H","value":"9"},
+           {"suit":"D","value":"8"}, {"suit":"D","value":"7"},
+           {"suit":"C","value":"9"}, {"suit":"C","value":"8"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"8"}, {"suit":"S","value":"9"}, {"suit":"S","value":"10"}, {"suit":"S","value":"J"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"K"}, {"suit":"S","value":"A"} ],
+    "2": [ {"suit":"H","value":"7"}, {"suit":"H","value":"8"}, {"suit":"H","value":"J"}, {"suit":"H","value":"A"},
+           {"suit":"D","value":"9"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"} ],
+    "3": [ {"suit":"D","value":"K"}, {"suit":"D","value":"A"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 80,
+      "suit": "C",
+      "authorIntent": "Information-80 by partner."
+    },
+    {
+      "event": "bid",
+      "seat": 1,
+      "value": 90,
+      "suit": "D",
+      "authorIntent": "Overcall 90 ♦ via piece-4th + outside Ace."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "Weak."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["fourth-position-not-formalized"]
+}

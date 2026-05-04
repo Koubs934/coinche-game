@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 2,
+  "id": "response-100-01-one-outside-ace",
+  "title": {
+    "en": "On 100♠ — 1 outside Ace → 110",
+    "fr": "Réponse à 100♠ — 1 As ext → 110"
+  },
+  "description": {
+    "en": "Partner 100♠ (maître no outside Aces). User: A♥. +10/Ace → 110.",
+    "fr": "Partenaire 100 ♠ (maître sans As ext). User : A♥. +10/As → 110."
+  },
+  "notes": {
+    "en": "V2 rule \"+10 per outside Ace\" on 100.",
+    "fr": "Règle \"+10 par As ext\" sur 100. 1 As → 110."
+  },
+
+  "userSeat": 0,
+  "dealer": 1,
+
+  "hands": {
+    "0": [ {"suit":"H","value":"A"}, {"suit":"H","value":"10"}, {"suit":"H","value":"9"}, {"suit":"H","value":"8"},
+           {"suit":"D","value":"K"}, {"suit":"D","value":"9"}, {"suit":"D","value":"7"},
+           {"suit":"C","value":"10"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"8"}, {"suit":"S","value":"10"},
+           {"suit":"H","value":"J"}, {"suit":"H","value":"K"},
+           {"suit":"D","value":"8"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"} ],
+    "2": [ {"suit":"S","value":"J"}, {"suit":"S","value":"9"}, {"suit":"S","value":"A"}, {"suit":"S","value":"K"}, {"suit":"S","value":"Q"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"Q"},
+           {"suit":"C","value":"8"} ],
+    "3": [ {"suit":"D","value":"Q"}, {"suit":"D","value":"A"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"9"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 100,
+      "suit": "S",
+      "authorIntent": "Opens 100 ♠: J+9+A♠ + Q♠+K♠ (5 trumps) + ♥/♣ small cards, 0 outside Aces, all 4 suits → not bicolore."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "No qualifying call."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 110, "suit": "S" }, "ruleReference": "response-to-100:+10/ace" },
+  "ambiguityFlags": []
+}

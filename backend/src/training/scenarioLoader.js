@@ -2,9 +2,19 @@
 // Any file that fails validateScenario() is logged and skipped — a bad edit
 // should not crash the server.
 
-const fs   = require('fs');
-const path = require('path');
+const fs     = require('fs');
+const path   = require('path');
+const crypto = require('crypto');
 const { validateScenario } = require('./validateScenarios');
+
+// Deterministic shuffle key — first 8 hex chars of SHA-256(id). Stable
+// across runs and across all users, so the picker shows the same order
+// to everyone, but categories are interleaved instead of grouped (since
+// IDs are clustered by category prefix). Replaces the prior alphabetical
+// sort by filename. See `listScenarios()`.
+function scenarioOrderKey(id) {
+  return crypto.createHash('sha256').update(String(id)).digest('hex').slice(0, 8);
+}
 
 const SCENARIOS_DIR = path.join(__dirname, 'scenarios');
 
@@ -44,7 +54,14 @@ function ensureLoaded() {
 
 /**
  * Spoiler-free summary list for the picker screen. Omits hands, timeline,
- * and notes (notes contain probe-intent and may spoil the right answer).
+ * notes, and the v2 expectedAnswer / ambiguityFlags fields.
+ *
+ * Order: deterministic hash-shuffle of `id` (see scenarioOrderKey). With
+ * 100+ scenarios prefixed by category (opening-*, response-*, second-pass-*,
+ * etc.), alphabetical sort produces a long block of one category followed
+ * by the next; the picker becomes unwieldy. Hash-shuffling interleaves
+ * categories while still being stable across loads and consistent across
+ * users.
  */
 function listScenarios() {
   ensureLoaded();
@@ -58,6 +75,7 @@ function listScenarios() {
       dealer:      s.dealer,
     });
   }
+  out.sort((a, b) => scenarioOrderKey(a.id).localeCompare(scenarioOrderKey(b.id)));
   return out;
 }
 
@@ -133,4 +151,8 @@ function pickClientScenarioFields(scenario) {
   return out;
 }
 
-module.exports = { listScenarios, getScenario, reload, pickClientScenarioFields };
+module.exports = {
+  listScenarios, getScenario, reload, pickClientScenarioFields,
+  // exported for tests
+  scenarioOrderKey,
+};

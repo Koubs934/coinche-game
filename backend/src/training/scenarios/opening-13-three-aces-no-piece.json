@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-13-three-aces-no-piece",
+  "title": {
+    "en": "Opening — 3 Aces, no piece",
+    "fr": "Ouverture — 3 As, aucune pièce"
+  },
+  "description": {
+    "en": "3 Aces but no piece, no belote, no 5-trumps. Pass.",
+    "fr": "3 As mais aucune pièce d'atout ni 4-atouts-belote ni 5-atouts-sans-pièce. Pass."
+  },
+  "notes": {
+    "en": "80 needs exactly 2 Aces. 3 disqualifies. No piece → no 90.",
+    "fr": "80 exige exactement 2 As → 3 As ne qualifie pas. Pas de pièce → pas de 90."
+  },
+
+  "userSeat": 0,
+  "dealer": 3,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"A"}, {"suit":"S","value":"K"}, {"suit":"S","value":"Q"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"10"}, {"suit":"H","value":"8"},
+           {"suit":"D","value":"A"},
+           {"suit":"C","value":"7"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"8"}, {"suit":"S","value":"9"}, {"suit":"S","value":"10"}, {"suit":"S","value":"J"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"9"}, {"suit":"H","value":"J"} ],
+    "2": [ {"suit":"H","value":"Q"}, {"suit":"H","value":"K"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"8"}, {"suit":"D","value":"9"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"} ],
+    "3": [ {"suit":"D","value":"K"},
+           {"suit":"C","value":"8"}, {"suit":"C","value":"9"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": { "action": { "type": "pass" }, "ruleReference": "opening:80-needs-exactly-2-aces" },
+  "ambiguityFlags": []
+}

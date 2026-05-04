@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 2,
+  "id": "response-80-02-piece-2nd-2-aces",
+  "title": {
+    "en": "On 80♠ — piece 2nd + 2 Aces → 110",
+    "fr": "Réponse à 80♠ — pièce 2nde + 2 As → 110"
+  },
+  "description": {
+    "en": "Partner 80♠. User: J♠+8♠ (piece 2nd) + A♥+A♦. Response 110.",
+    "fr": "Partenaire 80 ♠ informatif. User : V♠+8♠ (pièce 2nde) + A♥+A♦. Réponse 110."
+  },
+  "notes": {
+    "en": "Piece 2nd + 2 Aces → 110.",
+    "fr": "Pièce 2nde + 2 As → 110."
+  },
+
+  "userSeat": 0,
+  "dealer": 1,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"J"}, {"suit":"S","value":"8"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"K"},
+           {"suit":"D","value":"A"}, {"suit":"D","value":"Q"},
+           {"suit":"C","value":"9"}, {"suit":"C","value":"7"} ],
+    "1": [ {"suit":"S","value":"Q"}, {"suit":"S","value":"K"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"9"}, {"suit":"H","value":"10"}, {"suit":"H","value":"J"},
+           {"suit":"D","value":"8"}, {"suit":"D","value":"9"} ],
+    "2": [ {"suit":"S","value":"A"}, {"suit":"S","value":"9"}, {"suit":"S","value":"10"}, {"suit":"S","value":"7"},
+           {"suit":"H","value":"8"}, {"suit":"H","value":"Q"},
+           {"suit":"D","value":"7"},
+           {"suit":"C","value":"A"} ],
+    "3": [ {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"K"},
+           {"suit":"C","value":"8"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 80,
+      "suit": "S",
+      "authorIntent": "Information-80: 2 As (A♠+A♣) + petit-jeu ♠ via 9♠+10♠+7♠ (3 atouts + 9-piece)."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "No qualifying call."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 110, "suit": "S" }, "ruleReference": "response-to-80:110:piece-2nd+2as" },
+  "ambiguityFlags": []
+}

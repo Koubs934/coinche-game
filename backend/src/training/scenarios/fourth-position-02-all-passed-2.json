@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 2,
+  "id": "fourth-position-02-all-passed-2",
+  "title": {
+    "en": "4th position — all passed (2)",
+    "fr": "4e position — tous ont passé (2)"
+  },
+  "description": {
+    "en": "Three passes. User: last chance to open.",
+    "fr": "Trois passes. User a la dernière chance d'ouvrir."
+  },
+  "notes": {
+    "en": "V2 silent on 4th position.",
+    "fr": "V2 ne couvre pas la 4e position."
+  },
+
+  "userSeat": 0,
+  "dealer": 0,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"A"}, {"suit":"S","value":"9"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"7"},
+           {"suit":"D","value":"J"}, {"suit":"D","value":"8"}, {"suit":"D","value":"7"},
+           {"suit":"C","value":"9"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"8"}, {"suit":"S","value":"10"}, {"suit":"S","value":"J"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"K"},
+           {"suit":"H","value":"8"}, {"suit":"H","value":"9"} ],
+    "2": [ {"suit":"H","value":"10"}, {"suit":"H","value":"J"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"K"},
+           {"suit":"D","value":"9"}, {"suit":"D","value":"10"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"} ],
+    "3": [ {"suit":"D","value":"A"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"8"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "pass",
+      "seat": 1,
+      "authorIntent": "Weak hand."
+    },
+    {
+      "event": "pass",
+      "seat": 2,
+      "authorIntent": "Weak hand."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "Weak hand."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["fourth-position-not-formalized"]
+}

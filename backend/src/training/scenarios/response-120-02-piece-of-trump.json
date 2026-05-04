@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 2,
+  "id": "response-120-02-piece-of-trump",
+  "title": {
+    "en": "On 120♠ bicolore — trump piece → 130",
+    "fr": "Réponse à 120♠ bicolore — pièce d'atout → 130"
+  },
+  "description": {
+    "en": "Partner 120 bicolore ♠. User: holds J♠ or 9♠. → 130.",
+    "fr": "Partenaire 120 bicolore ♠. User : V♠ ou 9♠. → 130."
+  },
+  "notes": {
+    "en": "Edge case: partner's maître implies J+9+A♠. User can't also hold J♠ or 9♠. Marked rule-silent.",
+    "fr": "Branche \"pièce d'atout\" du 130 sur 120 bicolore. Mais partenaire a déjà tout l'atout principal pour son maître... incohérence : si partenaire a maître ♠ il a J+9+A♠. User ne peut pas avoir V♠ ou 9♠. → cas pathologique. Marquer rule-silent."
+  },
+
+  "userSeat": 0,
+  "dealer": 1,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"K"}, {"suit":"S","value":"10"}, {"suit":"S","value":"8"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"7"},
+           {"suit":"D","value":"A"}, {"suit":"D","value":"9"},
+           {"suit":"C","value":"8"} ],
+    "1": [ {"suit":"H","value":"9"}, {"suit":"H","value":"10"}, {"suit":"H","value":"J"}, {"suit":"H","value":"K"},
+           {"suit":"D","value":"8"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"} ],
+    "2": [ {"suit":"S","value":"J"}, {"suit":"S","value":"9"}, {"suit":"S","value":"A"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"7"},
+           {"suit":"H","value":"8"}, {"suit":"H","value":"Q"},
+           {"suit":"D","value":"7"} ],
+    "3": [ {"suit":"D","value":"K"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"9"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 120,
+      "suit": "S",
+      "authorIntent": "Opens 120 bicolore ♠."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "No qualifying call."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["response-self-contradictory"]
+}

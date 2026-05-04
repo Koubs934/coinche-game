@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 2,
+  "id": "response-90-03-one-ace-no-piece-pass",
+  "title": {
+    "en": "On 90♠ — 1 Ace, ≥1 trump, no piece → 100",
+    "fr": "Réponse à 90♠ — 1 As sans pièce mais avec 1 atout → 100"
+  },
+  "description": {
+    "en": "Partner 90♠. User: 1 trump ♠ (Q♠), 1 outside Ace, no piece. Row \"≥1 trump + 1 Ace, no piece\" → 100.",
+    "fr": "Partenaire 90 ♠. User : 1 atout ♠ (Q♠) + 1 As ext, sans pièce. Ligne \"≥1 atout + 1 As (sans pièce)\" → 100."
+  },
+  "notes": {
+    "en": "V2.1 row 100.",
+    "fr": "Ligne 100 du tableau V2.1 réponse-à-90."
+  },
+
+  "userSeat": 0,
+  "dealer": 1,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"Q"}, {"suit":"S","value":"7"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"10"}, {"suit":"H","value":"8"},
+           {"suit":"D","value":"9"},
+           {"suit":"C","value":"K"}, {"suit":"C","value":"7"} ],
+    "1": [ {"suit":"S","value":"10"}, {"suit":"S","value":"K"}, {"suit":"S","value":"A"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"9"}, {"suit":"H","value":"J"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"K"} ],
+    "2": [ {"suit":"S","value":"J"}, {"suit":"S","value":"9"}, {"suit":"S","value":"8"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"8"},
+           {"suit":"C","value":"A"}, {"suit":"C","value":"10"}, {"suit":"C","value":"Q"} ],
+    "3": [ {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"}, {"suit":"D","value":"A"},
+           {"suit":"C","value":"8"}, {"suit":"C","value":"9"}, {"suit":"C","value":"J"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 90,
+      "suit": "S",
+      "authorIntent": "Opens 90 ♠ via J♠+9♠+8♠ (V+9+1) + 1 outside Ace (A♣)."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "No qualifying call."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 100, "suit": "S" }, "ruleReference": "response-to-90:100:trump+1as" },
+  "ambiguityFlags": []
+}

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 2,
+  "id": "response-120-01-three-aces",
+  "title": {
+    "en": "On 120♠ bicolore — 3 Aces → 130",
+    "fr": "Réponse à 120♠ bicolore — 3 As → 130"
+  },
+  "description": {
+    "en": "Partner 120 bicolore ♠. User: 3 Aces. → 130.",
+    "fr": "Partenaire 120 bicolore ♠. User : 3 As. → 130."
+  },
+  "notes": {
+    "en": "120 bicolore: 130 on 3 As OR a trump piece.",
+    "fr": "120 bicolore : 130 sur 3 As OU une pièce d'atout."
+  },
+
+  "userSeat": 0,
+  "dealer": 1,
+
+  "hands": {
+    "0": [ {"suit":"H","value":"A"}, {"suit":"H","value":"10"},
+           {"suit":"D","value":"A"}, {"suit":"D","value":"9"},
+           {"suit":"C","value":"A"}, {"suit":"C","value":"7"}, {"suit":"C","value":"8"}, {"suit":"C","value":"9"} ],
+    "1": [ {"suit":"S","value":"8"}, {"suit":"S","value":"10"},
+           {"suit":"H","value":"9"}, {"suit":"H","value":"J"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"K"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"8"} ],
+    "2": [ {"suit":"S","value":"J"}, {"suit":"S","value":"9"}, {"suit":"S","value":"A"}, {"suit":"S","value":"K"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"7"},
+           {"suit":"H","value":"8"}, {"suit":"H","value":"7"} ],
+    "3": [ {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"},
+           {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 120,
+      "suit": "S",
+      "authorIntent": "Opens 120 bicolore ♠: maître J+9+A♠ + 4 other ♠ + 1 side suit only (♥). Strictly 2 colors."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "No qualifying call."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 130, "suit": "S" }, "ruleReference": "response-to-120:130:three-aces-or-piece" },
+  "ambiguityFlags": []
+}

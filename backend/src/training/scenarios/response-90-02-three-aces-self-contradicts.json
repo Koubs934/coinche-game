@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 2,
+  "id": "response-90-02-three-aces-self-contradicts",
+  "title": {
+    "en": "On 90♠ — 3 Aces (self-contradicts)",
+    "fr": "Réponse à 90♠ — 3 As (auto-contradiction)"
+  },
+  "description": {
+    "en": "V2.1 says 120 on 3 Aces. But if user holds 3 outside Aces, partner can't have the outside Ace V2.1 requires for opening 90. Self-contradiction.",
+    "fr": "V2.1 dit 120 sur 3 As. Mais si user a 3 As ext, partenaire ne peut pas avoir l'As ext requis pour son 90. Cas pathologique."
+  },
+  "notes": {
+    "en": "V2.1 rule and partner-constraint do not jointly admit 3 outside Aces in user hand.",
+    "fr": "Cas où la règle V2.1 et la contrainte partenaire ne se concilient pas avec un user à 3 As ext. Annotations utilisateur informeront."
+  },
+
+  "userSeat": 0,
+  "dealer": 1,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"7"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"K"},
+           {"suit":"D","value":"A"}, {"suit":"D","value":"8"}, {"suit":"D","value":"7"},
+           {"suit":"C","value":"10"}, {"suit":"C","value":"9"} ],
+    "1": [ {"suit":"S","value":"8"}, {"suit":"S","value":"K"}, {"suit":"S","value":"A"},
+           {"suit":"H","value":"10"}, {"suit":"H","value":"J"}, {"suit":"H","value":"Q"},
+           {"suit":"D","value":"9"}, {"suit":"D","value":"10"} ],
+    "2": [ {"suit":"S","value":"J"}, {"suit":"S","value":"9"}, {"suit":"S","value":"10"}, {"suit":"S","value":"Q"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"9"}, {"suit":"H","value":"8"},
+           {"suit":"C","value":"A"} ],
+    "3": [ {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"8"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 90,
+      "suit": "S",
+      "authorIntent": "90 ♠ via J♠+9♠+QS+1 other (V+9+1) + outside Ace A♣ (in seat 2 hand). User cannot also hold A♣."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "No qualifying call."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["response-rule-self-contradicts"]
+}

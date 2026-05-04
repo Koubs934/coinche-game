@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-02-piece-4th-no-outside-ace",
+  "title": {
+    "en": "Opening — piece 4th, no outside Ace",
+    "fr": "Ouverture — pièce 4ème sans As extérieur"
+  },
+  "description": {
+    "en": "J 4th ♠ but 0 outside Aces. V2 90 requires 1 outside Ace on top of piece-4th → pass.",
+    "fr": "Valet 4ème ♠ mais 0 As extérieur. Le 90 V2 demande 1 As ext en plus de la pièce 4ème → pass."
+  },
+  "notes": {
+    "en": "Probes the 90 condition \"piece-4th + 1 outside Ace\" — without it the hand fails.",
+    "fr": "Probe la condition de 90 \"Pièce 4ème + 1 As extérieur\" — sans As ext la main ne qualifie pas."
+  },
+
+  "userSeat": 0,
+  "dealer": 3,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"J"}, {"suit":"S","value":"10"}, {"suit":"S","value":"8"}, {"suit":"S","value":"7"},
+           {"suit":"H","value":"K"}, {"suit":"H","value":"Q"},
+           {"suit":"D","value":"9"},
+           {"suit":"C","value":"10"} ],
+    "1": [ {"suit":"S","value":"9"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"K"}, {"suit":"S","value":"A"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"8"}, {"suit":"H","value":"9"}, {"suit":"H","value":"10"} ],
+    "2": [ {"suit":"H","value":"J"}, {"suit":"H","value":"A"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"8"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"} ],
+    "3": [ {"suit":"D","value":"A"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"8"}, {"suit":"C","value":"9"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": { "action": { "type": "pass" }, "ruleReference": "opening:pass-no-pattern-qualifies" },
+  "ambiguityFlags": []
+}

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-09-one-ace-J-9-1-other",
+  "title": {
+    "en": "Opening — J + 9 + 1 trump + 1 outside Ace → 90",
+    "fr": "Ouverture — V + 9 + 1 atout + 1 As ext → 90"
+  },
+  "description": {
+    "en": "♥: J+9+8 (3 trumps incl. J & 9) + 1 outside Ace. 90 branch \"J+9+1 + outside Ace\".",
+    "fr": "♥ : J+9+8 (3 atouts dont V et 9) + 1 As ext. Branche 90 \"V+9+1 autre atout + 1 As ext\"."
+  },
+  "notes": {
+    "en": "90 branch with the J+9+1 condition.",
+    "fr": "90-branche c. 1 As (pas de belote en ♥, donc pas la branche valet-3ème)."
+  },
+
+  "userSeat": 0,
+  "dealer": 3,
+
+  "hands": {
+    "0": [ {"suit":"H","value":"J"}, {"suit":"H","value":"9"}, {"suit":"H","value":"8"},
+           {"suit":"D","value":"A"}, {"suit":"D","value":"10"}, {"suit":"D","value":"7"},
+           {"suit":"C","value":"8"}, {"suit":"C","value":"9"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"8"}, {"suit":"S","value":"9"}, {"suit":"S","value":"10"}, {"suit":"S","value":"J"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"K"}, {"suit":"S","value":"A"} ],
+    "2": [ {"suit":"H","value":"7"}, {"suit":"H","value":"10"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"K"}, {"suit":"H","value":"A"},
+           {"suit":"D","value":"8"}, {"suit":"D","value":"9"}, {"suit":"D","value":"J"} ],
+    "3": [ {"suit":"D","value":"Q"}, {"suit":"D","value":"K"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 90, "suit": "H" }, "ruleReference": "opening:90:V+9+1+as-ext" },
+  "ambiguityFlags": []
+}

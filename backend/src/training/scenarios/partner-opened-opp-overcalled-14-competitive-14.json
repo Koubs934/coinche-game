@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 2,
+  "id": "partner-opened-opp-overcalled-14-competitive-14",
+  "title": {
+    "en": "Competitive 14 — partner 80♠ + opp 90♥",
+    "fr": "Compétitif 14 — partenaire 80♠ + adverse 90♥"
+  },
+  "description": {
+    "en": "Generic competitive case. Partner info-80, opp overcall 90.",
+    "fr": "Cas générique de bidding compétitif. Partenaire 80 informatif, adverse surenchère 90."
+  },
+  "notes": {
+    "en": "Competitive. User hand varies to explore different responses.",
+    "fr": "Compétitif. La main user varie pour explorer différentes réponses."
+  },
+
+  "userSeat": 0,
+  "dealer": 1,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"7"}, {"suit":"S","value":"9"}, {"suit":"S","value":"10"}, {"suit":"S","value":"Q"},
+           {"suit":"H","value":"K"}, {"suit":"H","value":"Q"},
+           {"suit":"D","value":"A"},
+           {"suit":"C","value":"K"} ],
+    "1": [ {"suit":"S","value":"J"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"},
+           {"suit":"C","value":"9"}, {"suit":"C","value":"Q"} ],
+    "2": [ {"suit":"S","value":"A"}, {"suit":"S","value":"8"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"7"},
+           {"suit":"C","value":"J"}, {"suit":"C","value":"10"}, {"suit":"C","value":"8"}, {"suit":"C","value":"7"} ],
+    "3": [ {"suit":"S","value":"K"},
+           {"suit":"H","value":"J"}, {"suit":"H","value":"10"}, {"suit":"H","value":"8"}, {"suit":"H","value":"9"},
+           {"suit":"D","value":"9"}, {"suit":"D","value":"8"},
+           {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 80,
+      "suit": "S",
+      "authorIntent": "Information-80: 2 As (A♠+A♥) + petit-jeu ♣."
+    },
+    {
+      "event": "bid",
+      "seat": 3,
+      "value": 90,
+      "suit": "H",
+      "authorIntent": "90 ♥ via piece-4th J♥+10♥+8♥+7♥ + outside Ace A♣."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["competitive-bidding-not-formalized"]
+}

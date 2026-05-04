@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 2,
+  "id": "exotic-03-all-singletons-3-aces",
+  "title": {
+    "en": "4-2-1-1 hand — 3 Aces",
+    "fr": "Forme 4-1-1-1-1 — 3 As"
+  },
+  "description": {
+    "en": "4-2-1-1 with 3 Aces. V2 silent.",
+    "fr": "4-2-1-1 avec 3 As. V2 silent sur forme exotique."
+  },
+  "notes": {
+    "en": "Exotic shape.",
+    "fr": "Forme exotique."
+  },
+
+  "userSeat": 0,
+  "dealer": 3,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"A"}, {"suit":"S","value":"K"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"10"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"9"},
+           {"suit":"D","value":"A"},
+           {"suit":"C","value":"8"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"8"}, {"suit":"S","value":"9"}, {"suit":"S","value":"J"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"8"}, {"suit":"H","value":"10"}, {"suit":"H","value":"J"} ],
+    "2": [ {"suit":"H","value":"Q"}, {"suit":"H","value":"K"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"8"}, {"suit":"D","value":"9"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"} ],
+    "3": [ {"suit":"D","value":"K"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"9"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["unusual-hand-shape"]
+}

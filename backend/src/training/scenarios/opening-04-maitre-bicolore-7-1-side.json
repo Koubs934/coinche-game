@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-04-maitre-bicolore-7-1-side",
+  "title": {
+    "en": "Opening — bicolore with 7-1 side suit",
+    "fr": "Ouverture — bicolore avec 7-1 en couleur secondaire"
+  },
+  "description": {
+    "en": "5 trumps ♠ with maître + 3 hearts side suit. Strictly 2 suits → 120 bicolore ♠.",
+    "fr": "5 atouts ♠ avec maître + 3 ♥ secondaires. Strictement 2 couleurs → 120 bicolore ♠."
+  },
+  "notes": {
+    "en": "Bicolore 5-3 test (extension of validation #15).",
+    "fr": "Test bicolore 5-3 (extension de validation #15). Probe la stricte 2-couleur."
+  },
+
+  "userSeat": 0,
+  "dealer": 3,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"J"}, {"suit":"S","value":"9"}, {"suit":"S","value":"A"}, {"suit":"S","value":"K"}, {"suit":"S","value":"Q"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"K"}, {"suit":"H","value":"10"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"8"}, {"suit":"S","value":"10"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"8"}, {"suit":"H","value":"9"}, {"suit":"H","value":"J"}, {"suit":"H","value":"Q"} ],
+    "2": [ {"suit":"D","value":"7"}, {"suit":"D","value":"8"}, {"suit":"D","value":"9"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"}, {"suit":"D","value":"A"} ],
+    "3": [ {"suit":"C","value":"7"}, {"suit":"C","value":"8"}, {"suit":"C","value":"9"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 120, "suit": "S" }, "ruleReference": "opening:120-bicolore" },
+  "ambiguityFlags": []
+}

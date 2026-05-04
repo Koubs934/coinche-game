@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 2,
+  "id": "exotic-05-maitre-with-quasi-bicolore",
+  "title": {
+    "en": "Maître + singleton 4th suit",
+    "fr": "Maître + 4ème couleur singleton"
+  },
+  "description": {
+    "en": "Maître ♠ + 5 ♥ + singleton ♦. Not quite bicolore.",
+    "fr": "Maître ♠ + 5 ♥ + singleton ♦. Pas tout à fait bicolore."
+  },
+  "notes": {
+    "en": "Bicolore boundary.",
+    "fr": "Bordure bicolore."
+  },
+
+  "userSeat": 0,
+  "dealer": 3,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"J"}, {"suit":"S","value":"9"}, {"suit":"S","value":"A"},
+           {"suit":"H","value":"K"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"10"}, {"suit":"H","value":"8"}, {"suit":"H","value":"7"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"8"}, {"suit":"S","value":"10"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"K"},
+           {"suit":"H","value":"9"}, {"suit":"H","value":"J"}, {"suit":"H","value":"A"} ],
+    "2": [ {"suit":"D","value":"7"}, {"suit":"D","value":"8"}, {"suit":"D","value":"9"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"}, {"suit":"D","value":"A"} ],
+    "3": [ {"suit":"C","value":"7"}, {"suit":"C","value":"8"}, {"suit":"C","value":"9"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["boundary-case"]
+}

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 2,
+  "id": "second-opp-opened-10-opp-90s-user-coinche",
+  "title": {
+    "en": "Opp 90♠ — user holds J♠+9♠",
+    "fr": "Adverse 90♠ — user a J♠ et 9♠"
+  },
+  "description": {
+    "en": "Opp 90♠ but user has both ♠ pieces. Opp can't have piece-4th.",
+    "fr": "Adverse 90 ♠ mais user détient les 2 pièces ♠. Adverse mentait."
+  },
+  "notes": {
+    "en": "Coinche evident.",
+    "fr": "Coinche évident."
+  },
+
+  "userSeat": 0,
+  "dealer": 2,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"J"}, {"suit":"S","value":"9"}, {"suit":"S","value":"10"},
+           {"suit":"H","value":"K"},
+           {"suit":"D","value":"8"}, {"suit":"D","value":"7"},
+           {"suit":"C","value":"9"}, {"suit":"C","value":"8"} ],
+    "1": [ {"suit":"S","value":"Q"}, {"suit":"S","value":"K"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"8"}, {"suit":"H","value":"9"}, {"suit":"H","value":"J"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"A"} ],
+    "2": [ {"suit":"D","value":"9"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"}, {"suit":"D","value":"A"},
+           {"suit":"C","value":"10"}, {"suit":"C","value":"J"} ],
+    "3": [ {"suit":"S","value":"A"}, {"suit":"S","value":"8"}, {"suit":"S","value":"7"},
+           {"suit":"H","value":"10"},
+           {"suit":"C","value":"A"}, {"suit":"C","value":"7"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 3,
+      "value": 90,
+      "suit": "S",
+      "authorIntent": "90 ♠ — but the 90 patterns require a piece. With J♠+9♠ both with user, opp CANNOT actually justify this. Flag the contradiction."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["competitive-bidding-not-formalized", "opp-bid-self-contradicts"]
+}

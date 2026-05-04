@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 2,
+  "id": "second-pass-15-border-between-pass-and-90",
+  "title": {
+    "en": "Partner passed — pass/90 boundary",
+    "fr": "Partenaire passe — frontière pass / 90"
+  },
+  "description": {
+    "en": "J♠+9♠+8♠ + 0 outside Aces. No Ace → 1st pass.",
+    "fr": "V♠+9♠+8♠ + 0 As ext. Manque l'As → pass en 1ère."
+  },
+  "notes": {
+    "en": "Boundary: with Ace = 90, without = pass.",
+    "fr": "Frontière : avec 1 As serait 90, sans As pass."
+  },
+
+  "userSeat": 0,
+  "dealer": 1,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"J"}, {"suit":"S","value":"9"}, {"suit":"S","value":"8"},
+           {"suit":"H","value":"K"}, {"suit":"H","value":"10"},
+           {"suit":"D","value":"9"}, {"suit":"D","value":"8"},
+           {"suit":"C","value":"7"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"10"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"K"}, {"suit":"S","value":"A"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"8"}, {"suit":"H","value":"9"} ],
+    "2": [ {"suit":"H","value":"J"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"A"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"} ],
+    "3": [ {"suit":"D","value":"A"},
+           {"suit":"C","value":"8"}, {"suit":"C","value":"9"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "pass",
+      "seat": 2,
+      "authorIntent": "Weak hand — no opening."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["second-position-after-partner-pass-not-formalized"]
+}

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 2,
+  "id": "response-80-01-piece-3rd-no-aces",
+  "title": {
+    "en": "On 80♠ — piece 3rd no Aces → 120",
+    "fr": "Réponse à 80♠ — pièce 3ème sans As → 120"
+  },
+  "description": {
+    "en": "Partner opens 80♠. User holds J♠+10♠+8♠ (piece 3rd), no Aces. Response 120.",
+    "fr": "Partenaire ouvre 80 ♠ informatif. Utilisateur a V♠+10♠+8♠ (pièce 3ème) sans As. Réponse 120."
+  },
+  "notes": {
+    "en": "Row \"Piece 3rd\" of the response-to-80 table. Seat 2: AS 8S 7S 9S AH 10H 7H 7C (2 As + petit-jeu).",
+    "fr": "Ligne \"Pièce 3ème\" du tableau réponse-à-80. Partenaire (siège 2) main = AS+8S+7S+9S+AH+10H+7H+7C (2 As + petit-jeu ♠ via 9-piece + 4 atouts)."
+  },
+
+  "userSeat": 0,
+  "dealer": 1,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"J"}, {"suit":"S","value":"10"}, {"suit":"S","value":"8"},
+           {"suit":"H","value":"K"}, {"suit":"H","value":"Q"},
+           {"suit":"D","value":"7"},
+           {"suit":"C","value":"8"}, {"suit":"C","value":"9"} ],
+    "1": [ {"suit":"S","value":"Q"}, {"suit":"S","value":"K"},
+           {"suit":"H","value":"9"}, {"suit":"H","value":"10"}, {"suit":"H","value":"J"},
+           {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"} ],
+    "2": [ {"suit":"S","value":"A"}, {"suit":"S","value":"7"}, {"suit":"S","value":"9"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"8"}, {"suit":"H","value":"7"},
+           {"suit":"D","value":"9"}, {"suit":"D","value":"8"} ],
+    "3": [ {"suit":"D","value":"K"}, {"suit":"D","value":"A"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 80,
+      "suit": "S",
+      "authorIntent": "Information-80: 2 As exactly (A♠+A♥) + petit-jeu ♠ via 9♠+3 other trumps."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "No qualifying call."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 120, "suit": "S" }, "ruleReference": "response-to-80:120:piece-3rd" },
+  "ambiguityFlags": []
+}

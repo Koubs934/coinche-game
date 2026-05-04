@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-06-no-piece-4-trumps-belote",
+  "title": {
+    "en": "Opening — 4 trumps with belote, no piece",
+    "fr": "Ouverture — 4 atouts avec belote, sans pièce"
+  },
+  "description": {
+    "en": "4 ♣ K+Q+10+8 (belote without piece) + 2 Aces. Petit-jeu via 4-trumps-with-belote → 80 ♣.",
+    "fr": "4 ♣ K+Q+10+8 (belote sans pièce) + 2 As. Petit-jeu via condition 4-atouts-belote → 80 ♣."
+  },
+  "notes": {
+    "en": "2nd branch of petit-jeu: 4 trumps with belote, no piece.",
+    "fr": "Teste la 2e branche du petit-jeu : 4 atouts avec belote sans pièce. Pas de J ni 9 d'atout."
+  },
+
+  "userSeat": 0,
+  "dealer": 3,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"9"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"7"},
+           {"suit":"D","value":"A"},
+           {"suit":"C","value":"K"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"10"}, {"suit":"C","value":"8"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"8"}, {"suit":"S","value":"10"}, {"suit":"S","value":"J"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"K"}, {"suit":"S","value":"A"},
+           {"suit":"H","value":"8"} ],
+    "2": [ {"suit":"H","value":"9"}, {"suit":"H","value":"10"}, {"suit":"H","value":"J"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"K"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"8"}, {"suit":"D","value":"9"} ],
+    "3": [ {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"9"}, {"suit":"C","value":"J"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": { "action": { "type": "bid", "value": 80, "suit": "C" }, "ruleReference": "opening:80:two-aces+petit-jeu" },
+  "ambiguityFlags": []
+}

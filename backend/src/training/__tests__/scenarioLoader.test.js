@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
-const { pickClientScenarioFields } = require('../scenarioLoader.js');
+const { pickClientScenarioFields, scenarioOrderKey, listScenarios } = require('../scenarioLoader.js');
 
 function fixtureScenario(overrides = {}) {
   return {
@@ -136,5 +136,38 @@ describe('pickClientScenarioFields — defensive paths', () => {
     const before = JSON.parse(JSON.stringify(s));
     pickClientScenarioFields(s);
     expect(s).toEqual(before);
+  });
+});
+
+describe('scenarioOrderKey — deterministic picker shuffle', () => {
+  it('is stable across runs for the same id', () => {
+    const k1 = scenarioOrderKey('opening-01-foo');
+    const k2 = scenarioOrderKey('opening-01-foo');
+    expect(k1).toBe(k2);
+  });
+
+  it('is different for different ids', () => {
+    expect(scenarioOrderKey('opening-01-foo'))
+      .not.toBe(scenarioOrderKey('opening-02-bar'));
+  });
+
+  it('produces an 8-char hex slice', () => {
+    expect(scenarioOrderKey('whatever')).toMatch(/^[0-9a-f]{8}$/);
+  });
+
+  it('listScenarios returns the same order on repeated calls', () => {
+    const a = listScenarios().map(s => s.id);
+    const b = listScenarios().map(s => s.id);
+    expect(a).toEqual(b);
+  });
+
+  it('listScenarios interleaves categories (not all opening-* first)', () => {
+    const ids = listScenarios().map(s => s.id);
+    if (ids.length < 30) return; // skip on tiny scenario sets
+    // The first 20 scenarios should NOT all share a category prefix —
+    // alphabetical would give 20 'opening-*' or 'partner-*' first; the
+    // shuffle should mix categories within the head of the list.
+    const firstPrefixes = new Set(ids.slice(0, 20).map(id => id.split('-')[0]));
+    expect(firstPrefixes.size).toBeGreaterThan(1);
   });
 });

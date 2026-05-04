@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-10-two-aces-no-petit-jeu",
+  "title": {
+    "en": "Opening — 2 Aces but no petit-jeu",
+    "fr": "Ouverture — 2 As mais pas de petit-jeu"
+  },
+  "description": {
+    "en": "2 Aces exactly but no suit qualifies for petit-jeu. Pass.",
+    "fr": "2 As exactement mais aucune main d'atout ne qualifie comme petit-jeu (atouts seuls dispersés). Pass."
+  },
+  "notes": {
+    "en": "80 strict-condition probe.",
+    "fr": "Probe le 80 strict : 2 As nécessaires ET petit-jeu nécessaire. Sans petit-jeu, pass."
+  },
+
+  "userSeat": 0,
+  "dealer": 3,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"A"}, {"suit":"S","value":"8"},
+           {"suit":"H","value":"A"}, {"suit":"H","value":"7"},
+           {"suit":"D","value":"10"}, {"suit":"D","value":"9"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"10"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"9"}, {"suit":"S","value":"10"}, {"suit":"S","value":"J"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"K"},
+           {"suit":"H","value":"8"}, {"suit":"H","value":"9"} ],
+    "2": [ {"suit":"H","value":"10"}, {"suit":"H","value":"J"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"K"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"8"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"} ],
+    "3": [ {"suit":"D","value":"K"}, {"suit":"D","value":"A"},
+           {"suit":"C","value":"8"}, {"suit":"C","value":"9"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": { "action": { "type": "pass" }, "ruleReference": "opening:80-needs-petit-jeu" },
+  "ambiguityFlags": []
+}

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 2,
+  "id": "exotic-02-long-suit-no-piece",
+  "title": {
+    "en": "Long ♣ no piece — 7 cards",
+    "fr": "Longue ♣ sans pièce — 7 cartes"
+  },
+  "description": {
+    "en": "7 ♣ A+K+Q+10+8+7 (no J/9). V2 silent on long-no-piece.",
+    "fr": "7 ♣ A+K+Q+10+8+7+6 sans V ni 9. Longue mais V2 silent."
+  },
+  "notes": {
+    "en": "Extreme long.",
+    "fr": "Longue extrême."
+  },
+
+  "userSeat": 0,
+  "dealer": 3,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"Q"},
+           {"suit":"H","value":"A"},
+           {"suit":"C","value":"A"}, {"suit":"C","value":"K"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"10"}, {"suit":"C","value":"8"}, {"suit":"C","value":"7"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"8"}, {"suit":"S","value":"9"}, {"suit":"S","value":"10"}, {"suit":"S","value":"J"}, {"suit":"S","value":"K"}, {"suit":"S","value":"A"},
+           {"suit":"H","value":"7"} ],
+    "2": [ {"suit":"H","value":"8"}, {"suit":"H","value":"9"}, {"suit":"H","value":"10"}, {"suit":"H","value":"J"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"K"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"8"} ],
+    "3": [ {"suit":"D","value":"9"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"}, {"suit":"D","value":"A"},
+           {"suit":"C","value":"9"}, {"suit":"C","value":"J"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["long-suit-no-piece-not-formalized"]
+}

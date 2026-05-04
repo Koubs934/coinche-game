@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 2,
+  "id": "second-opp-opened-20-opp-120d-user-pass",
+  "title": {
+    "en": "Opp 120♦ bicolore — user weak",
+    "fr": "Adverse 120♦ bicolore — user faible"
+  },
+  "description": {
+    "en": "Pass.",
+    "fr": "Pass."
+  },
+  "notes": {
+    "en": "Obvious pass.",
+    "fr": "Pass évident."
+  },
+
+  "userSeat": 0,
+  "dealer": 2,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"9"}, {"suit":"S","value":"8"}, {"suit":"S","value":"7"},
+           {"suit":"H","value":"K"}, {"suit":"H","value":"Q"}, {"suit":"H","value":"10"}, {"suit":"H","value":"9"}, {"suit":"H","value":"8"} ],
+    "1": [ {"suit":"S","value":"10"}, {"suit":"S","value":"J"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"K"}, {"suit":"S","value":"A"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"J"}, {"suit":"H","value":"A"} ],
+    "2": [ {"suit":"D","value":"7"}, {"suit":"D","value":"8"},
+           {"suit":"C","value":"7"}, {"suit":"C","value":"8"}, {"suit":"C","value":"9"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"} ],
+    "3": [ {"suit":"D","value":"J"}, {"suit":"D","value":"9"}, {"suit":"D","value":"A"}, {"suit":"D","value":"K"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"10"},
+           {"suit":"C","value":"A"}, {"suit":"C","value":"K"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 3,
+      "value": 120,
+      "suit": "D",
+      "authorIntent": "120 bicolore ♦."
+    },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["competitive-bidding-not-formalized"]
+}
