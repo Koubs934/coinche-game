@@ -67,6 +67,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   const prevDealerRef    = useRef(null);
   const prevTrumpRef     = useRef(null);
   const timerRef         = useRef([]);
+  // Dedicated ref for the belote/rebelote announce banner timer. Kept separate
+  // from timerRef (used by trick-completion) because trick-completion clears
+  // all timers in its ref every time a trick ends, which would prematurely
+  // cancel the belote banner timer. See e75b126 for the bug history.
+  const beloteTimerRef   = useRef(null);
   const dragRef          = useRef(null);   // active drag { fromIdx, toIdx }
   const longPressRef     = useRef(null);   // long-press timer
   const startXYRef       = useRef(null);   // pointer position at pointerdown
@@ -176,6 +181,10 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
       prevTricksLenRef.current = newLen;
       const last = game.tricks[newLen - 1];
 
+      // CAUTION: this clears all timers in timerRef, which is shared by the
+      // trick-completion effect. Do NOT push timers from other effects (e.g. belote
+      // announce) into this ref — use a dedicated ref instead. See the rebelote
+      // banner persistence bug fixed in commit e75b126 for context.
       timerRef.current.forEach(clearTimeout);
       setTrickOverlay({ cards: last.cards, winnerPos: last.winner, animate: false });
 
@@ -190,6 +199,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
 
   // Cleanup on unmount
   useEffect(() => () => timerRef.current.forEach(clearTimeout), []);
+  useEffect(() => () => { if (beloteTimerRef.current) clearTimeout(beloteTimerRef.current); }, []);
 
   // ── Effect: persist sortMode preference across rounds ─────────────────────
   useEffect(() => {
@@ -228,18 +238,43 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   }, [room.phase]);
 
   // ── Effect: show Belote / Rebelote announce banner ────────────────────────
+  // Uses its OWN beloteTimerRef (not the shared timerRef) so the trick-completion
+  // effect's clearTimeout sweep can't cancel the banner's auto-clear timer.
+  // Also reconciles state when beloteInfo resets at round start (Option B
+  // defense-in-depth): if some future code re-clobbers the timer, the banner
+  // will still clear on the next round transition.
   useEffect(() => {
     const prev = prevBeloteRef.current;
     const declared     = beloteInfo?.declared     ?? null;
     const rebeloteDone = beloteInfo?.rebeloteDone ?? false;
+
+    function scheduleClear() {
+      if (beloteTimerRef.current) clearTimeout(beloteTimerRef.current);
+      beloteTimerRef.current = setTimeout(() => {
+        setBeloteAnnounce(null);
+        beloteTimerRef.current = null;
+      }, 2500);
+    }
+
     if (!prev.declared && declared === 'yes') {
       setBeloteAnnounce('belote');
-      timerRef.current.push(setTimeout(() => setBeloteAnnounce(null), 2500));
+      scheduleClear();
     }
     if (!prev.rebeloteDone && rebeloteDone) {
       setBeloteAnnounce('rebelote');
-      timerRef.current.push(setTimeout(() => setBeloteAnnounce(null), 2500));
+      scheduleClear();
     }
+
+    // Reconcile: if beloteInfo has been reset (new round started), force the
+    // banner state back to null and cancel any in-flight timer.
+    if (declared === null && !rebeloteDone) {
+      if (beloteTimerRef.current) {
+        clearTimeout(beloteTimerRef.current);
+        beloteTimerRef.current = null;
+      }
+      setBeloteAnnounce(null);
+    }
+
     prevBeloteRef.current = { declared, rebeloteDone };
   }, [beloteInfo?.declared, beloteInfo?.rebeloteDone]);
 
