@@ -200,6 +200,87 @@ function classifyResponseTo120(hand, partnerSuit) {
   return null;
 }
 
+// ─── V2.2 helpers ──────────────────────────────────────────────────────────
+//
+// Status: partial formalization (see docs/la-feuille-v2.md "V2.2" section).
+// Only Principle 1 (anti-double-comptage) and a minimal Cheek are wired.
+// Defense/Bloquage, Exploration, Coinche are deliberately not implemented.
+
+// Minimum aces promised by each V2.1 opening, per the V2.2 mapping table.
+// Used by anti-double-comptage to compute how many aces are still "new info"
+// after my own opening.
+const AS_PROMIS_BY_OPENING = { 80: 2, 90: 1, 100: 1, 110: 2, 120: 1 };
+
+// Solid V2.1 opening values — used by Cheek to decide whether partner's
+// earlier bid is a Feuille promise we can support.
+const SOLIDE_OPENING_VALUES = [80, 90, 100, 110, 120];
+
+// Find the FIRST 'bid' entry in biddingHistory by a given seat. We use the
+// first (not the last) because anti-double-comptage references "my initial
+// opening", not any subsequent raise I may have already made.
+function findMyOpeningBid(biddingHistory, position) {
+  for (const e of (biddingHistory || [])) {
+    if (e.position === position && e.type === 'bid') {
+      return { value: e.value, suit: e.suit };
+    }
+  }
+  return null;
+}
+
+// Find the most recent 'bid' entry by a given seat. Used to locate partner's
+// last bid for the Cheek-target suit.
+function findLastBidBy(biddingHistory, position) {
+  let last = null;
+  for (const e of (biddingHistory || [])) {
+    if (e.position === position && e.type === 'bid') last = e;
+  }
+  return last ? { value: last.value, suit: last.suit } : null;
+}
+
+// V2.2 Principle 1 — anti-double-comptage.
+// After my own opening + a partner raise, I re-raise only with aces NOT
+// already promised by my opening. Returns null (= pass) if there's nothing
+// new to signal or if the rule doesn't apply.
+//   re-raise = partner_raise.value + (myActualAces - asPromisByOpening) * 10
+// Suit is always partner's raise suit (the trump established by the chain).
+function antiDoubleComptageRaise(myHand, myOpening, partnerRaise) {
+  if (!myOpening || !partnerRaise) return null;
+  const promised = AS_PROMIS_BY_OPENING[myOpening.value];
+  if (promised == null) return null;             // capot / non-V2.1 opening
+  if (typeof partnerRaise.value !== 'number') return null;
+  const signalable = totalAces(myHand) - promised;
+  if (signalable <= 0) return null;
+  return {
+    value: partnerRaise.value + signalable * 10,
+    suit:  partnerRaise.suit,
+  };
+}
+
+// V2.2 minimal Cheek.
+// Conditions (all must hold):
+//   - currentBid is by an opponent (not me, not my partner)
+//   - partner has an earlier 'bid' in the history
+//   - partner's last bid is a SOLIDE V2.1 opening (80/90/100/110/120)
+//   - opponent's currentBid is a numeric overcall (> partner's last bid)
+//   - I have at least 1 ace
+//   - resulting +10 cheek is ≤ 160 (hard cap, no ridiculous escalation)
+// Returns { value: currentBid.value + 10, suit: partner_last_bid.suit } or null.
+function cheekIfApplicable(myHand, currentBid, biddingHistory, myPosition) {
+  if (!currentBid) return null;
+  const partnerPos = (myPosition + 2) % 4;
+  const bidderPos  = currentBid.playerIndex;
+  if (bidderPos === myPosition || bidderPos === partnerPos) return null;
+  const partnerLast = findLastBidBy(biddingHistory, partnerPos);
+  if (!partnerLast) return null;
+  if (!SOLIDE_OPENING_VALUES.includes(partnerLast.value)) return null;
+  if (typeof currentBid.value !== 'number') return null;
+  if (currentBid.value <= partnerLast.value) return null;     // not an overcall
+  if (totalAces(myHand) < 1) return null;
+  const cheekValue = currentBid.value + 10;
+  if (cheekValue > 160) return null;
+  return { value: cheekValue, suit: partnerLast.suit };
+}
+
 function partnerResponseBid(hand, partnerBid) {
   if (!partnerBid) return null;
   if (partnerBid.value === 'capot') return null;
@@ -217,22 +298,56 @@ function partnerResponseBid(hand, partnerBid) {
 
 function getBotBidAction(game, position) {
   const partnerPos = (position + 2) % 4;
+  const history    = game.biddingHistory || [];
 
   if (game.currentBid) {
+    // 1. Coinched bid → always pass
     if (game.currentBid.coinched) return { type: 'pass' };
+
+    // 2-3. Partner is the highest bidder
     if (game.currentBid.playerIndex === partnerPos) {
+      const myOpening = findMyOpeningBid(history, position);
+
+      // 2. I opened earlier → V2.2 anti-double-comptage
+      if (myOpening) {
+        const adc = antiDoubleComptageRaise(
+          game.hands[position], myOpening, game.currentBid,
+        );
+        if (adc && adc.value > game.currentBid.value) {
+          return { type: 'bid', value: adc.value, suit: adc.suit };
+        }
+        // Deliberately do NOT fall through to partnerResponseBid here —
+        // partnerResponseBid evaluates the hand as a fresh response and
+        // would re-count aces I already promised in my opening.
+        return { type: 'pass' };
+      }
+
+      // 3. I didn't open → V2.1 partnerResponseBid (existing behavior)
       const r = partnerResponseBid(game.hands[position], game.currentBid);
-      // Only emit a raise that strictly outbids partner — same-value or
-      // lower is treated as pass.
       if (r && r.value > game.currentBid.value) {
         return { type: 'bid', value: r.value, suit: r.suit };
       }
       return { type: 'pass' };
     }
-    // V2.1 doesn't formalize competitive responses to opponents.
+
+    // 4. Opponent is highest bidder + partner has bid earlier → try Cheek
+    const partnerHasBid = history.some(
+      e => e.position === partnerPos && e.type === 'bid',
+    );
+    if (partnerHasBid) {
+      const cheek = cheekIfApplicable(
+        game.hands[position], game.currentBid, history, position,
+      );
+      if (cheek && cheek.value > game.currentBid.value) {
+        return { type: 'bid', value: cheek.value, suit: cheek.suit };
+      }
+    }
+
+    // 5. Opponent is highest bidder, no Cheek applicable → pass
     return { type: 'pass' };
   }
 
+  // 6. No current bid → V2.1 opening logic
   const bid = bestOpeningBid(game.hands[position]);
   if (bid) return { type: 'bid', value: bid.value, suit: bid.suit };
   return { type: 'pass' };
@@ -254,4 +369,8 @@ module.exports = {
   classifyResponseTo100,
   classifyResponseTo110,
   classifyResponseTo120,
+  // V2.2 helpers
+  antiDoubleComptageRaise,
+  cheekIfApplicable,
+  findMyOpeningBid,
 };

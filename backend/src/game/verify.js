@@ -782,13 +782,15 @@ console.log('\n=== Bot Opening Bids (V2.1) ===\n');
 
 console.log('\n=== Bot Partner Response Bids (V2.1) ===\n');
 
-// Helper: minimal game state for getBotBidAction tests
-function mockBidGame(myHand, currentBid, myPos) {
+// Helper: minimal game state for getBotBidAction tests.
+// Optional 4th arg lets V2.2 tests pass a non-empty biddingHistory.
+function mockBidGame(myHand, currentBid, myPos, biddingHistory = []) {
   const hands = [[], [], [], []];
   hands[myPos] = myHand;
   return { hands, currentBid,
     biddingTurn: myPos, dealer: (myPos + 3) % 4,
-    biddingHistory: [], biddingActions: [null, null, null, null],
+    biddingHistory,
+    biddingActions: [null, null, null, null],
     consecutivePasses: 0, phase: 'BIDDING', trumpSuit: null,
     beloteInfo: { playerIndex: null, declared: null, rebeloteDone: false, complete: false },
   };
@@ -1066,6 +1068,226 @@ function mockBidGame(myHand, currentBid, myPos) {
      card('A','C'), card('10','C'), card('9','C'), card('7','S')],
     'H',
   ) === false, 'R21i: 4♥ + 3♣ + 1♠ → not bicolore');
+}
+
+// ─── BOT V2.2 — Anti-double-comptage (Principe 1) ───────────────────────────
+//
+// After my own opening + a partner raise, I re-raise only with aces NOT
+// already promised by my opening. AS_PROMIS_BY_OPENING:
+//   80=2, 90=1, 100=1, 110=2, 120=1.
+// Formula: re-raise = partner_raise + (myActualAces - asPromised) * 10.
+
+console.log('\n=== Bot V2.2 Anti-double-comptage ===\n');
+
+// ── T1: open 80 with 3 As, partner raises to 100 → 110 ─────────────────────
+{
+  // Hand: 3 As (♠♥♦) + petit-jeu in ♥ via piece+2 trumps (J♥+A♥+8♥).
+  const hand = [
+    card('A','S'), card('K','S'),
+    card('J','H'), card('A','H'), card('8','H'),
+    card('A','D'),
+    card('7','C'), card('8','C'),
+  ];
+  const biddingHistory = [
+    { position: 0, type: 'bid',  value: 80,  suit: 'H' },
+    { position: 1, type: 'pass' },
+    { position: 2, type: 'bid',  value: 100, suit: 'H' },
+    { position: 3, type: 'pass' },
+  ];
+  const currentBid = { value: 100, suit: 'H', playerIndex: 2, team: 0, coinched: false, surcoinched: false };
+  const game = mockBidGame(hand, currentBid, 0, biddingHistory);
+  const action = getBotBidAction(game, 0);
+  assert(action.type === 'bid',   'T1: 80 + 3 As + partner-100 → bid (not pass)');
+  assert(action.value === 110,    `T1: bid value 110 (got ${action.value})`);
+  assert(action.suit  === 'H',    `T1: bid suit ♥ (got ${action.suit})`);
+}
+
+// ── T2: open 90 with 2 As ext, partner raises to 110 → 120 ────────────────
+{
+  // Hand: 90-shape ♠ (J+9+1other) + 1 As ext via this opening, plus a 2nd As ext.
+  // Total aces in hand = 2 (both ext, none in trump). asPromised(90)=1, signalable=1.
+  const hand = [
+    card('J','S'), card('9','S'), card('8','S'),
+    card('A','H'), card('K','H'), card('Q','H'),
+    card('A','D'),
+    card('10','C'),
+  ];
+  const biddingHistory = [
+    { position: 0, type: 'bid',  value: 90,  suit: 'S' },
+    { position: 1, type: 'pass' },
+    { position: 2, type: 'bid',  value: 110, suit: 'S' },
+    { position: 3, type: 'pass' },
+  ];
+  const currentBid = { value: 110, suit: 'S', playerIndex: 2, team: 0, coinched: false, surcoinched: false };
+  const game = mockBidGame(hand, currentBid, 0, biddingHistory);
+  const action = getBotBidAction(game, 0);
+  assert(action.type === 'bid', 'T2: 90 + 2 As ext + partner-110 → bid');
+  assert(action.value === 120,  `T2: bid value 120 (got ${action.value})`);
+  assert(action.suit  === 'S',  `T2: bid suit ♠ (got ${action.suit})`);
+}
+
+// ── T3: open 110 with 1 trump A + 2 As ext, partner raises to 120 → 130 ──
+{
+  // Hand: maître ♠ (J+9+A♠) + 2 As ext (♥ + ♦). Total aces = 3. asPromised(110)=2, signalable=1.
+  const hand = [
+    card('J','S'), card('9','S'), card('A','S'), card('7','S'),
+    card('A','H'), card('K','H'),
+    card('A','D'),
+    card('10','C'),
+  ];
+  const biddingHistory = [
+    { position: 0, type: 'bid',  value: 110, suit: 'S' },
+    { position: 1, type: 'pass' },
+    { position: 2, type: 'bid',  value: 120, suit: 'S' },
+    { position: 3, type: 'pass' },
+  ];
+  const currentBid = { value: 120, suit: 'S', playerIndex: 2, team: 0, coinched: false, surcoinched: false };
+  const game = mockBidGame(hand, currentBid, 0, biddingHistory);
+  const action = getBotBidAction(game, 0);
+  assert(action.type === 'bid', 'T3: 110 + 3 As (1 trump+2 ext) + partner-120 → bid');
+  assert(action.value === 130,  `T3: bid value 130 (got ${action.value})`);
+  assert(action.suit  === 'S',  `T3: bid suit ♠ (got ${action.suit})`);
+}
+
+// ── T4: open 80 with exactly 2 As, partner raises to 100 → pass ──────────
+{
+  // 2 As (minimum promised by 80). signalable = 0 → pass.
+  const hand = [
+    card('J','H'), card('A','H'), card('8','H'),
+    card('A','C'), card('K','S'),
+    card('Q','D'), card('7','C'), card('8','S'),
+  ];
+  const biddingHistory = [
+    { position: 0, type: 'bid',  value: 80,  suit: 'H' },
+    { position: 1, type: 'pass' },
+    { position: 2, type: 'bid',  value: 100, suit: 'H' },
+    { position: 3, type: 'pass' },
+  ];
+  const currentBid = { value: 100, suit: 'H', playerIndex: 2, team: 0, coinched: false, surcoinched: false };
+  const game = mockBidGame(hand, currentBid, 0, biddingHistory);
+  const action = getBotBidAction(game, 0);
+  assert(action.type === 'pass', `T4: 80 + exactly 2 As + partner-100 → pass (got ${action.type} ${action.value || ''})`);
+}
+
+// ── T5: open 90 with only the 1 As ext I promised, partner raises to 110 → pass
+{
+  // 1 As ext only — exactly what 90 promises. signalable = 0 → pass.
+  const hand = [
+    card('J','S'), card('9','S'), card('8','S'),
+    card('A','H'), card('K','H'), card('Q','H'),
+    card('K','D'),
+    card('10','C'),
+  ];
+  const biddingHistory = [
+    { position: 0, type: 'bid',  value: 90,  suit: 'S' },
+    { position: 1, type: 'pass' },
+    { position: 2, type: 'bid',  value: 110, suit: 'S' },
+    { position: 3, type: 'pass' },
+  ];
+  const currentBid = { value: 110, suit: 'S', playerIndex: 2, team: 0, coinched: false, surcoinched: false };
+  const game = mockBidGame(hand, currentBid, 0, biddingHistory);
+  const action = getBotBidAction(game, 0);
+  assert(action.type === 'pass', `T5: 90 + 1 As ext + partner-110 → pass (got ${action.type} ${action.value || ''})`);
+}
+
+// ─── BOT V2.2 — Cheek (minimal) ─────────────────────────────────────────────
+//
+// Conditions: opponent overcalls partner's solid V2.1 opening, I have ≥1 ace,
+// I cheek (+10) in partner's suit. Hard cap at 160.
+
+console.log('\n=== Bot V2.2 Cheek ===\n');
+
+// ── T6: partner opened 90♠, opp raised to 100, I have 1 As ext → 110♠ ────
+{
+  const hand = [
+    card('A','D'),                                  // 1 As ext
+    card('K','S'), card('Q','H'), card('10','C'),
+    card('7','S'), card('7','H'), card('7','C'), card('8','D'),
+  ];
+  const biddingHistory = [
+    { position: 1, type: 'pass' },
+    { position: 2, type: 'bid',  value: 90,  suit: 'S' }, // partner opens
+    { position: 3, type: 'bid',  value: 100, suit: 'H' }, // opp overcalls
+  ];
+  const currentBid = { value: 100, suit: 'H', playerIndex: 3, team: 1, coinched: false, surcoinched: false };
+  const game = mockBidGame(hand, currentBid, 0, biddingHistory);
+  const action = getBotBidAction(game, 0);
+  assert(action.type === 'bid', `T6: cheek fires (got ${action.type})`);
+  assert(action.value === 110,  `T6: cheek value 110 (got ${action.value})`);
+  assert(action.suit  === 'S',  `T6: cheek suit ♠ — partner's suit (got ${action.suit})`);
+}
+
+// ── T7: partner opened 90♠, opp raised to 100, I have 0 aces → pass ─────
+{
+  const hand = [
+    card('K','S'), card('Q','H'), card('10','C'),
+    card('7','S'), card('7','H'), card('7','C'), card('8','D'), card('9','D'),
+  ];
+  const biddingHistory = [
+    { position: 1, type: 'pass' },
+    { position: 2, type: 'bid',  value: 90,  suit: 'S' },
+    { position: 3, type: 'bid',  value: 100, suit: 'H' },
+  ];
+  const currentBid = { value: 100, suit: 'H', playerIndex: 3, team: 1, coinched: false, surcoinched: false };
+  const game = mockBidGame(hand, currentBid, 0, biddingHistory);
+  const action = getBotBidAction(game, 0);
+  assert(action.type === 'pass', `T7: cheek skipped on 0 aces (got ${action.type} ${action.value || ''})`);
+}
+
+// ── T8: partner 90♠, opp 150, I have 1 As → cheek 160♠ (right at the cap)
+{
+  const hand = [
+    card('A','D'),
+    card('K','S'), card('Q','H'), card('10','C'),
+    card('7','S'), card('7','H'), card('7','C'), card('8','D'),
+  ];
+  const biddingHistory = [
+    { position: 1, type: 'pass' },
+    { position: 2, type: 'bid',  value: 90,  suit: 'S' },
+    { position: 3, type: 'bid',  value: 150, suit: 'H' },
+  ];
+  const currentBid = { value: 150, suit: 'H', playerIndex: 3, team: 1, coinched: false, surcoinched: false };
+  const game = mockBidGame(hand, currentBid, 0, biddingHistory);
+  const action = getBotBidAction(game, 0);
+  assert(action.type === 'bid', `T8: cheek fires at the cap (got ${action.type})`);
+  assert(action.value === 160,  `T8: cheek value 160 (got ${action.value})`);
+  assert(action.suit  === 'S',  `T8: cheek suit ♠ (got ${action.suit})`);
+}
+
+// ── T9: partner 90♠, opp 160 — cheek would be 170 > 160 cap → pass ──────
+{
+  const hand = [
+    card('A','D'),
+    card('K','S'), card('Q','H'), card('10','C'),
+    card('7','S'), card('7','H'), card('7','C'), card('8','D'),
+  ];
+  const biddingHistory = [
+    { position: 1, type: 'pass' },
+    { position: 2, type: 'bid',  value: 90,  suit: 'S' },
+    { position: 3, type: 'bid',  value: 160, suit: 'H' },
+  ];
+  const currentBid = { value: 160, suit: 'H', playerIndex: 3, team: 1, coinched: false, surcoinched: false };
+  const game = mockBidGame(hand, currentBid, 0, biddingHistory);
+  const action = getBotBidAction(game, 0);
+  assert(action.type === 'pass', `T9: 170 > 160 cap → pass (got ${action.type} ${action.value || ''})`);
+}
+
+// ── T10: no partner bid (only opponent) → pass ──────────────────────────
+{
+  const hand = [
+    card('A','D'),                                  // 1 As ext (irrelevant — no partner)
+    card('K','S'), card('Q','H'), card('10','C'),
+    card('7','S'), card('7','H'), card('7','C'), card('8','D'),
+  ];
+  const biddingHistory = [
+    { position: 1, type: 'bid',  value: 80,  suit: 'C' }, // opp 1 opens
+    { position: 2, type: 'pass' },                         // partner passes
+    { position: 3, type: 'bid',  value: 100, suit: 'C' }, // opp 3 raises
+  ];
+  const currentBid = { value: 100, suit: 'C', playerIndex: 3, team: 1, coinched: false, surcoinched: false };
+  const game = mockBidGame(hand, currentBid, 0, biddingHistory);
+  const action = getBotBidAction(game, 0);
+  assert(action.type === 'pass', `T10: no partner bid → cheek skipped (got ${action.type} ${action.value || ''})`);
 }
 
 // ─── Bot Card Play ────────────────────────────────────────────────────────────
