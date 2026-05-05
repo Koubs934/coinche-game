@@ -1,247 +1,220 @@
-// ─── Opening-bid convention V1 ────────────────────────────────────────────────
+// ─── Bot bidding — La Feuille V2.1 ────────────────────────────────────────────
 //
-// The bot's opening bid encodes hand strength as a signal to its partner:
+// Reference: docs/la-feuille-v2.md (with the 2026-05-04 V2.1 correction to
+// the response-to-90 table). The bot is the production bidder used by
+// botProcessor.js for live games. Training-mode scenarios use this same
+// rule set as their `expectedAnswer` ground truth.
 //
-//   80  → 2+ Aces, no qualifying trump suit  (information opening)
-//   90  → petit jeu  (J + 3rd card in suit,  OR  9 + 4th card + outside Ace)
-//   100 → maître à l'atout  (J + 9 + A in the same suit)
-//   110 → maître + 1 outside Ace
-//   120 → bicolore  (maître + an exploitable second suit)
+// Opening hierarchy (highest first, V2.1): 120 → 110 → 100 → 80 → 90 → pass.
+//   120 bicolore : maître à l'atout + ≥1 autre atout + cartes en
+//                  STRICTEMENT 2 couleurs (atout + 1 autre).
+//   110          : maître + ≥1 As extérieur (en plus de l'A d'atout).
+//   100          : maître seul (sans As extérieur).
+//   80           : EXACTEMENT 2 As + petit-jeu.
+//   90           : Pièce 4ème + 1 As ext OU Valet 3ème + belote + 1 As ext
+//                  OU V + 9 + 1 autre atout + 1 As ext.
 //
-// Openings are capped at 120 in V1.
-// Response / competitive / coinche layers are not yet implemented.
+// Petit-jeu (pour qualifier 80): ≥1 pièce + ≥2 atouts OU 4 atouts + belote
+// (sans pièce) OU ≥5 atouts (sans pièce). Pièce = J ou 9 d'atout.
+//
+// Response tables — see classifyResponseToXX() per opening value.
+//
+// V2.1 leaves several zones explicitly unformalized: competitive bidding
+// (after opp open / after opp overcall), second-position-after-partner-pass,
+// fourth position, coinche / surcoinche, capot. The bot returns `pass` in
+// those cases — same as V1 — until those zones are formalized.
 
 const { SUITS, TRUMP_POINTS: TRUMP_PTS } = require('./constants');
 
-// Values that count as an "honour" for the bicolore side-suit test (J/Q/K/10)
-const HONORS = new Set(['J', 'Q', 'K', '10']);
+// ─── Per-suit feature extraction ─────────────────────────────────────────────
 
-// ─── Per-suit feature extraction ──────────────────────────────────────────────
-
-/**
- * Compute all bidding-relevant features for one suit treated as candidate trump.
- *
- * @param {Array}  hand - [{suit, value}, ...]
- * @param {string} suit - 'S'|'H'|'D'|'C'
- * @returns {object} features
- */
 function computeSuitFeatures(hand, suit) {
   const cards       = hand.filter(c => c.suit === suit);
   const count       = cards.length;
   const hasJ        = cards.some(c => c.value === 'J');
   const has9        = cards.some(c => c.value === '9');
   const hasA        = cards.some(c => c.value === 'A');
-
-  // Sum of trump-point values if this suit were trump
+  const hasK        = cards.some(c => c.value === 'K');
+  const hasQ        = cards.some(c => c.value === 'Q');
   const trumpPtsSum = cards.reduce((s, c) => s + (TRUMP_PTS[c.value] ?? 0), 0);
-
-  // Maître à l'atout (user definition): must hold J + 9 + A in the suit
-  const isMaster = hasJ && has9 && hasA;
-
-  // Aces held in suits other than this candidate trump
+  const piece       = hasJ || has9;
+  const hasBelote   = hasK && hasQ;
+  const isMaitre    = hasJ && has9 && hasA;
   const outsideAces = hand.filter(c => c.suit !== suit && c.value === 'A').length;
-
-  // A suit is "exploitable" as a bicolore second suit when:
-  //   – it has 4+ cards  (length establishes tricks), OR
-  //   – it has an Ace + at least one honour (J/Q/K/10)  (strong short holding)
-  const hasHonorForExpl = cards.some(c => HONORS.has(c.value));
-  const isExploitable   = count >= 4 || (hasA && hasHonorForExpl);
-
-  // Petit jeu: playable trump, not yet maître
-  //   pattern A — Jack third:              hasJ  AND count >= 3
-  //   pattern B — 9-fourth + outside Ace: has9  AND count >= 4  AND outsideAces >= 1
-  const isPetitJeu = !isMaster && (
-    (hasJ && count >= 3) ||
-    (has9 && count >= 4 && outsideAces >= 1)
-  );
-
-  return { suit, count, hasJ, has9, hasA, trumpPtsSum,
-           isMaster, isPetitJeu, outsideAces, isExploitable };
+  return {
+    suit, count, hasJ, has9, hasA, hasK, hasQ, hasBelote,
+    piece, isMaitre, outsideAces, trumpPtsSum,
+  };
 }
 
-// ─── Bid-level classification per suit ────────────────────────────────────────
-
-/**
- * Given precomputed features for all 4 suits, return the highest opening bid
- * level (0 | 90 | 100 | 110 | 120) that `features.suit` justifies as trump.
- *
- * @param {object} features    - result of computeSuitFeatures for the candidate suit
- * @param {Array}  allFeatures - results of computeSuitFeatures for all 4 suits
- * @returns {number} 0 | 90 | 100 | 110 | 120
- */
-function suitBidLevel(features, allFeatures) {
-  if (features.isMaster) {
-    // Bicolore: any OTHER suit exploitable as a second colour?
-    const hasBicolore = allFeatures.some(
-      f => f.suit !== features.suit && f.isExploitable
-    );
-    if (hasBicolore)               return 120;
-    if (features.outsideAces >= 1) return 110;
-    return 100;
-  }
-
-  if (features.isPetitJeu) return 90;
-
-  return 0; // no trump-based bid for this suit
+function totalAces(hand) {
+  return hand.filter(c => c.value === 'A').length;
 }
 
-// ─── Main entry point ─────────────────────────────────────────────────────────
+// "Strictly 2 colors" for the 120-bicolore test. Trump suit is one; the
+// other is the side suit. 3+ non-zero suits → not bicolore.
+function isStrictBicolore(hand, trumpSuit) {
+  if (hand.filter(c => c.suit === trumpSuit).length === 0) return false;
+  const otherPresent = SUITS.filter(s => s !== trumpSuit)
+    .filter(s => hand.some(c => c.suit === s));
+  return otherPresent.length === 1;
+}
+
+// V2 petit-jeu: ≥1 pièce + ≥2 atouts OR 4 atouts + belote (sans pièce)
+// OR ≥5 atouts (sans pièce).
+function isPetitJeu(f) {
+  if (f.piece && f.count >= 2) return true;
+  if (!f.piece && f.count === 4 && f.hasBelote) return true;
+  if (!f.piece && f.count >= 5) return true;
+  return false;
+}
+
+// V2 90: any of three patterns, all requiring 1 outside Ace.
+function qualifiesFor90(f) {
+  if (f.outsideAces < 1) return false;
+  if (f.piece && f.count >= 4)                  return true; // pièce 4ème
+  if (f.hasJ && f.count >= 3 && f.hasBelote)    return true; // V 3ème + belote
+  if (f.hasJ && f.has9 && f.count >= 3)         return true; // V + 9 + 1
+  return false;
+}
+
+// ─── Opening ─────────────────────────────────────────────────────────────────
 
 /**
- * Given a hand (8 cards), return the best opening bid or null (= pass).
- *
- * Selection rules:
- *   1. Highest bid level across all suits wins (120 > 110 > 100 > 90 > 80 fallback).
- *   2. Tie-break within same level: highest trumpPtsSum, then canonical suit order S<H<D<C.
- *   3. If no suit qualifies for 90+ but totalAces >= 2, bid 80 in the suit with the
- *      highest trump potential (best information for partner).
- *   4. Otherwise: pass (null).
- *
- * @param {Array} hand - [{suit, value}, ...]
- * @returns {{ value: number, suit: string } | null}
+ * Highest opening per the V2.1 hierarchy. Returns { value, suit } or null.
  */
 function bestOpeningBid(hand) {
-  const totalAces   = hand.filter(c => c.value === 'A').length;
-  const allFeatures = SUITS.map(s => computeSuitFeatures(hand, s));
+  // 100/110/120 — maître-based. We score every suit that's maître and
+  // pick the highest-value candidate; tie-break on trumpPtsSum, then on
+  // canonical SUITS order.
+  let bestMaitre = null;
+  for (const suit of SUITS) {
+    const f = computeSuitFeatures(hand, suit);
+    if (!f.isMaitre) continue;
+    let value;
+    if (isStrictBicolore(hand, suit) && f.count >= 2) value = 120;
+    else if (f.outsideAces >= 1)                      value = 110;
+    else                                              value = 100;
+    if (!bestMaitre ||
+        value > bestMaitre.value ||
+        (value === bestMaitre.value && f.trumpPtsSum > bestMaitre.f.trumpPtsSum) ||
+        (value === bestMaitre.value && f.trumpPtsSum === bestMaitre.f.trumpPtsSum &&
+          SUITS.indexOf(suit) < SUITS.indexOf(bestMaitre.suit))) {
+      bestMaitre = { value, suit, f };
+    }
+  }
+  if (bestMaitre) return { value: bestMaitre.value, suit: bestMaitre.suit };
 
-  const scored = allFeatures.map(f => ({
-    ...f,
-    bidLevel: suitBidLevel(f, allFeatures),
-  }));
-
-  const bestLevel = Math.max(...scored.map(s => s.bidLevel));
-
-  if (bestLevel > 0) {
-    // Among all suits reaching the best level, pick by trumpPtsSum then canonical order
-    const winner = scored
-      .filter(s => s.bidLevel === bestLevel)
-      .sort((a, b) =>
-        b.trumpPtsSum !== a.trumpPtsSum
-          ? b.trumpPtsSum - a.trumpPtsSum
-          : SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit)
-      )[0];
-    return { value: bestLevel, suit: winner.suit };
+  // 80 — EXACTLY 2 Aces + petit-jeu somewhere.
+  if (totalAces(hand) === 2) {
+    let best80 = null;
+    for (const suit of SUITS) {
+      const f = computeSuitFeatures(hand, suit);
+      if (!isPetitJeu(f)) continue;
+      if (!best80 ||
+          f.trumpPtsSum > best80.f.trumpPtsSum ||
+          (f.trumpPtsSum === best80.f.trumpPtsSum &&
+            SUITS.indexOf(suit) < SUITS.indexOf(best80.suit))) {
+        best80 = { suit, f };
+      }
+    }
+    if (best80) return { value: 80, suit: best80.suit };
   }
 
-  // Fallback: 80 if 2+ Aces — bid in the suit with the highest trump potential
-  if (totalAces >= 2) {
-    const best = [...allFeatures].sort((a, b) =>
-      b.trumpPtsSum !== a.trumpPtsSum
-        ? b.trumpPtsSum - a.trumpPtsSum
-        : SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit)
-    )[0];
-    return { value: 80, suit: best.suit };
+  // 90 — strongest 90-qualifying suit.
+  let best90 = null;
+  for (const suit of SUITS) {
+    const f = computeSuitFeatures(hand, suit);
+    if (!qualifiesFor90(f)) continue;
+    if (!best90 ||
+        f.trumpPtsSum > best90.f.trumpPtsSum ||
+        (f.trumpPtsSum === best90.f.trumpPtsSum &&
+          SUITS.indexOf(suit) < SUITS.indexOf(best90.suit))) {
+      best90 = { suit, f };
+    }
   }
+  if (best90) return { value: 90, suit: best90.suit };
 
   return null; // pass
 }
 
-// ─── Partner response logic V1 ────────────────────────────────────────────────
+// ─── Response tables ─────────────────────────────────────────────────────────
 //
-// Activated when partner is currently the highest bidder.
-// The bot interprets partner's bid using the same convention family,
-// then decides whether to support, switch to its own suit, or pass.
-//
-// Contribution model (V1 — Aces only):
-//   +10 per Ace held in any suit other than partner's trump suit
-//   +10 for holding the Ace of partner's trump suit ONLY when partner bid 90
-//         (petit jeu does not guarantee the trump Ace; 100+ already declares J+9+A)
-//   K/Q/10 of partner's suit: excluded in V1
-//
-// Response cap: 120. Bot never bids 130+ as a response in V1.
+// Each classifier returns the highest applicable line for the given
+// (hand, partner suit) pair, or null if none applies. `null` is
+// "rule-silent" in V2.1 — the doc doesn't enumerate "pass" as a formal
+// response; the bot interprets it as pass for now (a safe lower bound).
 
-const RESPONSE_CAP = 120;
+function classifyResponseTo80(hand, partnerSuit) {
+  const f = computeSuitFeatures(hand, partnerSuit);
+  const aces    = totalAces(hand);
+  const piece2  = f.piece && f.count >= 2;
+  const piece3  = f.piece && f.count >= 3;
+  const valetSec = f.hasJ && f.count === 1; // J alone — qualifies for 90
+  const isBare9  = f.has9 && !f.hasJ && f.count === 1; // never 90 (per doc)
 
-/**
- * Count the Ace-equivalent contribution I can add toward partner's bid.
- *
- * @param {Array}  hand       - own hand
- * @param {object} partnerBid - { value, suit }  (game.currentBid)
- * @returns {number} total Ace-equivalent contributions (0, 1, 2, …)
- */
-function myContributionToPartner(hand, partnerBid) {
-  // Aces in suits other than partner's trump always count
-  const outsideAces = hand.filter(
-    c => c.suit !== partnerBid.suit && c.value === 'A'
-  ).length;
-
-  // Trump Ace bonus: only when partner bid 90 (petit jeu might not include the Ace)
-  // When partner bid 100+ they already declared J+9+A, so they own the trump Ace.
-  const hasTrumpAce = hand.some(
-    c => c.suit === partnerBid.suit && c.value === 'A'
-  );
-  const trumpAceBonus = (partnerBid.value === 90 && hasTrumpAce) ? 1 : 0;
-
-  return outsideAces + trumpAceBonus;
+  if (piece3 && aces >= 2) return { value: 140, suit: partnerSuit };
+  if (piece3 && aces >= 1) return { value: 130, suit: partnerSuit };
+  if (piece3)              return { value: 120, suit: partnerSuit };
+  if (piece2 && aces >= 2) return { value: 110, suit: partnerSuit };
+  if (piece2 && aces >= 1) return { value: 100, suit: partnerSuit };
+  if (valetSec || piece2)  return { value: 90,  suit: partnerSuit };
+  // isBare9 explicitly excluded (no 90 with 9 sec per la-feuille-v2.md).
+  return null;
 }
 
-/**
- * Return the best "switch" bid: my own opening bid in a suit OTHER than
- * partner's, only when the value is strictly higher than partner's bid.
- * Keeps bids truthful — I only bid what my opening logic justifies.
- *
- * @param {Array}  hand       - own hand
- * @param {object} partnerBid - { value, suit }
- * @returns {{ value: number, suit: string } | null}
- */
-function bestSwitchBid(hand, partnerBid) {
-  const myOpening = bestOpeningBid(hand);
-  if (!myOpening)                           return null; // no opening bid
-  if (myOpening.suit === partnerBid.suit)   return null; // same suit → support, not switch
-  if (myOpening.value <= partnerBid.value)  return null; // can't outbid
-  return myOpening;
+function classifyResponseTo90(hand, partnerSuit) {
+  const f = computeSuitFeatures(hand, partnerSuit);
+  const aces   = totalAces(hand);
+  const piece2 = f.piece && f.count >= 2;
+  const piece3 = f.piece && f.count >= 3;
+
+  if (piece3 && aces >= 2) return { value: 130, suit: partnerSuit };
+  if (piece3 && aces >= 1) return { value: 120, suit: partnerSuit };
+  if (aces >= 3)           return { value: 120, suit: partnerSuit };
+  if (piece2 && aces >= 1) return { value: 110, suit: partnerSuit };
+  // ≥1 atout + 1 As, no piece
+  if (!f.piece && f.count >= 1 && aces >= 1) return { value: 100, suit: partnerSuit };
+  return null;
 }
 
-/**
- * Compute the best partner-response bid or null (= pass).
- *
- * Priority:
- *   1. If both switch and support are available, prefer the one with the higher value.
- *      Tie-break: switch (own trump certainty > Ace signal).
- *   2. Switch only  → switch.
- *   3. Support only → support.
- *   4. Neither      → pass.
- *
- * @param {Array}  hand       - own 8-card hand
- * @param {object} partnerBid - game.currentBid (caller guarantees partner is highest bidder)
- * @returns {{ value: number, suit: string } | null}
- */
+// +10 par As ext. Plafond pratique 130 (partenaire a déjà l'A d'atout).
+function classifyResponseTo100(hand, partnerSuit) {
+  const aces = hand.filter(c => c.suit !== partnerSuit && c.value === 'A').length;
+  if (aces === 0) return null;
+  return { value: Math.min(100 + aces * 10, 130), suit: partnerSuit };
+}
+
+// +10 par As ext. Pas de plafond mécanique.
+function classifyResponseTo110(hand, partnerSuit) {
+  const aces = hand.filter(c => c.suit !== partnerSuit && c.value === 'A').length;
+  if (aces === 0) return null;
+  return { value: 110 + aces * 10, suit: partnerSuit };
+}
+
+// 130 sur 3 As OU une pièce d'atout. Pass sinon (règle restrictive V2).
+function classifyResponseTo120(hand, partnerSuit) {
+  const f = computeSuitFeatures(hand, partnerSuit);
+  if (totalAces(hand) >= 3) return { value: 130, suit: partnerSuit };
+  if (f.piece)              return { value: 130, suit: partnerSuit };
+  return null;
+}
+
 function partnerResponseBid(hand, partnerBid) {
-  // V1 cap — cannot raise above 120
-  if (partnerBid.value >= RESPONSE_CAP) return null;
-
-  // ── Support option ──────────────────────────────────────────────────────────
-  const contributionAces = myContributionToPartner(hand, partnerBid);
-  const rawSupport       = partnerBid.value + contributionAces * 10;
-  const supportValue     = Math.min(rawSupport, RESPONSE_CAP);
-  const canSupport       = supportValue > partnerBid.value; // at least 1 Ace equivalent
-
-  // ── Switch option ────────────────────────────────────────────────────────────
-  const switchBid = bestSwitchBid(hand, partnerBid);
-  const canSwitch = switchBid !== null;
-
-  // ── Decision ─────────────────────────────────────────────────────────────────
-  if (canSwitch && canSupport) {
-    // Both options available: prefer switch when values are equal or switch is higher
-    return switchBid.value >= supportValue
-      ? switchBid
-      : { value: supportValue, suit: partnerBid.suit };
+  if (!partnerBid) return null;
+  if (partnerBid.value === 'capot') return null;
+  switch (partnerBid.value) {
+    case  80: return classifyResponseTo80(hand, partnerBid.suit);
+    case  90: return classifyResponseTo90(hand, partnerBid.suit);
+    case 100: return classifyResponseTo100(hand, partnerBid.suit);
+    case 110: return classifyResponseTo110(hand, partnerBid.suit);
+    case 120: return classifyResponseTo120(hand, partnerBid.suit);
+    default:  return null; // 130+ — V2.1 silent on further raises
   }
-  if (canSwitch)  return switchBid;
-  if (canSupport) return { value: supportValue, suit: partnerBid.suit };
-  return null; // pass
 }
 
-// ─── Public entry point for the bot bid action ─────────────────────────────
+// ─── Public entry point ─────────────────────────────────────────────────────
 
-/**
- * Returns { type: 'bid', value, suit } or { type: 'pass' }.
- *
- * Decision flow:
- *   1. Coinched bid → always pass (only surcoinche is legal, which is a separate event).
- *   2. Partner is highest bidder → partner-response logic.
- *   3. Opponent's bid, or no bid yet → opening logic or pass.
- */
 function getBotBidAction(game, position) {
   const partnerPos = (position + 2) % 4;
 
@@ -249,9 +222,14 @@ function getBotBidAction(game, position) {
     if (game.currentBid.coinched) return { type: 'pass' };
     if (game.currentBid.playerIndex === partnerPos) {
       const r = partnerResponseBid(game.hands[position], game.currentBid);
-      if (r) return { type: 'bid', value: r.value, suit: r.suit };
+      // Only emit a raise that strictly outbids partner — same-value or
+      // lower is treated as pass.
+      if (r && r.value > game.currentBid.value) {
+        return { type: 'bid', value: r.value, suit: r.suit };
+      }
       return { type: 'pass' };
     }
+    // V2.1 doesn't formalize competitive responses to opponents.
     return { type: 'pass' };
   }
 
@@ -261,7 +239,19 @@ function getBotBidAction(game, position) {
 }
 
 module.exports = {
-  bestOpeningBid, computeSuitFeatures, suitBidLevel,
-  partnerResponseBid, myContributionToPartner, bestSwitchBid,
+  // Public API (consumed by botProcessor.js, verify.js, smoke.test.js)
+  bestOpeningBid,
+  computeSuitFeatures,
+  partnerResponseBid,
   getBotBidAction,
+  // Helpers exported for tests
+  isPetitJeu,
+  qualifiesFor90,
+  isStrictBicolore,
+  totalAces,
+  classifyResponseTo80,
+  classifyResponseTo90,
+  classifyResponseTo100,
+  classifyResponseTo110,
+  classifyResponseTo120,
 };

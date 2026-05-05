@@ -6,8 +6,9 @@
 const { getValidCards, getTrickWinner, TRUMP_RANK, cardPoints } = require('./rules');
 const { calculateRoundScore } = require('./scoring');
 const { bestOpeningBid, computeSuitFeatures,
-        partnerResponseBid, myContributionToPartner } = require('./botBidding');
-const { getBotBidAction } = require('./botBidding');
+        partnerResponseBid,
+        isPetitJeu, qualifiesFor90, isStrictBicolore,
+        getBotBidAction } = require('./botBidding');
 const { getBotCardAction } = require('./botPlay');
 
 let passed = 0;
@@ -559,21 +560,20 @@ function makeTricks(winner0count, winner1count, trumpSuit) {
   assert(scores[1] === expectedDefending,    `S11: surcoinched success — defending team gets tricks only = ${expectedDefending}, got ${scores[1]}`);
 }
 
-// ─── BOT OPENING BIDS ────────────────────────────────────────────────────────
+// ─── BOT OPENING BIDS — La Feuille V2.1 ─────────────────────────────────────
 //
-// Convention (V1):
-//   pass → < 2 Aces AND no qualifying trump suit
-//   80   → 2+ Aces, no qualifying trump suit  — bid in suit with highest trump potential
-//   90   → petit jeu  (J+3rd  OR  9+4th + outside Ace)
-//   100  → maître à l'atout  (J + 9 + A in suit)
-//   110  → maître + 1 outside Ace
-//   120  → bicolore  (maître + exploitable side suit)
+// Convention (V2.1, see docs/la-feuille-v2.md):
+//   120 bicolore : maître + ≥1 autre atout + cartes en STRICTEMENT 2 couleurs
+//   110          : maître + ≥1 As extérieur
+//   100          : maître seul
+//   80           : EXACTEMENT 2 As + petit-jeu
+//   90           : Pièce 4ème+1As OU V 3ème+belote+1As OU V+9+1+1As
+//   pass         : sinon
+// Hierarchy: 120 → 110 → 100 → 80 → 90 → pass.
+console.log('\n=== Bot Opening Bids (V2.1) ===\n');
 
-console.log('\n=== Bot Opening Bids ===\n');
 
 // ── B1: Pass — 0 Aces, no trump strength ────────────────────────────────────
-// K♠ Q♠ 8♥ 7♥ 9♦ 8♦ J♣ 7♣
-// No Ace anywhere. Clubs has J but only 2 cards (needs 3+). Diamonds has 9 but only 2 (needs 4+).
 {
   const hand = [
     card('K','S'), card('Q','S'),
@@ -582,12 +582,10 @@ console.log('\n=== Bot Opening Bids ===\n');
     card('J','C'), card('7','C'),
   ];
   const bid = bestOpeningBid(hand);
-  assert(bid === null, 'B1: 0 Aces + no trump strength → pass');
+  assert(bid === null, 'B1: 0 Aces + no qualifying trump → pass');
 }
 
-// ── B2: Pass — 1 Ace only, no trump strength ────────────────────────────────
-// A♠ K♠ Q♥ 8♥ 10♦ 7♦ 8♣ 7♣
-// Spades has A but not J or 9 for any trump pattern. Total Aces = 1 < 2 → no 80 fallback.
+// ── B2: Pass — 1 Ace, no qualifying trump ──────────────────────────────────
 {
   const hand = [
     card('A','S'), card('K','S'),
@@ -595,166 +593,196 @@ console.log('\n=== Bot Opening Bids ===\n');
     card('10','D'), card('7','D'),
     card('8','C'), card('7','C'),
   ];
-  const bid = bestOpeningBid(hand);
-  assert(bid === null, 'B2: 1 Ace + no trump strength → pass');
+  assert(bestOpeningBid(hand) === null, 'B2: 1 Ace + no piece → pass');
 }
 
-// ── B3: 80 — 2 Aces, no qualifying trump suit ───────────────────────────────
-// A♠ 8♠  A♥ Q♥  K♦ 7♦  7♣ 8♣
-// trumpPtsSum: ♠=11, ♥=14 (A+Q), ♦=4, ♣=0  →  bid 80 in ♥ (highest potential)
+// ── B3: Pass — 2 Aces but no petit-jeu (V2 strict) ─────────────────────────
 {
   const hand = [
-    card('A','S'), card('8','S'),
-    card('A','H'), card('Q','H'),
-    card('K','D'), card('7','D'),
-    card('7','C'), card('8','C'),
+    card('A','S'), card('K','S'),
+    card('A','H'), card('10','H'), card('8','H'),
+    card('J','D'),                    // J♦ alone — only 1 trump in ♦
+    card('8','C'), card('7','C'),     // ♣ no piece, just 2 cards
   ];
-  const bid = bestOpeningBid(hand);
-  assert(bid?.value === 80,  'B3: 2 Aces, no trump strength → 80');
-  assert(bid?.suit  === 'H', 'B3: 80 in ♥ — highest trump potential (A+Q=14 vs A=11)');
+  assert(bestOpeningBid(hand) === null, 'B3: 2 Aces, V♦ alone → no petit-jeu → pass');
 }
 
-// ── B4: 90 — petit jeu via Jack-third ───────────────────────────────────────
-// J♠ K♠ 8♠  A♥ Q♥  9♦ 7♦  7♣
-// Spades: J + 2 others = Jack-third → petit jeu. No master anywhere.
+// ── B4: Pass — 3 Aces (80 needs EXACTLY 2) ────────────────────────────────
 {
   const hand = [
-    card('J','S'), card('K','S'), card('8','S'),
-    card('A','H'), card('Q','H'),
-    card('9','D'), card('7','D'),
+    card('A','S'), card('K','S'),
+    card('A','H'), card('10','H'), card('7','H'),
+    card('A','D'),
+    card('8','C'), card('7','C'),
+  ];
+  assert(bestOpeningBid(hand) === null, 'B4: 3 Aces, no piece → pass (80 strict-2-aces)');
+}
+
+// ── B5: 80 — 2 Aces + petit-jeu via piece+≥2 trumps ────────────────────────
+{
+  const hand = [
+    card('A','S'), card('Q','S'),
+    card('A','H'), card('10','H'), card('7','H'),
+    card('J','D'), card('8','D'),     // J♦ + 8♦ → piece + 2 trumps → petit-jeu ♦
     card('7','C'),
   ];
   const bid = bestOpeningBid(hand);
-  assert(bid?.value === 90,  'B4: Jack-third → petit jeu 90');
-  assert(bid?.suit  === 'S', 'B4: petit jeu in ♠');
+  assert(bid?.value === 80,  'B5: 2 Aces + petit-jeu ♦ → 80');
+  assert(bid?.suit  === 'D', 'B5: 80 in ♦');
 }
 
-// ── B5: 90 — petit jeu via 9-fourth + outside Ace ───────────────────────────
-// 9♠ K♠ 8♠ 7♠  A♥ Q♥  J♦  8♣
-// Spades: 9 + 3 others = 9-fourth; outsideAces = 1 (A♥) → petit jeu.
+// ── B6: 80 — 2 Aces + petit-jeu via 4 trumps + belote (no piece) ──────────
 {
   const hand = [
-    card('9','S'), card('K','S'), card('8','S'), card('7','S'),
+    card('K','C'), card('Q','C'), card('10','C'), card('8','C'),  // 4 ♣, K+Q belote, no piece
+    card('A','H'), card('7','H'),
+    card('A','D'),
+    card('9','S'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid?.value === 80, 'B6: 2 Aces + 4-trumps-belote-no-piece → 80');
+  assert(bid?.suit  === 'C', 'B6: 80 in ♣');
+}
+
+// ── B7: 80 — 2 Aces + petit-jeu via 5 trumps no piece ─────────────────────
+{
+  const hand = [
+    card('K','D'), card('Q','D'), card('10','D'), card('8','D'), card('7','D'), // 5 ♦, no J/9
+    card('A','H'),
+    card('A','S'),
+    card('9','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid?.value === 80, 'B7: 2 Aces + 5-trumps-no-piece → 80');
+  assert(bid?.suit  === 'D', 'B7: 80 in ♦');
+}
+
+// ── B8: 90 — piece-4th + 1 outside Ace ─────────────────────────────────────
+{
+  const hand = [
+    card('J','S'), card('10','S'), card('8','S'), card('7','S'), // J + 3 other = piece-4th
+    card('A','H'), card('Q','H'),
+    card('K','D'),
+    card('9','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid?.value === 90,  'B8: piece-4th + 1 outside Ace → 90');
+  assert(bid?.suit  === 'S', 'B8: 90 in ♠');
+}
+
+// ── B9: 90 — V 3rd + belote (K+Q) + 1 outside Ace ──────────────────────────
+{
+  const hand = [
+    card('J','S'), card('K','S'), card('Q','S'), // V♠ + belote (K+Q♠)
+    card('A','H'), card('10','H'), card('8','H'),
+    card('7','D'),
+    card('9','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid?.value === 90,  'B9: V 3rd + belote + 1 outside Ace → 90');
+  assert(bid?.suit  === 'S', 'B9: 90 in ♠');
+}
+
+// ── B10: 90 — V + 9 + 1 other trump + 1 outside Ace ────────────────────────
+{
+  const hand = [
+    card('J','S'), card('9','S'), card('8','S'),
+    card('A','H'), card('K','H'), card('Q','H'),
+    card('7','D'),
+    card('10','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid?.value === 90,  'B10: V+9+1+1 outside Ace → 90');
+  assert(bid?.suit  === 'S', 'B10: 90 in ♠');
+}
+
+// ── B11: 100 — maitre, no outside Ace ──────────────────────────────────────
+{
+  const hand = [
+    card('J','S'), card('9','S'), card('A','S'), card('7','S'),
+    card('K','H'), card('Q','H'),
+    card('J','D'),
+    card('10','C'),
+  ];
+  const bid = bestOpeningBid(hand);
+  assert(bid?.value === 100, 'B11: maître ♠, 0 outside Aces → 100');
+  assert(bid?.suit  === 'S', 'B11: 100 in ♠');
+}
+
+// ── B12: 110 — maitre + 1 outside Ace ──────────────────────────────────────
+{
+  const hand = [
+    card('J','S'), card('9','S'), card('A','S'), card('7','S'),
     card('A','H'), card('Q','H'),
     card('J','D'),
-    card('8','C'),
+    card('10','C'),
   ];
   const bid = bestOpeningBid(hand);
-  assert(bid?.value === 90,  'B5: 9-fourth + outside Ace → petit jeu 90');
-  assert(bid?.suit  === 'S', 'B5: petit jeu in ♠');
+  assert(bid?.value === 110, 'B12: maître ♠ + 1 outside Ace → 110');
+  assert(bid?.suit  === 'S', 'B12: 110 in ♠');
 }
 
-// ── B5b: 90 does NOT fire when 9-fourth but NO outside Ace ──────────────────
-// 9♠ K♠ 8♠ 7♠  Q♥ J♥  K♦  8♣
-// Spades: 9-fourth but outsideAces = 0.  No other suit qualifies.
-// Total Aces = 0 → pass.
+// ── B13: 120 — bicolore strict (maitre + ≥1 other trump, exactly 2 suits) ──
 {
   const hand = [
-    card('9','S'), card('K','S'), card('8','S'), card('7','S'),
-    card('Q','H'), card('J','H'),
-    card('K','D'),
-    card('8','C'),
+    card('J','H'), card('9','H'), card('A','H'), card('K','H'), // maître ♥ + K♥ extra
+    card('A','C'), card('10','C'), card('9','C'), card('8','C'), // 4 ♣, no other suit
   ];
   const bid = bestOpeningBid(hand);
-  assert(bid === null, 'B5b: 9-fourth but 0 outside Aces → pass (not petit jeu)');
+  assert(bid?.value === 120, 'B13: maître + ≥1 other + strictly 2 suits → 120 bicolore');
+  assert(bid?.suit  === 'H', 'B13: bicolore opening in ♥');
 }
 
-// ── B6: 100 — maître (J+9+A), no outside Ace, no exploitable side suit ──────
-// J♠ 9♠ A♠ K♠  Q♥ 8♥  7♦  7♣
-// Spades: master. Hearts: Q+8 (count=2, no Ace → not exploitable). outsideAces=0 → 100.
+// ── B14: 110 (NOT 120) — bicolore broken by a 3rd suit ────────────────────
 {
   const hand = [
-    card('J','S'), card('9','S'), card('A','S'), card('K','S'),
-    card('Q','H'), card('8','H'),
-    card('7','D'),
-    card('7','C'),
+    card('J','H'), card('9','H'), card('A','H'), card('K','H'),
+    card('A','C'), card('10','C'), card('9','C'),
+    card('7','S'), // 3rd suit → not bicolore
   ];
   const bid = bestOpeningBid(hand);
-  assert(bid?.value === 100, 'B6: maître, no outside Ace → 100');
-  assert(bid?.suit  === 'S', 'B6: maître in ♠');
+  assert(bid?.value === 110, 'B14: maître ♥ + 1 outside Ace, 3 suits → 110 not 120');
+  assert(bid?.suit  === 'H', 'B14: 110 in ♥');
 }
 
-// ── B7: 110 — maître + isolated outside Ace (not exploitable as side suit) ───
-// J♠ 9♠ A♠ K♠  A♥ 8♥  7♦  7♣
-// Spades: master. Hearts: A+8 (count=2, hasA=true, but 8∉HONORS → not exploitable).
-// outsideAces=1 (A♥) but no bicolore → 110.
+// ── B15: Hierarchy — qualifies for 80 AND 90 → 80 wins ────────────────────
 {
+  // J♠+9♠+8♠ + 2 As (A♥+A♣) + 90-pattern (V+9+1) + petit-jeu ♠ → both 80 & 90 qualify.
   const hand = [
-    card('J','S'), card('9','S'), card('A','S'), card('K','S'),
-    card('A','H'), card('8','H'),
-    card('7','D'),
-    card('7','C'),
-  ];
-  const bid = bestOpeningBid(hand);
-  assert(bid?.value === 110, 'B7: maître + outside Ace (no exploitable side) → 110');
-  assert(bid?.suit  === 'S', 'B7: 110 in ♠');
-  // Verify hearts is NOT exploitable (A+8 with 8∉HONORS, count=2)
-  const hFeatures = computeSuitFeatures(hand, 'H');
-  assert(hFeatures.isExploitable === false, 'B7: A+8♥ not exploitable (8 is not an honour)');
-}
-
-// ── B8a: 120 — bicolore via Ace + honour in side suit ───────────────────────
-// J♠ 9♠ A♠ K♠  A♥ K♥ Q♥  7♣
-// Spades: master. Hearts: A+K+Q (count=3, hasA=true, K∈HONORS → exploitable) → bicolore.
-{
-  const hand = [
-    card('J','S'), card('9','S'), card('A','S'), card('K','S'),
+    card('J','S'), card('9','S'), card('8','S'),
     card('A','H'), card('K','H'), card('Q','H'),
-    card('7','C'),
+    card('8','D'),
+    card('A','C'),
   ];
   const bid = bestOpeningBid(hand);
-  assert(bid?.value === 120, 'B8a: bicolore (maître ♠ + A+K+Q♥) → 120');
-  assert(bid?.suit  === 'S', 'B8a: bicolore opening in ♠');
-  const hFeatures = computeSuitFeatures(hand, 'H');
-  assert(hFeatures.isExploitable === true, 'B8a: A+K+Q♥ is exploitable (A+honour, count=3)');
+  assert(bid?.value === 80, 'B15: 80 prioritaire sur 90 (qualifies for both)');
 }
 
-// ── B8b: 120 — bicolore via 4+ cards in side suit (no Ace needed) ───────────
-// J♠ 9♠ A♠  K♥ Q♥ 8♥ 7♥  7♣
-// Spades: master (count=3). Hearts: K+Q+8+7 (count=4 → exploitable, no Ace needed) → bicolore.
+// ── B16: Hierarchy — qualifies for 80 AND 110 → 110 wins (100+ > 80) ──────
 {
   const hand = [
-    card('J','S'), card('9','S'), card('A','S'),
-    card('K','H'), card('Q','H'), card('8','H'), card('7','H'),
-    card('7','C'),
+    card('J','S'), card('9','S'), card('A','S'), card('8','S'), // maître ♠ + extra
+    card('A','H'), card('Q','H'),
+    card('J','D'),
+    card('10','C'),
   ];
   const bid = bestOpeningBid(hand);
-  assert(bid?.value === 120, 'B8b: bicolore (maître ♠ + 4-card ♥) → 120');
-  assert(bid?.suit  === 'S', 'B8b: bicolore opening in ♠');
-  const hFeatures = computeSuitFeatures(hand, 'H');
-  assert(hFeatures.isExploitable === true, 'B8b: 4-card ♥ is exploitable (length)');
+  assert(bid?.value === 110, 'B16: 110 prioritaire sur 80 (100+ > 80 hierarchy)');
 }
 
-// ── B9: Tie-break — two suits at same level, higher trumpPtsSum wins ─────────
-// J♠ 9♠ A♠  J♥ 9♥ A♥  7♦  7♣
-// Both ♠ and ♥ are master (trumpPtsSum=45 each). Each suit's partner (the other) has
-// J+9+A → isExploitable (hasA+hasHonor). Both reach 120. Canonical tie-break: ♠ < ♥ → ♠.
-{
-  const hand = [
-    card('J','S'), card('9','S'), card('A','S'),
-    card('J','H'), card('9','H'), card('A','H'),
-    card('7','D'),
-    card('7','C'),
-  ];
-  const bid = bestOpeningBid(hand);
-  assert(bid?.value === 120, 'B9: two bicolore suits → 120');
-  assert(bid?.suit  === 'S', 'B9: tie-break by canonical order → ♠ over ♥');
-}
-
-// ─── BOT PARTNER RESPONSE BIDS ───────────────────────────────────────────────
+// ─── BOT PARTNER RESPONSE BIDS — La Feuille V2.1 ────────────────────────────
 //
-// Convention (V1) — response when partner is currently the highest bidder:
-//
-//   SUPPORT  → raise in partner's suit:  partnerBid + outsideAces×10
-//              + trump Ace bonus of +10 when partner bid 90 (might lack A of trump)
-//   SWITCH   → bid own opening in suit Y ≠ partner's, only when value > partnerBid
-//              Tie (switch = support): prefer switch (own trump certainty wins)
-//   PASS     → no Ace contribution AND no valid switch
-//   CAP      → responses capped at 120 in V1
+// Response tables per opening value:
+//   On 80  → 90 / 100 / 110 / 120 / 130 / 140 (piece + 0..2 As)
+//   On 90  → 100 / 110 / 120 / 130 (V2.1 piecewise table)
+//   On 100 → +10 par As ext (cap 130)
+//   On 110 → +10 par As ext (no cap)
+//   On 120 → 130 on 3 As OR piece d'atout, else pass
+//   Coinched bid → always pass
 
-console.log('\n=== Bot Partner Response Bids ===\n');
+console.log('\n=== Bot Partner Response Bids (V2.1) ===\n');
 
-// Helper: minimal game state for getBotBidAction tests (R18)
+// Helper: minimal game state for getBotBidAction tests
 function mockBidGame(myHand, currentBid, myPos) {
   const hands = [[], [], [], []];
   hands[myPos] = myHand;
@@ -766,284 +794,278 @@ function mockBidGame(myHand, currentBid, myPos) {
   };
 }
 
-// ── R1: Partner bid 80 ♠ — no Aces, no trump → pass ─────────────────────────
-// 0 outside Aces. No qualifying trump suit. Pass.
+// ── R1: On 80, 0 piece 0 As → null (rule-silent) ──────────────────────────
 {
   const hand = [
     card('K','S'), card('Q','S'),
     card('8','H'), card('7','H'),
     card('9','D'), card('8','D'),
-    card('J','C'), card('7','C'),
+    card('Q','C'), card('7','C'),
   ];
   const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
-  assert(r === null, 'R1: partner 80♠, 0 Aces, no trump → pass');
+  assert(r === null, 'R1: on 80♠, 0 piece + 0 As → null (V2.1 rule-silent)');
 }
 
-// ── R2: Partner bid 80 ♠ — 1 outside Ace → support 90 ♠ ─────────────────────
+// ── R2: On 80, piece-2nd no aces → 90 ─────────────────────────────────────
 {
   const hand = [
-    card('A','H'), card('8','H'),
-    card('K','D'), card('7','D'),
-    card('Q','C'), card('8','C'),
-    card('8','S'), card('7','S'),
+    card('J','S'), card('8','S'),  // V♠ + 1 other = piece 2nde
+    card('K','H'), card('Q','H'),
+    card('9','D'), card('7','D'),
+    card('Q','C'), card('7','C'),
   ];
   const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
-  assert(r?.value === 90,  'R2: partner 80♠, 1 outside Ace → support 90');
-  assert(r?.suit  === 'S', 'R2: support stays in partner\'s suit ♠');
+  assert(r?.value === 90,  'R2: on 80♠, piece 2nde + 0 As → 90');
+  assert(r?.suit  === 'S', 'R2: response in partner suit ♠');
 }
 
-// ── R3: Partner bid 80 ♠ — 2 outside Aces → support 100 ♠ ───────────────────
+// ── R3: On 80, piece-3rd no aces → 120 ────────────────────────────────────
 {
   const hand = [
-    card('A','H'), card('8','H'),
+    card('J','S'), card('10','S'), card('8','S'), // piece 3rd
+    card('K','H'), card('Q','H'),
+    card('9','D'), card('7','D'),
+    card('7','C'),
+  ];
+  const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
+  assert(r?.value === 120, 'R3: on 80♠, piece 3rd + 0 As → 120');
+}
+
+// ── R4: On 80, piece + 1 Ace → 100 ────────────────────────────────────────
+{
+  const hand = [
+    card('J','S'), card('8','S'),     // piece 2nd
+    card('A','H'), card('Q','H'),     // 1 outside Ace
+    card('9','D'), card('7','D'),
+    card('Q','C'), card('7','C'),
+  ];
+  const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
+  assert(r?.value === 100, 'R4: on 80♠, piece 2nd + 1 As → 100');
+}
+
+// ── R5: On 80, piece-3rd + 1 Ace → 130 ────────────────────────────────────
+{
+  const hand = [
+    card('J','S'), card('10','S'), card('8','S'),
+    card('A','H'), card('Q','H'),
+    card('9','D'), card('7','D'),
+    card('7','C'),
+  ];
+  const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
+  assert(r?.value === 130, 'R5: on 80♠, piece-3rd + 1 As → 130');
+}
+
+// ── R6: On 80, piece-3rd + 2 Aces → 140 ───────────────────────────────────
+{
+  const hand = [
+    card('J','S'), card('10','S'), card('8','S'),
+    card('A','H'), card('Q','H'),
     card('A','D'), card('7','D'),
-    card('Q','C'), card('8','C'),
-    card('8','S'), card('7','S'),
+    card('7','C'),
   ];
   const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
-  assert(r?.value === 100, 'R3: partner 80♠, 2 outside Aces → support 100');
-  assert(r?.suit  === 'S', 'R3: support in ♠');
+  assert(r?.value === 140, 'R6: on 80♠, piece-3rd + 2 As → 140');
 }
 
-// ── R4: Partner bid 80 ♠ — petit jeu ♥ (J-third), 0 outside Aces → switch 90 ♥
+// ── R7: On 90, ≥1 trump + 1 Ace, no piece → 100 ──────────────────────────
 {
   const hand = [
-    card('J','H'), card('K','H'), card('8','H'),
-    card('Q','D'), card('7','D'),
-    card('8','C'), card('7','C'),
-    card('9','S'),
+    card('Q','S'), card('7','S'),  // 2 ♠, no piece
+    card('A','H'), card('10','H'), card('8','H'),
+    card('K','D'), card('9','D'),
+    card('7','C'),
   ];
-  const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
-  assert(r?.value === 90,  'R4: partner 80♠, petit jeu ♥ → switch 90');
-  assert(r?.suit  === 'H', 'R4: switch to own suit ♥');
+  const r = partnerResponseBid(hand, { value: 90, suit: 'S' });
+  assert(r?.value === 100, 'R7: on 90♠, ≥1 trump + 1 As (no piece) → 100');
 }
 
-// ── R5: Partner bid 80 ♠ — petit jeu ♥ AND 1 outside Ace → switch 90 ♥ ──────
-// Switch = 90, support = 90 → tie → switch preferred.
+// ── R8: On 90, piece-2nd + 1 Ace → 110 (V2.1 correction) ─────────────────
 {
   const hand = [
-    card('J','H'), card('K','H'), card('8','H'),
+    card('9','H'), card('10','H'),  // piece 2nde via 9♥
+    card('A','D'),
+    card('K','S'), card('Q','S'), card('8','S'),
+    card('7','C'), card('8','C'),
+  ];
+  const r = partnerResponseBid(hand, { value: 90, suit: 'H' });
+  assert(r?.value === 110, 'R8: on 90♥, piece-2nde + 1 As → 110 (V2.1)');
+}
+
+// ── R9: On 90, piece-3rd + 1 Ace → 120 ────────────────────────────────────
+{
+  const hand = [
+    card('J','S'), card('10','S'), card('8','S'), // piece-3rd
+    card('A','H'), card('K','H'),
+    card('9','D'), card('7','D'),
+    card('Q','C'),
+  ];
+  const r = partnerResponseBid(hand, { value: 90, suit: 'S' });
+  assert(r?.value === 120, 'R9: on 90♠, piece-3rd + 1 As → 120');
+}
+
+// ── R10: On 90, 3 Aces (no piece) → 120 ───────────────────────────────────
+{
+  const hand = [
+    card('Q','S'), card('7','S'),
+    card('A','H'), card('10','H'),
+    card('A','D'), card('8','D'),
+    card('A','C'), card('9','C'),
+  ];
+  const r = partnerResponseBid(hand, { value: 90, suit: 'S' });
+  assert(r?.value === 120, 'R10: on 90♠, 3 As → 120');
+}
+
+// ── R11: On 90, piece-3rd + 2 Aces → 130 ──────────────────────────────────
+{
+  const hand = [
+    card('J','S'), card('10','S'), card('8','S'),
+    card('A','H'), card('K','H'),
     card('A','D'), card('7','D'),
-    card('8','C'), card('7','C'),
-    card('9','S'),
+    card('Q','C'),
   ];
-  const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
-  assert(r?.value === 90,  'R5: switch 90♥ = support 90♠ → tie → switch preferred');
-  assert(r?.suit  === 'H', 'R5: tie-break: switch to ♥');
+  const r = partnerResponseBid(hand, { value: 90, suit: 'S' });
+  assert(r?.value === 130, 'R11: on 90♠, piece-3rd + 2 As → 130');
 }
 
-// ── R6: Partner bid 80 ♠ — master ♥ (J+9+A), no outside Ace → switch 100 ♥ ─
+// ── R12: On 100, 1 outside Ace → 110 ──────────────────────────────────────
 {
   const hand = [
-    card('J','H'), card('9','H'), card('A','H'),
-    card('K','D'), card('7','D'),
-    card('Q','C'), card('8','C'),
-    card('9','S'),
+    card('A','H'), card('10','H'), card('9','H'), card('8','H'),
+    card('K','D'), card('9','D'), card('7','D'),
+    card('10','C'),
   ];
-  const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
-  assert(r?.value === 100, 'R6: partner 80♠, master ♥ → switch 100');
-  assert(r?.suit  === 'H', 'R6: switch to master suit ♥');
+  const r = partnerResponseBid(hand, { value: 100, suit: 'S' });
+  assert(r?.value === 110, 'R12: on 100♠, 1 As ext → 110');
 }
 
-// ── R7: Partner bid 80 ♠ — 3 outside Aces + petit jeu ♥ → support 110 ♠ ────
-// Support = 80+30 = 110. Switch (petit jeu ♥) = 90. 110 > 90 → support wins.
+// ── R13: On 100, 2 outside Aces → 120 ─────────────────────────────────────
 {
   const hand = [
-    card('J','H'), card('A','H'), card('K','H'),
-    card('A','D'), card('7','D'),
-    card('A','C'), card('8','C'),
+    card('A','H'), card('10','H'),
+    card('A','D'), card('K','D'), card('9','D'),
+    card('9','C'), card('8','C'),
+    card('8','S'),
+  ];
+  const r = partnerResponseBid(hand, { value: 100, suit: 'S' });
+  assert(r?.value === 120, 'R13: on 100♠, 2 As ext → 120');
+}
+
+// ── R14: On 100, 0 outside Aces → null ────────────────────────────────────
+{
+  const hand = [
+    card('K','H'), card('10','H'), card('9','H'), card('8','H'),
+    card('K','D'), card('9','D'), card('7','D'),
+    card('10','C'),
+  ];
+  const r = partnerResponseBid(hand, { value: 100, suit: 'S' });
+  assert(r === null, 'R14: on 100♠, 0 As ext → null (rule-silent)');
+}
+
+// ── R15: On 110, 1 outside Ace → 120 ──────────────────────────────────────
+{
+  const hand = [
+    card('A','D'), card('K','D'), card('8','D'),
+    card('K','H'), card('Q','H'),
+    card('9','C'), card('8','C'),
     card('7','S'),
   ];
-  const r = partnerResponseBid(hand, { value: 80, suit: 'S' });
-  assert(r?.value === 110, 'R7: partner 80♠, 3 outside Aces + petit jeu ♥ → support 110');
-  assert(r?.suit  === 'S', 'R7: 110 support beats 90 switch');
+  const r = partnerResponseBid(hand, { value: 110, suit: 'S' });
+  assert(r?.value === 120, 'R15: on 110♠, 1 As ext → 120');
 }
 
-// ── R8: Partner bid 90 ♥ — I hold A♥ (trump Ace bonus) → support 100 ♥ ──────
-// Partner bid 90 (petit jeu, may lack A of trump). I hold A♥ → +10 bonus. 90+10=100.
+// ── R16: On 110, 2 outside Aces → 130 ─────────────────────────────────────
 {
   const hand = [
-    card('A','H'), card('8','H'),
-    card('K','D'), card('7','D'),
-    card('Q','C'), card('8','C'),
-    card('8','S'), card('7','S'),
-  ];
-  const r = partnerResponseBid(hand, { value: 90, suit: 'H' });
-  assert(r?.value === 100, 'R8: partner 90♥, I hold A♥ (trump Ace bonus) → support 100');
-  assert(r?.suit  === 'H', 'R8: support in ♥');
-  // Verify contribution counts: trump Ace bonus applies
-  const c = myContributionToPartner(hand, { value: 90, suit: 'H' });
-  assert(c === 1, 'R8: contribution = 1 (trump Ace bonus for 90, no outside Aces)');
-}
-
-// ── R9: Partner bid 90 ♥ — 1 outside Ace ♠, no trump complement → support 100 ♥
-{
-  const hand = [
-    card('A','S'), card('8','S'),
-    card('K','D'), card('7','D'),
-    card('Q','C'), card('8','C'),
-    card('8','H'), card('7','H'),
-  ];
-  const r = partnerResponseBid(hand, { value: 90, suit: 'H' });
-  assert(r?.value === 100, 'R9: partner 90♥, 1 outside Ace ♠ → support 100');
-  assert(r?.suit  === 'H', 'R9: support in ♥');
-}
-
-// ── R10: Partner bid 90 ♥ — master ♠ (J+9+A) → switch 100 ♠ ─────────────────
-// Switch = 100♠. Support = 90+10 = 100♥ (A♠ is outside Ace). Tie at 100 → switch.
-{
-  const hand = [
-    card('J','S'), card('9','S'), card('A','S'),
-    card('K','D'), card('7','D'),
-    card('Q','C'), card('8','C'),
-    card('7','H'),
-  ];
-  const r = partnerResponseBid(hand, { value: 90, suit: 'H' });
-  assert(r?.value === 100, 'R10: partner 90♥, master ♠ → 100 (switch tie-breaks support)');
-  assert(r?.suit  === 'S', 'R10: tie at 100 → switch to own master suit ♠');
-}
-
-// ── R11: Partner bid 90 ♥ — 0 Aces, no trump complement → pass ───────────────
-{
-  const hand = [
-    card('K','S'), card('Q','S'),
-    card('K','D'), card('7','D'),
-    card('Q','C'), card('8','C'),
-    card('8','H'), card('7','H'),
-  ];
-  const r = partnerResponseBid(hand, { value: 90, suit: 'H' });
-  assert(r === null, 'R11: partner 90♥, 0 Aces, no trump → pass');
-}
-
-// ── R12: Partner bid 100 ♠ — 0 outside Aces → pass ───────────────────────────
-// Even with petit jeu in ♦ (90), 90 is not > 100 → no valid switch. No Aces → pass.
-{
-  const hand = [
-    card('K','S'),
-    card('Q','D'), card('J','D'), card('7','D'),
-    card('8','H'), card('7','H'),
-    card('9','C'), card('8','C'),
-  ];
-  const r = partnerResponseBid(hand, { value: 100, suit: 'S' });
-  assert(r === null, 'R12: partner 100♠, 0 outside Aces, petit jeu ♦ → pass (90 can\'t outbid 100)');
-}
-
-// ── R13: Partner bid 100 ♠ — 1 outside Ace ♥ → support 110 ♠ ────────────────
-{
-  const hand = [
-    card('A','H'), card('8','H'),
-    card('K','D'), card('7','D'),
-    card('Q','C'), card('8','C'),
-    card('K','S'), card('8','S'),
-  ];
-  const r = partnerResponseBid(hand, { value: 100, suit: 'S' });
-  assert(r?.value === 110, 'R13: partner 100♠, 1 outside Ace → support 110');
-  assert(r?.suit  === 'S', 'R13: support in ♠');
-  // Verify trump Ace bonus does NOT apply for 100 (partner already owns A♠)
-  const c = myContributionToPartner(hand, { value: 100, suit: 'S' });
-  assert(c === 1, 'R13: contribution = 1 outside Ace only (no trump Ace bonus when partner bid 100)');
-}
-
-// ── R14: Partner bid 100 ♠ — 2 outside Aces → support 120 ♠ ─────────────────
-{
-  const hand = [
-    card('A','H'), card('8','H'),
-    card('A','D'), card('7','D'),
-    card('Q','C'), card('8','C'),
-    card('K','S'), card('8','S'),
-  ];
-  const r = partnerResponseBid(hand, { value: 100, suit: 'S' });
-  assert(r?.value === 120, 'R14: partner 100♠, 2 outside Aces → support 120');
-  assert(r?.suit  === 'S', 'R14: support in ♠');
-}
-
-// ── R15: Partner bid 110 ♠ — 1 outside Ace → support 120 ♠ ──────────────────
-{
-  const hand = [
-    card('A','H'), card('8','H'),
-    card('K','D'), card('7','D'),
-    card('Q','C'), card('8','C'),
-    card('K','S'), card('8','S'),
+    card('A','D'), card('9','D'), card('8','D'),
+    card('A','C'), card('K','C'), card('8','C'),
+    card('9','H'),
+    card('7','S'),
   ];
   const r = partnerResponseBid(hand, { value: 110, suit: 'S' });
-  assert(r?.value === 120, 'R15: partner 110♠, 1 outside Ace → support 120 (cap applied)');
-  assert(r?.suit  === 'S', 'R15: support in ♠');
+  assert(r?.value === 130, 'R16: on 110♠, 2 As ext → 130');
 }
 
-// ── R16: Partner bid 110 ♠ — 0 outside Aces → pass ──────────────────────────
+// ── R17: On 120 bicolore, 3 Aces → 130 ────────────────────────────────────
 {
   const hand = [
-    card('K','S'),
-    card('Q','D'), card('J','D'), card('7','D'),
-    card('8','H'), card('7','H'),
-    card('9','C'), card('8','C'),
-  ];
-  const r = partnerResponseBid(hand, { value: 110, suit: 'S' });
-  assert(r === null, 'R16: partner 110♠, 0 outside Aces → pass');
-}
-
-// ── R17: Partner bid 120 ♠ — always pass (V1 cap) ───────────────────────────
-// Even a very strong hand should pass — 120 is the V1 ceiling.
-{
-  const hand = [
-    card('J','H'), card('9','H'), card('A','H'),
-    card('A','D'), card('K','D'), card('Q','D'),
-    card('A','C'), card('K','C'),
+    card('A','H'), card('10','H'), card('8','H'),
+    card('A','D'), card('9','D'),
+    card('A','C'), card('7','C'), card('8','C'),
   ];
   const r = partnerResponseBid(hand, { value: 120, suit: 'S' });
-  assert(r === null, 'R17: partner 120♠ → always pass (V1 response cap)');
+  assert(r?.value === 130, 'R17: on 120♠ bicolore, 3 As → 130');
 }
 
-// ── R18: Coinched bid — getBotBidAction returns pass regardless of hand ───────
-// After a coinche only surcoinche is legal (a separate event). Bot must pass.
+// ── R18: On 120 bicolore, piece d'atout → 130 ────────────────────────────
+{
+  const hand = [
+    card('K','S'), card('10','S'), card('8','S'), // K♠ + non-trump-piece slot
+    card('A','H'), card('7','H'),                  // 1 As ext (not 3, not 0)
+    card('A','D'), card('9','D'),                  // 2nd As ext
+    card('8','C'),
+  ];
+  // Hand has 0 piece in ♠ — use a hand that has J♠ or 9♠.
+  const handPiece = [
+    card('J','S'),                                 // piece d'atout
+    card('A','H'), card('7','H'), card('8','H'),
+    card('A','D'), card('9','D'), card('8','D'),
+    card('7','C'),
+  ];
+  const r = partnerResponseBid(handPiece, { value: 120, suit: 'S' });
+  assert(r?.value === 130, 'R18: on 120♠ bicolore, J♠ (piece d\'atout) → 130');
+}
+
+// ── R19: On 120 bicolore, 2 As, no piece → null (pass) ───────────────────
+{
+  const hand = [
+    card('A','H'), card('10','H'), card('8','H'),
+    card('A','D'), card('9','D'), card('7','D'),
+    card('8','C'), card('7','C'),
+  ];
+  const r = partnerResponseBid(hand, { value: 120, suit: 'S' });
+  assert(r === null, 'R19: on 120♠ bicolore, 2 As, no piece → null (pass per V2)');
+}
+
+// ── R20: Coinched bid → pass regardless of hand strength ──────────────────
 {
   const strongHand = [
     card('J','S'), card('9','S'), card('A','S'),
     card('A','H'), card('K','H'),
     card('A','D'), card('A','C'), card('K','C'),
   ];
-  // Position 0; partner is position 2; partner's 90♥ is now coinched by opponent
-  const game18 = mockBidGame(
+  const game = mockBidGame(
     strongHand,
     { value: 90, suit: 'H', playerIndex: 2, team: 0, coinched: true, surcoinched: false },
-    0
+    0,
   );
-  const bid18 = getBotBidAction(game18, 0);
-  assert(bid18.type === 'pass', 'R18: coinched bid → getBotBidAction always passes');
+  const action = getBotBidAction(game, 0);
+  assert(action.type === 'pass', 'R20: coinched bid → always pass');
 }
 
-// ── R19: Partner bid 90 ♥ — A♥ (trump Ace) + 1 outside Ace ♠ → support 110 ♥
-// Trump Ace bonus (+10) stacks with outside Ace (+10) → total contribution = 2 → 90+20=110.
+// ── R21: Helper-function spot checks (V2.1 internals) ────────────────────
 {
-  const hand = [
-    card('A','H'), card('K','H'),
-    card('A','S'), card('8','S'),
-    card('7','D'), card('8','D'),
-    card('Q','C'), card('7','C'),
-  ];
-  const r = partnerResponseBid(hand, { value: 90, suit: 'H' });
-  assert(r?.value === 110, 'R19: partner 90♥, A♥ + outside Ace ♠ → support 110 (stacked contribution)');
-  assert(r?.suit  === 'H', 'R19: support in ♥');
-  const c = myContributionToPartner(hand, { value: 90, suit: 'H' });
-  assert(c === 2, 'R19: contribution = 2 (trump Ace bonus + outside Ace ♠)');
-}
+  // isPetitJeu: piece + 2 trumps → true
+  assert(isPetitJeu({ piece: true,  count: 2, hasBelote: false }) === true,  'R21a: piece+2 → petit-jeu');
+  assert(isPetitJeu({ piece: false, count: 4, hasBelote: true  }) === true,  'R21b: 4-trumps-belote-no-piece → petit-jeu');
+  assert(isPetitJeu({ piece: false, count: 5, hasBelote: false }) === true,  'R21c: 5-trumps-no-piece → petit-jeu');
+  assert(isPetitJeu({ piece: true,  count: 1, hasBelote: false }) === false, 'R21d: piece alone → NOT petit-jeu');
+  assert(isPetitJeu({ piece: false, count: 4, hasBelote: false }) === false, 'R21e: 4-trumps-no-belote-no-piece → NOT petit-jeu');
 
-// ── R20: Trump Ace bonus does NOT apply when partner bid 100+ ────────────────
-// Partner bid 100 in ♥ → already declared J+9+A♥; they own A♥.
-// I hold A♥ (impossible in a real game, but tests the rule logic):
-// the bonus should be 0 when partnerBid.value = 100.
-{
-  const hand = [
-    card('A','H'), card('8','H'),    // A♥ held — bonus must be 0 (partner bid 100)
-    card('A','S'), card('8','S'),    // outside Ace ♠ → +10
-    card('7','D'), card('8','D'),
-    card('Q','C'), card('7','C'),
-  ];
-  const c = myContributionToPartner(hand, { value: 100, suit: 'H' });
-  assert(c === 1, 'R20: trump Ace bonus is 0 when partner bid 100 (bonus only applies at 90)');
-  // The outside Ace ♠ still counts as normal contribution
-  const r = partnerResponseBid(hand, { value: 100, suit: 'H' });
-  assert(r?.value === 110, 'R20: partner 100♥, 1 outside Ace ♠ → support 110 (no trump Ace bonus)');
+  // qualifiesFor90 — outsideAces required
+  assert(qualifiesFor90({ piece: true,  count: 4, outsideAces: 0 }) === false, 'R21f: piece-4th + 0 As ext → NOT 90');
+  assert(qualifiesFor90({ piece: true,  count: 4, outsideAces: 1, hasJ: true,  hasBelote: false, has9: false }) === true, 'R21g: piece-4th + 1 As ext → 90');
+
+  // isStrictBicolore
+  assert(isStrictBicolore(
+    [card('J','H'), card('9','H'), card('A','H'), card('K','H'),
+     card('A','C'), card('10','C'), card('9','C'), card('8','C')],
+    'H',
+  ) === true,  'R21h: 4♥ + 4♣ → strict bicolore');
+  assert(isStrictBicolore(
+    [card('J','H'), card('9','H'), card('A','H'), card('K','H'),
+     card('A','C'), card('10','C'), card('9','C'), card('7','S')],
+    'H',
+  ) === false, 'R21i: 4♥ + 3♣ + 1♠ → not bicolore');
 }
 
 // ─── Bot Card Play ────────────────────────────────────────────────────────────
