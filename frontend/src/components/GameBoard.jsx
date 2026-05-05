@@ -70,7 +70,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   // Dedicated ref for the belote/rebelote announce banner timer. Kept separate
   // from timerRef (used by trick-completion) because trick-completion clears
   // all timers in its ref every time a trick ends, which would prematurely
-  // cancel the belote banner timer. See e75b126 for the bug history.
+  // cancel the belote banner timer.
   const beloteTimerRef   = useRef(null);
   const dragRef          = useRef(null);   // active drag { fromIdx, toIdx }
   const longPressRef     = useRef(null);   // long-press timer
@@ -183,8 +183,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
 
       // CAUTION: this clears all timers in timerRef, which is shared by the
       // trick-completion effect. Do NOT push timers from other effects (e.g. belote
-      // announce) into this ref — use a dedicated ref instead. See the rebelote
-      // banner persistence bug fixed in commit e75b126 for context.
+      // announce) into this ref — use a dedicated ref instead, otherwise the
+      // banner's auto-clear timer gets cancelled prematurely on the next trick.
       timerRef.current.forEach(clearTimeout);
       setTrickOverlay({ cards: last.cards, winnerPos: last.winner, animate: false });
 
