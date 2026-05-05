@@ -136,56 +136,191 @@ Migration V1 → V2 : à planifier séparément (réécriture de `botBidding.js`
 
 ---
 
-## Sujets identifiés pour V2.2 — non formalisés en V2.1
+## V2.2 — Catégories d'annonces et principes contextuels
 
-Cette section liste des principes de bidding articulés mais pas encore
-formalisés dans la Feuille V2.1, et donc pas implémentés dans le bot.
-À traiter dans une révision future une fois que les données d'annotation
-de plusieurs joueurs auront convergé sur ces zones.
+Cette section capture le travail conceptuel V2.2 fait le 2026-05-05.
+Statut : formalisation partielle. Bot pas encore migré vers ces règles.
+
+### Vue d'ensemble
+
+V2.1 décrit les annonces "premier tour, sans contexte adverse". V2.2 étend
+la convention pour couvrir le bidding contextuel : que faire quand
+adversaires/partenaire ont déjà parlé, comment lire ce qui n'est pas dit
+explicitement, et comment combiner annonces selon stratégie.
+
+V2.2 introduit deux concepts clés :
+1. **Anti-double-comptage** entre relances (Principe 1)
+2. **Catégories d'annonces** différenciées par intention stratégique
 
 ### Principe 1 — Anti-double-comptage entre relances partenaire
 
-Un As déjà signalé via une ouverture ne peut plus être re-compté dans une
-relance subséquente. Si je dis 90 (qui promet déjà 1 As ext minimum), et
-que mon partenaire relance à 110, je ne peux pas ajouter +10 pour mon As
-quand ça revient à moi — il sait déjà que je l'ai.
+Quand le tour me revient après une relance partenaire, je ne peux signaler
+que des informations **non déjà promises** par mon ouverture initiale.
 
-**Exception :** une ouverture à 80 promet exactement 2 As (V2.1 strict).
-Donc si j'ai 3 As et que mon partenaire relance, je peux signaler le
-3ème As — c'est de l'information nouvelle.
+#### Mapping "ce qui est promis" par chaque ouverture V2.1
 
-### Principe 2 — Pass-puis-parler signale une recherche, pas une promesse Feuille
+| Ouverture | As d'atout promis | As ext promis | As totaux minimum |
+|---|---|---|---|
+| 80 | non spécifié | non spécifié | au moins 2 |
+| 90 | non | exactement 1 (interprétation lâche : ≥1 acceptable) | au moins 1 |
+| 100 | oui (l'A d'atout) | exactement 0 | au moins 1 |
+| 110 | oui | exactement 1 | au moins 2 |
+| 120 bicolore | oui | non spécifié | au moins 1 |
 
-Si je passe au premier tour d'enchères, et que je parle au second tour
-(après que tout le monde a aussi passé une fois), mon annonce ne suit
-pas les règles V2.1. Mon partenaire doit interpréter ça comme :
-"j'ai quelque chose mais pas une main V2.1-grade — je cherche."
+#### Formule de re-relance
 
-### Principe 3 — Montée +10 vs montée +20 dans un contexte compétitif
+```
+mes_as_signalables = (mes_as_réels) - (as_promis_par_mon_ouverture)
+re-relance = relance_partenaire + (mes_as_signalables × 10)
+```
 
-Quand l'adversaire a parlé et que je relance, une montée minimale (+10)
-signale "je cherche mon partenaire, je n'ai pas exactement la main V2.1".
-Une montée de +20 ou plus signale "j'ai vraiment cette main solide
-selon la Feuille".
+#### Cas validés
 
-### Méta-principe synthèse
+- J'ouvre 90 (1 As ext promis), j'ai 2 As ext, partenaire dit 110 → je peux dire **120** (le 2ème As ext est nouveau)
+- J'ouvre 80 (2 As promis), j'ai 3 As, partenaire dit 100 → je peux dire **110** (le 3ème As est nouveau)
+- J'ouvre 110 (1 As ext promis), j'ai 2 As ext, partenaire dit 120 → je peux dire **130** (le 2ème As ext est nouveau)
 
-Une annonce dans un contexte chargé d'information préalable (déjà parlé,
-déjà passé, ou adversaire actif) n'est pas une promesse Feuille — c'est
-un signal d'exploration. La Feuille V2.1 décrit les annonces "premier
-tour, sans contexte", et c'est insuffisant pour couvrir tous les cas.
-La V2.2 devra étendre la Feuille à ces zones.
+#### Overrides contextuels (la règle n'est PAS purement déterministe)
 
-### Stratégie de formalisation
+La formule arithmétique donne le **maximum théorique**. En pratique, le
+joueur peut sous-promettre (passer ou monter moins) dans deux cas :
 
-Ces 3 principes ont été articulés en discussion mais pas encore validés
-contre des données d'annotation. Avant de coder ou de modifier la
-Feuille, attendre :
+1. **Surprise positive pour sécuriser** : sous-promettre pour avoir plus
+   en main que ce qu'on annonce, augmentant la probabilité de faire le
+   contrat sans risque de surenchère.
+
+2. **Fenêtre fermée** : si entre la relance partenaire et mon retour, un
+   adversaire a surenchéri au-dessus de ma re-relance théorique, je rate
+   mathématiquement l'occasion → pass forcé.
+
+Pour le bot V2.2 : Niveau 1 (formule arithmétique) sera codé en
+déterministe. Les overrides contextuels resteront non implémentés.
+
+### Catégories d'annonces V2.2
+
+Le bidding compétitif (au-delà du premier tour V2.1) se structure autour
+de **5 catégories d'intention stratégique**. Chaque annonce concrète
+appartient à une catégorie selon l'intention du joueur, indépendamment
+de sa valeur numérique.
+
+#### Solide
+
+- **Définition** : Annonce qui suit exactement les règles V2.1 (tables
+  d'ouverture et de réponse).
+- **Promesse au partenaire** : "J'ai exactement ce que la Feuille V2.1
+  décrit pour cette annonce."
+- **Force** : Toute valeur, mais déterminée par la main réelle.
+
+#### Cheek
+
+- **Définition** : Annonce de **+10 strict** par-dessus l'annonce courante,
+  dans un contexte compétitif (adversaire a parlé) ou de bloquage.
+- **Promesse au partenaire** : "J'apporte quelque chose d'utile (As, pièce,
+  belote, longue...) — la nature précise est déductible par élimination."
+- **Lisibilité** : Pas 100% au moment de l'annonce, mais converge vers
+  100% au fil des plis joués.
+- **Réitérable** : Possible de cheek à nouveau si le tour revient et
+  qu'on veut signaler encore plus.
+- **Force** : Toujours +10 exactement. +20 ou plus n'est pas du cheek.
+
+#### Exploration
+
+- **Définition** : Annonce **risquée** dans un contexte compétitif où ma
+  main a un potentiel intéressant mais ambigu. Je tente une couleur
+  (souvent inattendue) en pariant que partenaire complète.
+- **Promesse au partenaire** : "J'ai sûrement le reste du jeu dans cette
+  couleur — espérons que tu aies les compléments."
+- **Différence avec cheek** : Le cheek soutient l'annonce existante.
+  L'exploration **change la couleur d'atout** ou tente une voie inédite.
+- **Risque élevé** : Si partenaire ne complète pas, on chute.
+- **Statut formalisation** : **Non formalisée mécaniquement.**
+  Réservée aux humains. Le bot V2.2 ne fera pas d'exploration.
+
+#### Défense / Bloquage (catégorie unifiée)
+
+- **Définition** : Action stratégique (annonce ou pass) faite quand on
+  suspecte que les adversaires ont un bon jeu. On veut limiter leur
+  capacité à prendre confortablement le contrat.
+- **Mécanisme** : Annoncer plus haut que ce que la main justifie pour
+  forcer les adversaires à monter encore plus haut s'ils veulent prendre.
+- **Promesse au partenaire** : Difficile à interpréter — partenaire doit
+  comprendre via le **contexte** (annonces adverses suggérant qu'ils ont
+  du jeu) que c'est probablement défensif.
+- **Force** : N'importe quel montant selon la situation (+10 cheek-de-
+  blocage, +20/+30/+40+ saut, ou même pass tactique).
+- **Coût** : Mutuellement risqué. Si on est laissés dessus, on doit faire
+  le contrat avec moins que ce qu'on a annoncé.
+- **Partenaire peut surmonter** : Si partenaire a vraiment un gros jeu,
+  il peut monter au-dessus du bloquage (rare et risqué).
+
+##### Sous-modalités du pass tactique (incluses dans Défense/Bloquage)
+
+Le pass n'est pas toujours "rien à dire". Trois sous-modalités existent :
+
+1. **Pass passif** : "je n'ai vraiment rien" (V2.1 standard).
+2. **Pass défensif relais** : "j'ai du jeu mais je laisse partenaire
+   monter" (l'info est plus utile venant de lui dans certains contextes).
+3. **Pass-piège pré-coinche** : "je laisse l'adversaire monter pour
+   mieux le coincher" — feinte de faiblesse pour piéger.
+
+**Implication pour le bot** : V2.1 suppose que tous les pass = "rien".
+En V2.2 humain, l'interprétation contextuelle des pass adverses devra
+prendre en compte ces 3 sous-modalités. **Non implémenté pour V2.2 bot.**
+
+#### Coinche
+
+- **Statut** : Catégorie reconnue mais **formalisation reportée** (trop
+  complexe pour la session du 2026-05-05).
+- **À traiter dans une session future**.
+
+### Comparaison synthétique
+
+| Catégorie | Force | Promesse | Statut bot V2.2 |
+|---|---|---|---|
+| Solide | n'importe | "j'ai exactement la main V2.1" | Implémenté (V2.1) |
+| Cheek | +10 strict | "j'apporte qqch, déduis" | À implémenter |
+| Exploration | n'importe | "j'ai du jeu dans cette couleur" | **Non formalisé** |
+| Défense/Bloquage | n'importe (incl. pass) | "ne se lit pas selon ma main" | À implémenter (partiellement) |
+| Coinche | action distincte | (à formaliser) | Reporté |
+
+### Stratégie d'implémentation pour le bot V2.2
+
+1. **Anti-double-comptage** : règle déterministe arithmétique (Niveau 1
+   uniquement). Faisable en commit isolé.
+
+2. **Cheek** : règle conditionnelle (+10 si certaines conditions sont
+   réunies). Plus complexe — nécessite que le bot évalue le contexte
+   compétitif.
+
+3. **Défense/Bloquage** : très contextuel. Probablement pas codable
+   en règles déterministes — nécessitera système de poids ou paramètres.
+
+4. **Exploration et Coinche** : non implémentés. Le bot pass dans ces zones.
+
+### Stratégie de validation
+
+Avant de coder V2.2 dans le bot :
 
 1. Annotations multi-utilisateurs sur les 100 nouveaux scénarios
    (round 2, déployés le 2026-05-04). En particulier les zones
-   `partner-opened-opp-overcalled-*`, `second-opp-opened-*`, et
+   `partner-opened-opp-overcalled-*`, `second-opp-opened-*`,
    `second-pass-*`.
+
 2. Convergence (ou divergence claire) entre joueurs sur ces zones.
-3. Discussion explicite avec Jeje pour valider que ces principes
+
+3. Discussion explicite avec Jeje pour valider que ces catégories
    reflètent bien la convention groupe.
+
+4. Itération : compléter Coinche et raffiner les définitions selon
+   les annotations reçues.
+
+### TODO restants pour finaliser V2.2
+
+- [ ] Définir formellement la catégorie **Coinche** (signaux, contextes,
+       stratégie)
+- [ ] Préciser la sémantique exacte du 90 (au moins 1 As ext vs exactement)
+       quand pertinent pour anti-double-comptage
+- [ ] Designer 15-20 scénarios training ciblés sur Principe 1 et catégories
+       (cheek, défense)
+- [ ] Implémenter Niveau 1 anti-double-comptage dans `botBidding.js`
+- [ ] Ajouter R/B blocs pour anti-double-comptage dans `verify.js`
