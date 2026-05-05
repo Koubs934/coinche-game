@@ -105,8 +105,8 @@ function bestOpeningBid(hand) {
   }
   if (bestMaitre) return { value: bestMaitre.value, suit: bestMaitre.suit };
 
-  // 80 — EXACTLY 2 Aces + petit-jeu somewhere.
-  if (totalAces(hand) === 2) {
+  // 80 — AT LEAST 2 Aces + petit-jeu somewhere (V2.1 corrected 2026-05-05).
+  if (totalAces(hand) >= 2) {
     let best80 = null;
     for (const suit of SUITS) {
       const f = computeSuitFeatures(hand, suit);

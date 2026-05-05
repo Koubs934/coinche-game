@@ -29,7 +29,7 @@ L'ouverture est l'annonce **la plus haute** que la main qualifie, dans cet ordre
 | **120 bicolore** | Maître à l'atout + ≥1 autre atout + cartes réparties dans **strictement 2 couleurs** (atout + 1 seule autre) |
 | **110** | Maître à l'atout + 1 As extérieur |
 | **100** | Maître à l'atout (sans As extérieur) |
-| **80** | Exactement 2 As + petit jeu |
+| **80** | Au moins 2 As + petit jeu |
 | **90** | Une de ces 3 conditions :<br>• Pièce 4ème + 1 As extérieur<br>• Valet 3ème + belote (V+K+Q) + 1 As extérieur<br>• V + 9 + 1 autre atout + 1 As extérieur |
 | **Pass** | Sinon |
 
@@ -94,7 +94,7 @@ Mains à 8 cartes. Annonce attendue selon La Feuille V2.
 |---|---|---|---|
 | 1 | K♠ Q♠ 8♠ 7♥ 9♦ 8♦ Q♣ 7♣ | PASS | 0 As, aucune pièce |
 | 2 | A♠ 8♠ 7♠ Q♥ J♥ 10♦ 8♣ 7♣ | PASS | 1 As, J♥ sec ne qualifie pas pour 90 |
-| 3 | A♠ K♠ A♥ 10♥ 7♥ A♦ 8♣ 7♣ | PASS | 3 As ≠ exactement 2, et pas de pièce |
+| 3 | A♠ K♠ A♥ 10♥ 7♥ A♦ 8♣ 7♣ | PASS | 3 As mais pas de pièce ni petit-jeu (la condition petit-jeu n'est pas remplie) |
 | 4 | A♠ K♠ A♥ 10♥ 8♥ J♦ 9♣ 7♣ | PASS | 2 As mais V♦ sec = 1 atout seul (pas petit jeu) |
 | 5 | A♠ Q♠ A♥ 10♥ 7♥ J♦ 8♦ 7♣ | 80 ♦ | 2 As + V+8♦ (pièce + 2 atouts ✅) |
 | 6 | A♠ K♠ A♦ 10♦ 7♦ 9♥ 8♣ 7♣ | PASS | 9♥ sec, ne qualifie pas |
