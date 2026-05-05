@@ -2,16 +2,16 @@
   "schemaVersion": 2,
   "id": "validation-scenario-04",
   "title": {
-    "en": "Validation #4 — PASS",
-    "fr": "Validation n°4 — PASS"
+    "en": "Validation #4 — 80 ♣",
+    "fr": "Validation n°4 — 80 ♣"
   },
   "description": {
-    "en": "Row 4 of the 20-row validation table from la-feuille-v2.md. User is first to speak; expected opening per the V2 convention is PASS.",
-    "fr": "Ligne 4 du tableau de validation à 20 mains de la-feuille-v2.md. L'utilisateur parle en premier ; ouverture attendue selon la convention V2 : PASS."
+    "en": "Row 4 of the 20-row validation table from la-feuille-v2.md. User is first to speak; expected opening per V2.1 is 80 ♣ (2 Aces + petit-jeu ♣ via 9♣+7♣).",
+    "fr": "Ligne 4 du tableau de validation à 20 mains de la-feuille-v2.md. L'utilisateur parle en premier ; ouverture attendue selon V2.1 : 80 ♣ (2 As + petit-jeu ♣ via 9♣+7♣)."
   },
   "notes": {
-    "en": "Drawn verbatim from la-feuille-v2.md row #4. Hand is exact; the other three hands are filled with the canonical-order remainder of the 32-card deck and never act (single user-turn timeline). 2 Aces but the only piece (J♦) is alone (1 ♦). Petit-jeu requires a piece + ≥2 trumps in the same suit.",
-    "fr": "Repris tel quel de la ligne 4 de la-feuille-v2.md. Main exacte ; les trois autres mains sont remplies avec le reste du jeu de 32 cartes en ordre canonique et n'agissent pas (timeline à un seul user-turn). 2 As mais la seule pièce (V♦) est seule (1 ♦). Le petit jeu demande pièce + ≥2 atouts dans la même couleur."
+    "en": "Drawn verbatim from la-feuille-v2.md row #4. Hand is exact; the other three hands are filled with the canonical-order remainder of the 32-card deck and never act (single user-turn timeline). 2 Aces (A♠+A♥) + petit-jeu ♣ via 9♣ (piece) + 7♣ (2 trumps incl. piece) → 80 ♣. Note: scenario corrected on 2026-05-04 — the hand contains a 9♣-piece in clubs that qualifies for 80, which was missed in the initial drafting (the original notes incorrectly claimed only J♦ as a candidate piece).",
+    "fr": "Repris tel quel de la ligne 4 de la-feuille-v2.md. Main exacte ; les trois autres mains sont remplies avec le reste du jeu de 32 cartes en ordre canonique et n'agissent pas (timeline à un seul user-turn). 2 As (A♠+A♥) + petit-jeu ♣ via 9♣ (pièce) + 7♣ (2 atouts dont la pièce) → 80 ♣. Note: scénario corrigé le 2026-05-04 — la main contient un 9♣-pièce qui qualifie pour 80, ce qui avait été manqué lors de la rédaction initiale (les notes originales prétendaient à tort que seul le V♦ pouvait servir de pièce)."
   },
 
   "userSeat": 0,
@@ -36,6 +36,6 @@
     { "event": "user-turn" }
   ],
 
-  "expectedAnswer": { "action": { "type": "pass" }, "ruleReference": "opening:80-needs-petit-jeu" },
+  "expectedAnswer": { "action": { "type": "bid", "value": 80, "suit": "C" }, "ruleReference": "opening:80:two-aces+petit-jeu" },
   "ambiguityFlags": []
 }

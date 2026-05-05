@@ -2,16 +2,16 @@
   "schemaVersion": 2,
   "id": "opening-10-two-aces-no-petit-jeu",
   "title": {
-    "en": "Opening — 2 Aces but no petit-jeu",
-    "fr": "Ouverture — 2 As mais pas de petit-jeu"
+    "en": "Opening — 2 Aces + petit-jeu ♦ via 9♦ (corrected)",
+    "fr": "Ouverture — 2 As + petit-jeu ♦ via 9♦ (corrigé)"
   },
   "description": {
-    "en": "2 Aces exactly but no suit qualifies for petit-jeu. Pass.",
-    "fr": "2 As exactement mais aucune main d'atout ne qualifie comme petit-jeu (atouts seuls dispersés). Pass."
+    "en": "2 Aces (A♠+A♥) + petit-jeu ♦ via 9♦ (piece) + 10♦. Per V2.1 → 80 ♦.",
+    "fr": "2 As (A♠+A♥) + petit-jeu ♦ via 9♦ (pièce) + 10♦. Selon V2.1 → 80 ♦."
   },
   "notes": {
-    "en": "80 strict-condition probe.",
-    "fr": "Probe le 80 strict : 2 As nécessaires ET petit-jeu nécessaire. Sans petit-jeu, pass."
+    "en": "Note: despite the file id 'no-petit-jeu', this hand DOES qualify for 80 — the 9♦ is a piece in diamonds and 10♦ supplies the second trump (piece + ≥2 trumps = petit-jeu). The original notes claimed dispersed trumps but missed that 9-of-trump counts as a piece. File id kept as-is to avoid breaking references in training data and exhausted lists. Corrected 2026-05-04 during the bot V2.1 migration cross-check.",
+    "fr": "Note: malgré l'id du fichier 'no-petit-jeu', cette main contient bien un 9♦-pièce qui qualifie pour 80 (9♦ pièce + 10♦ = pièce + 2 atouts = petit-jeu). Les notes originales parlaient d'atouts dispersés mais avaient manqué que le 9-d'atout compte comme pièce. Id de fichier conservé tel quel pour ne pas casser les références dans les données d'entraînement et les listes d'épuisement. Corrigé le 2026-05-04 lors de la vérification croisée bot V2.1 / scénarios."
   },
 
   "userSeat": 0,
@@ -36,6 +36,6 @@
     { "event": "user-turn" }
   ],
 
-  "expectedAnswer": { "action": { "type": "pass" }, "ruleReference": "opening:80-needs-petit-jeu" },
+  "expectedAnswer": { "action": { "type": "bid", "value": 80, "suit": "D" }, "ruleReference": "opening:80:two-aces+petit-jeu" },
   "ambiguityFlags": []
 }
