@@ -133,3 +133,59 @@ Mains à 8 cartes. Annonce attendue selon La Feuille V2.
 - **V2.1** (correction sur réponses à 90) : Distinction pièce 2nde (110) vs pièce 3ème (120). Découvert par confrontation des annotations training-mode contre la table V2 — les 3 annotateurs ont convergé sur 110 pour pièce 2nde + 1 As, contredisant la table V2 qui annonçait 120 dans ce cas.
 
 Migration V1 → V2 : à planifier séparément (réécriture de `botBidding.js`, mise à jour de `verify.js` blocs B1-B9 et R1-R20, mise à jour de `smoke.test.js`, vocabulaire de tags `reasonTags.json` à enrichir si besoin).
+
+---
+
+## Sujets identifiés pour V2.2 — non formalisés en V2.1
+
+Cette section liste des principes de bidding articulés mais pas encore
+formalisés dans la Feuille V2.1, et donc pas implémentés dans le bot.
+À traiter dans une révision future une fois que les données d'annotation
+de plusieurs joueurs auront convergé sur ces zones.
+
+### Principe 1 — Anti-double-comptage entre relances partenaire
+
+Un As déjà signalé via une ouverture ne peut plus être re-compté dans une
+relance subséquente. Si je dis 90 (qui promet déjà 1 As ext minimum), et
+que mon partenaire relance à 110, je ne peux pas ajouter +10 pour mon As
+quand ça revient à moi — il sait déjà que je l'ai.
+
+**Exception :** une ouverture à 80 promet exactement 2 As (V2.1 strict).
+Donc si j'ai 3 As et que mon partenaire relance, je peux signaler le
+3ème As — c'est de l'information nouvelle.
+
+### Principe 2 — Pass-puis-parler signale une recherche, pas une promesse Feuille
+
+Si je passe au premier tour d'enchères, et que je parle au second tour
+(après que tout le monde a aussi passé une fois), mon annonce ne suit
+pas les règles V2.1. Mon partenaire doit interpréter ça comme :
+"j'ai quelque chose mais pas une main V2.1-grade — je cherche."
+
+### Principe 3 — Montée +10 vs montée +20 dans un contexte compétitif
+
+Quand l'adversaire a parlé et que je relance, une montée minimale (+10)
+signale "je cherche mon partenaire, je n'ai pas exactement la main V2.1".
+Une montée de +20 ou plus signale "j'ai vraiment cette main solide
+selon la Feuille".
+
+### Méta-principe synthèse
+
+Une annonce dans un contexte chargé d'information préalable (déjà parlé,
+déjà passé, ou adversaire actif) n'est pas une promesse Feuille — c'est
+un signal d'exploration. La Feuille V2.1 décrit les annonces "premier
+tour, sans contexte", et c'est insuffisant pour couvrir tous les cas.
+La V2.2 devra étendre la Feuille à ces zones.
+
+### Stratégie de formalisation
+
+Ces 3 principes ont été articulés en discussion mais pas encore validés
+contre des données d'annotation. Avant de coder ou de modifier la
+Feuille, attendre :
+
+1. Annotations multi-utilisateurs sur les 100 nouveaux scénarios
+   (round 2, déployés le 2026-05-04). En particulier les zones
+   `partner-opened-opp-overcalled-*`, `second-opp-opened-*`, et
+   `second-pass-*`.
+2. Convergence (ou divergence claire) entre joueurs sur ces zones.
+3. Discussion explicite avec Jeje pour valider que ces principes
+   reflètent bien la convention groupe.
