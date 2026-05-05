@@ -879,6 +879,34 @@ a      { color: var(--accent); }
 .ar-pass         { font-size: 0.72em; color: var(--muted); font-style: italic; }
 .ar-coinche      { font-size: 0.82em; font-weight: 700; color: #f0a030; }
 .ar-surcoinche   { font-size: 0.82em; font-weight: 700; color: #cc66ff; }
+
+/* ─── Initial-hand mini-strip (round-end auction recap) ──────────────────── */
+.hand-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 2px;
+  margin-top: 4px;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.hand-strip-card {
+  flex: 0 0 auto;
+  min-width: 22px;
+  height: 30px;
+  padding: 2px 3px;
+  border: 1px solid var(--card-border);
+  border-radius: 3px;
+  background: var(--card-bg);
+  font-size: 0.68em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+.hand-strip-card.red   { color: var(--red); }
+.hand-strip-card.black { color: var(--black); }
 .summary-card {
   background: var(--ui-card);
   border-radius: 10px;

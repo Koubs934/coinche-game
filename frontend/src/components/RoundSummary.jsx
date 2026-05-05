@@ -9,6 +9,60 @@ function cardPts(card, trump) {
   return ((card.suit === trump) ? TRUMP_PTS : NON_TRUMP_PTS)[card.value] || 0;
 }
 
+// Explicit rank arrays (TRUMP_PTS / NON_TRUMP_PTS would tie 8/7 at 0 points,
+// which would make the sort non-deterministic for those cards).
+const TRUMP_RANK     = ['J', '9', 'A', '10', 'K', 'Q', '8', '7'];
+const NON_TRUMP_RANK = ['A', '10', 'K', 'Q', 'J', '9', '8', '7'];
+const SUIT_ORDER     = ['S', 'H', 'D', 'C'];
+
+// Sort a hand for display: trump cards first (in trump-rank order), then
+// the other 3 suits in canonical order, each in non-trump rank order.
+function sortHandByTrump(hand, trump) {
+  return [...hand].sort((a, b) => {
+    const aTrump = a.suit === trump;
+    const bTrump = b.suit === trump;
+    if (aTrump !== bTrump) return aTrump ? -1 : 1;
+    if (aTrump) return TRUMP_RANK.indexOf(a.value) - TRUMP_RANK.indexOf(b.value);
+    const suitDiff = SUIT_ORDER.indexOf(a.suit) - SUIT_ORDER.indexOf(b.suit);
+    if (suitDiff !== 0) return suitDiff;
+    return NON_TRUMP_RANK.indexOf(a.value) - NON_TRUMP_RANK.indexOf(b.value);
+  });
+}
+
+// Per-seat atout used to sort the displayed initial hand at round end:
+//   - Taker and partner: sorted by the contract trump
+//   - Opponent who bid:  sorted by the suit of their LAST bid
+//   - Opponent who only passed: sorted by the contract trump (fallback)
+function getAtoutForSeat(position, currentBid, biddingHistory) {
+  if (!currentBid) return null;
+  const takerPos   = currentBid.playerIndex;
+  const partnerPos = (takerPos + 2) % 4;
+  if (position === takerPos || position === partnerPos) return currentBid.suit;
+  let lastBid = null;
+  for (const e of (biddingHistory || [])) {
+    if (e.position === position && e.type === 'bid') lastBid = e;
+  }
+  return lastBid ? lastBid.suit : currentBid.suit;
+}
+
+// Compact 8-card mini-strip shown under each seat at round end. Pure display.
+function HandStrip({ hand, trump }) {
+  if (!Array.isArray(hand) || hand.length !== 8) return null;
+  const sorted = sortHandByTrump(hand, trump);
+  return (
+    <div className="hand-strip">
+      {sorted.map((c, i) => {
+        const isRed = c.suit === 'H' || c.suit === 'D';
+        return (
+          <span key={i} className={`hand-strip-card ${isRed ? 'red' : 'black'}`}>
+            {c.value}{SUIT_SYM[c.suit]}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── All-tricks view ──────────────────────────────────────────────────────────
 
 function AllTricksView({ tricks, trumpSuit, players, onBack, t }) {
@@ -79,6 +133,7 @@ function TopArea({
   biddingHistory, currentBid,
   tricks, trumpSuit,
   players, myPosition,
+  initialHands,
   replayStep, onStartReplay, onNextTrick, onPrevTrick, onEndReplay,
   t,
 }) {
@@ -138,6 +193,8 @@ function TopArea({
     // Auction mode
     const isFirst = pos === firstBidderPos;
     const actions = [...perPlayer[pos]].reverse();
+    const seatHand = initialHands?.[pos];
+    const seatTrump = currentBid && seatHand ? getAtoutForSeat(pos, currentBid, biddingHistory) : null;
     return (
       <>
         {isFirst && <span className="ar-first-badge">{t.trickLead}</span>}
@@ -166,6 +223,7 @@ function TopArea({
             })}
           </div>
         )}
+        {seatHand && seatTrump && <HandStrip hand={seatHand} trump={seatTrump} />}
       </>
     );
   }
@@ -255,7 +313,7 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
 
   const {
     roundScores, contractMade, trickPoints, currentBid, beloteInfo,
-    tricks, biddingHistory, trumpSuit,
+    tricks, biddingHistory, trumpSuit, initialHands,
   } = game;
   const { scores, players } = room;
 
@@ -302,6 +360,7 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
           trumpSuit={trumpSuit}
           players={players}
           myPosition={myPosition}
+          initialHands={initialHands}
           replayStep={replayStep}
           onStartReplay={() => setReplayStep(0)}
           onPrevTrick={() => setReplayStep(s => s - 1)}

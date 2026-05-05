@@ -140,6 +140,10 @@ function publicRoom(room) {
 function publicGame(room, viewerPosition) {
   const g = room.game;
   if (!g) return null;
+  // initialHands is exposed ONLY at round end (round-summary view needs it).
+  // During BIDDING/PLAYING/SHUFFLE/CUT this stays undefined to prevent leaking
+  // opponents' hands mid-round.
+  const isRoundOver = room.phase === 'ROUND_OVER' || room.phase === 'GAME_OVER';
   return {
     gameId: g.gameId || null,
     errorAnnotations: g.errorAnnotations || [],
@@ -168,6 +172,7 @@ function publicGame(room, viewerPosition) {
     hands: g.hands.map((hand, i) =>
       i === viewerPosition ? hand : Array(hand.length).fill(null)),
     handCounts: g.hands.map(h => h.length),
+    initialHands: isRoundOver ? g.initialHands : undefined,
   };
 }
 
