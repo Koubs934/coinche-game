@@ -25,6 +25,42 @@ describe('computeFeatures — empty selection', () => {
   });
 });
 
+// Production bug 2026-05-05: Claude described user's [K♥ 10♥ 9♥ 8♥] as
+// "pièce 3ème en cœur" when the contract was 100 ♠. Pièce / maître /
+// belote are vocabulary tied to the CONTRACT TRUMP — cards in any other
+// suit are extérieures, not pièces. The detector was already correct,
+// but locking the contract here so a future regression fails loudly.
+describe('computeFeatures — pièce + maître + belote are trump-only', () => {
+  it('does NOT fire piece-* on a non-trump 4-card suit (longue ♥ with 9, contract ♠)', () => {
+    const f = computeFeatures(
+      [c('K', 'H'), c('10', 'H'), c('9', 'H'), c('8', 'H')],
+      'S',
+    );
+    expect(f.patterns).not.toContain('piece-2nde');
+    expect(f.patterns).not.toContain('piece-3eme');
+    expect(f.patterns).not.toContain('piece-4eme');
+    expect(f.patterns).not.toContain('piece-longue');
+    // The 4-card heart suit IS a longue, just not a trump pièce.
+    expect(f.patterns).toContain('longue-H-4');
+  });
+
+  it('does NOT fire maitre on J + 9 + A in a non-trump suit', () => {
+    const f = computeFeatures([c('J', 'H'), c('9', 'H'), c('A', 'H')], 'S');
+    expect(f.patterns).not.toContain('maitre');
+    expect(f.patterns).not.toContain('piece-3eme');
+  });
+
+  it('DOES fire maitre on J + 9 + A in the trump suit (control)', () => {
+    const f = computeFeatures([c('J', 'H'), c('9', 'H'), c('A', 'H')], 'H');
+    expect(f.patterns).toContain('maitre');
+  });
+
+  it('does NOT fire belote on K + Q in a non-trump suit', () => {
+    const f = computeFeatures([c('K', 'H'), c('Q', 'H')], 'S');
+    expect(f.patterns).not.toContain('belote');
+  });
+});
+
 describe('computeFeatures — maître à l\'atout', () => {
   it('detects maître on J + 9 + A in trump suit', () => {
     const f = computeFeatures([c('J', 'S'), c('9', 'S'), c('A', 'S')], 'S');

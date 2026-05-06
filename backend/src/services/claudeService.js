@@ -57,13 +57,16 @@ GLOSSAIRE DE LA CONVENTION (notre groupe utilise ces termes précisément)
 - **Chiquer** : monter l'enchère de +10 strict au-dessus de l'annonce
   adverse courante. Signal "j'apporte un petit quelque chose"
   (1 As ext, ou soutien minimal). Ce N'EST PAS une coinche.
-- **Pièce** : le J OU le 9 d'atout (la "pièce manquante" qui complète
-  le maître).
-  - Pièce 2nde = pièce + 1 autre atout
-  - Pièce 3ème = pièce + 2 autres atouts
-  - Pièce 4ème = pièce + 3 autres atouts
-- **Maître à l'atout** : J + 9 + A de la même couleur (les 3 grosses
-  pièces réunies).
+- **Pièce** : le J OU le 9 **DE L'ATOUT DU CONTRAT** (la "pièce manquante"
+  qui complète le maître).
+  Les J ou 9 dans une autre couleur ne sont PAS des pièces — ce sont des
+  cartes extérieures. N'utilise JAMAIS le mot "pièce" pour parler d'une
+  carte qui n'est pas dans la couleur d'atout du contrat.
+  - Pièce 2nde = pièce d'atout + 1 autre atout
+  - Pièce 3ème = pièce d'atout + 2 autres atouts
+  - Pièce 4ème = pièce d'atout + 3 autres atouts
+- **Maître à l'atout** : J + 9 + A **DE L'ATOUT DU CONTRAT** réunis dans
+  la même main (les 3 grosses pièces d'atout).
 - **Bicolore** : main avec seulement 2 couleurs occupées (4+ atouts
   + 4+ d'une autre couleur).
   - 120 bicolore = bicolore + maître à l'atout.

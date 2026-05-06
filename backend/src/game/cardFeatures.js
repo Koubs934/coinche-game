@@ -51,7 +51,14 @@ function suitFeatures(cards, suit) {
 
 function detectPatterns(bySuit, trumpSuit) {
   const patterns = [];
-  // Trump-specific patterns (only when trumpSuit is set and present in bySuit).
+  // STRICT TRUMP-ONLY GATE — DO NOT iterate over all four suits here.
+  //
+  // "Pièce", "maître à l'atout" and "belote" are vocabulary tied to the
+  // CONTRACT TRUMP. A J or 9 in a non-trump suit is NOT a pièce — it's a
+  // carte extérieure. K+Q in a non-trump suit is NOT belote. We therefore
+  // only inspect bySuit[trumpSuit] for these patterns and never iterate
+  // over SUITS for them. (Longue and outsideAces below DO span all suits;
+  // those concepts are suit-independent.)
   //
   // V2.2 calibration: "pièce" = the J OR the 9 of trump (the "missing piece"
   // that completes the maître). Aaron's group treats both equivalently for
