@@ -1,12 +1,12 @@
 // Brief summary shown after a scenario is annotated and persisted. Two
 // terminal actions: back to picker, or next scenario.
 //
-// V2.2 Phase 2 (2026-05-05): when the user submitted with
-// divergenceAgreement === 'user-disagrees' AND we have an annotationFilename,
-// render the inline Claude conversation below the summary card. A compact
-// scenario snapshot (hand + bidding history) is rendered above the card so
-// the user keeps the context they were just looking at — per the V2.2 spec
-// the conversation should not replace the scenario view.
+// V2.2 Phase 2 (2026-05-05): the auction recap is rendered above the card
+// for every completion path (match, divergent, rule-silent) — it's the
+// permanent header per the Phase 2A spec. When the user also submitted
+// with divergenceAgreement === 'user-disagrees' AND we have an
+// annotationFilename, the inline Claude conversation opens below the
+// action/note sections.
 //
 // v3.1 (2026-05-04): the post-submit "Autre stratégie possible ?" overlay
 // was removed; every annotation auto-concludes server-side. The
@@ -41,15 +41,30 @@ function buildPlayersForRecap(userSeat, t) {
   });
 }
 
-function ScenarioContextRecap({ scenarioSnapshot, t }) {
+function ScenarioContextRecap({ scenarioSnapshot, fallbackAction, t }) {
   const game     = scenarioSnapshot?.game;
   const userSeat = scenarioSnapshot?.myPosition ?? scenarioSnapshot?.trainingState?.userSeat;
   if (!game || userSeat == null) return null;
+
+  // Defensive fallback: if biddingHistory is empty (shouldn't happen in
+  // normal flow — _applyBid/_applyPass push to it during submitTrainingAction)
+  // but the user did submit an action, synthesize a single-entry history so
+  // the user's bid still shows up as a chip on their seat.
+  let biddingHistory = game.biddingHistory;
+  if ((!biddingHistory || biddingHistory.length === 0) && fallbackAction) {
+    biddingHistory = [{
+      position: userSeat,
+      type:     fallbackAction.type,
+      value:    fallbackAction.value,
+      suit:     fallbackAction.suit,
+    }];
+  }
+
   return (
     <div className="completion-summary-recap">
       <AuctionRecap
         players={buildPlayersForRecap(userSeat, t)}
-        biddingHistory={game.biddingHistory}
+        biddingHistory={biddingHistory}
         currentBid={game.currentBid}
         myPosition={userSeat}
         trumpSuit={game.trumpSuit}
@@ -90,8 +105,12 @@ export default function CompletionSummary({
           <h1>{c.title}</h1>
         </div>
 
-        {showConversation && scenarioSnapshot && (
-          <ScenarioContextRecap scenarioSnapshot={scenarioSnapshot} t={t} />
+        {scenarioSnapshot && (
+          <ScenarioContextRecap
+            scenarioSnapshot={scenarioSnapshot}
+            fallbackAction={action}
+            t={t}
+          />
         )}
 
         <section className="tc-section">
