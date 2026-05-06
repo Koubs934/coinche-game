@@ -13,6 +13,7 @@ const gameRecordStorage = require('./game/gameRecordStorage');
 const { registerTrainingHandlers, runStartupCleanup: trainingStartupCleanup } = require('./training/trainingSocket');
 const claudeService = require('./services/claudeService');
 const { caseTypeFor } = require('./training/divergence');
+const cardFeatures = require('./game/cardFeatures');
 // Event payload contract for every socket.on / socket.emit below:
 // see socketEvents.js. Update both sides (FE + BE) when changing a payload.
 require('./socketEvents');
@@ -225,6 +226,117 @@ app.post('/api/conversation/start', async (req, res) => {
   return res.json({ message: result.text, usage: result.usage });
 });
 
+// V2.2 Phase 2C — POST /api/conversation/select-cards
+// Same shape as /start but the FE attaches the cards the user selected
+// on the completion screen ("which cards motivated your bid?"). The
+// server computes recognized coinche patterns from the selection (via
+// cardFeatures) and feeds both the raw cards and the patterns into
+// Claude's system prompt + first user message, so Claude's opening
+// question can lean on what the user said matters.
+//
+// Allowed only BEFORE any user turn — once the conversation has user
+// messages, it's too late to inject a fresh opening. If the FE called
+// /start first (zero user turns yet), we overwrite the prior opening.
+app.post('/api/conversation/select-cards', async (req, res) => {
+  const { userId, annotationFilename, selectedCards } = req.body || {};
+  if (!userId || !annotationFilename || !Array.isArray(selectedCards)) {
+    return res.status(400).json({ error: 'userId, annotationFilename, selectedCards (array) required' });
+  }
+  // Shape-check each entry.
+  const VALID_VALUES = new Set(['7', '8', '9', '10', 'J', 'Q', 'K', 'A']);
+  const VALID_SUITS  = new Set(['S', 'H', 'D', 'C']);
+  for (const c of selectedCards) {
+    if (!c || !VALID_VALUES.has(c.value) || !VALID_SUITS.has(c.suit)) {
+      return res.status(400).json({ error: `invalid card: ${JSON.stringify(c)}` });
+    }
+  }
+
+  let annotation;
+  try {
+    annotation = readAnnotation(userId, annotationFilename);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  if (!annotation) return res.status(404).json({ error: 'annotation not found' });
+  const decision = annotation.decisions?.[0];
+  if (!decision || decision.divergenceType === null) {
+    return res.status(400).json({ error: 'card selection only available for divergent or rule-silent annotations' });
+  }
+
+  // Reject if the conversation already has any user turn (too late to
+  // re-seed). Allow re-call if it only has Claude's opening — we'll
+  // overwrite that opening with the cards-aware version.
+  const conv = annotation.claude_conversation;
+  if (conv) {
+    if (conv.ended_at)                              return res.status(400).json({ error: 'conversation already ended' });
+    const hasUserTurn = (conv.messages || []).some(m => m.role === 'user');
+    if (hasUserTurn) return res.status(400).json({ error: 'cannot select cards after the conversation started' });
+  }
+
+  // Load the user's full hand from the scenario, then narrow down to the
+  // selection. Defensive check: every selected card must be in hand,
+  // catches a buggy FE that sends e.g. card values from another seat.
+  let context;
+  try {
+    context = buildContext(userId, annotation, annotationFilename);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+  const userSeat = context.scenario.userSeat;
+  const userHand = context.scenario.hands?.[String(userSeat)] || [];
+  for (const c of selectedCards) {
+    if (!userHand.some(h => h.suit === c.suit && h.value === c.value)) {
+      return res.status(400).json({ error: `card not in hand: ${JSON.stringify(c)}` });
+    }
+  }
+
+  const trumpSuit = decision.action?.type === 'bid' ? decision.action.suit : null;
+  const features  = cardFeatures.computeFeatures(selectedCards, trumpSuit);
+  const cardSelection = { selectedCards: features.selectedCards, features };
+  const caseType = caseTypeFor(decision.divergenceType);
+
+  let result;
+  try {
+    result = await claudeService.startConversation({
+      scenario:        context.scenario,
+      annotation,
+      userName:        context.userName,
+      pastAnnotations: context.pastAnnotations,
+      feuilleContent:  context.feuilleContent,
+      caseType,
+      cardSelection,
+    });
+  } catch (err) {
+    console.error('[conversation/select-cards] Anthropic call failed:', err.message);
+    return res.status(502).json({ error: 'Claude API call failed', detail: err.message });
+  }
+
+  const startedAt = nowIso();
+  annotation.schemaVersion = 4;
+  annotation.claude_conversation = {
+    started_at:     startedAt,
+    messages: [
+      { role: 'claude', content: result.text, timestamp: startedAt },
+    ],
+    // Append, don't overwrite — preserves audit trail if the FE ever
+    // resubmits the selection (e.g. user backed out and reselected).
+    card_selections: [
+      ...(conv?.card_selections || []),
+      {
+        timestamp:     startedAt,
+        selectedCards: features.selectedCards,
+        trumpSuit:     features.trumpSuit,
+        patterns:      features.patterns,
+      },
+    ],
+    rule_candidates: conv?.rule_candidates || [],
+    ended_at:        null,
+    ended_reason:    null,
+  };
+  writeAnnotationAtomic(userId, annotationFilename, annotation);
+  return res.json({ message: result.text, usage: result.usage });
+});
+
 app.post('/api/conversation/turn', async (req, res) => {
   const { userId, annotationFilename, userMessage } = req.body || {};
   if (!userId || !annotationFilename || typeof userMessage !== 'string' || !userMessage.trim()) {
@@ -248,10 +360,21 @@ app.post('/api/conversation/turn', async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 
+  // V2.2 Phase 2C: rehydrate the most recent card selection (if any)
+  // so the seed message and system prompt stay consistent across turns.
+  // The FE doesn't echo the selection on /turn — backend is canonical.
+  const lastSelection = (conv.card_selections || [])[conv.card_selections?.length - 1];
+  const cardSelection = lastSelection
+    ? {
+        selectedCards: lastSelection.selectedCards,
+        features: cardFeatures.computeFeatures(lastSelection.selectedCards, lastSelection.trumpSuit ?? null),
+      }
+    : null;
+
   // Rebuild the seed scenario message so Claude has context on every turn.
   // We don't store it in `messages[]` (FE doesn't need to render the synthetic
   // seed) but we always prepend it before calling the API.
-  const seedMessage = claudeService.formatScenarioForClaude(context.scenario, annotation);
+  const seedMessage = claudeService.formatScenarioForClaude(context.scenario, annotation, cardSelection);
   const conversationHistory = [
     { role: 'user', content: seedMessage },
     ...conv.messages,
@@ -267,6 +390,7 @@ app.post('/api/conversation/turn', async (req, res) => {
         userName:        context.userName,
         pastAnnotations: context.pastAnnotations,
         caseType:        caseTypeFor(annotation.decisions?.[0]?.divergenceType),
+        cardSelection,
       },
     });
   } catch (err) {

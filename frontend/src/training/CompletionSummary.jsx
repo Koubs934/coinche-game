@@ -22,6 +22,7 @@ import { useState } from 'react';
 import { useLang } from '../context/LanguageContext';
 import { formatActionText, actionIsRed } from './formatAction';
 import ClaudeConversation from './ClaudeConversation';
+import CardSelector from './CardSelector';
 import AuctionRecap from '../components/shared/AuctionRecap';
 
 // Build a synthetic 4-player array (positions 0..3) for AuctionRecap with
@@ -99,7 +100,22 @@ export default function CompletionSummary({
     && !!annotationFilename
     && !!userId;
 
-  const [conversationClosed, setConversationClosed] = useState(false);
+  // V2.2 Phase 2C — card selection step that runs BEFORE the conversation
+  // mounts. Divergent: at least one card required. Rule-silent: optional
+  // (skip with "Continuer sans sélection"). After validation/skip we
+  // remember the chosen cards and mount ClaudeConversation; ClaudeConversation
+  // then posts to /select-cards or /start depending on whether the array
+  // is empty.
+  const [selectedCards,       setSelectedCards]       = useState(null); // null = not yet decided
+  const [conversationClosed,  setConversationClosed]  = useState(false);
+
+  // The user's hand sits in trainingRun.game.hands[userSeat] (only the
+  // user's seat is populated; other seats are masked). Pull it for the
+  // selector — and use the user's submitted bid suit as trump for the
+  // sort order (so trump cards lead).
+  const userSeat   = scenarioSnapshot?.myPosition ?? scenarioSnapshot?.trainingState?.userSeat;
+  const userHand   = (userSeat != null) ? (scenarioSnapshot?.game?.hands?.[userSeat] || []) : [];
+  const trumpSuit  = action?.type === 'bid' ? (action.suit ?? null) : null;
 
   const actionText = formatActionText(action, t);
   const actionRed  = actionIsRed(action);
@@ -134,12 +150,23 @@ export default function CompletionSummary({
           </section>
         )}
 
-        {showConversation && !conversationClosed && (
+        {showConversation && selectedCards === null && (
+          <CardSelector
+            hand={userHand}
+            caseType={caseType}
+            trumpSuit={trumpSuit}
+            onSubmit={(cards) => setSelectedCards(cards)}
+            onSkip={() => setSelectedCards([])}
+          />
+        )}
+
+        {showConversation && selectedCards !== null && !conversationClosed && (
           <ClaudeConversation
             userId={userId}
             annotationFilename={annotationFilename}
             userName={userName}
             caseType={caseType}
+            selectedCards={selectedCards}
             onClose={() => setConversationClosed(true)}
           />
         )}

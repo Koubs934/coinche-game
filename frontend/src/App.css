@@ -1938,6 +1938,77 @@ a      { color: var(--accent); }
 .tc-actions .btn-primary,
 .tc-actions .btn-secondary { flex: 1 1 auto; min-width: 140px; }
 
+/* ─── V2.2 Phase 2C: Card selector ─────────────────────────────────────── */
+/* Tap-to-select grid shown on the completion screen between the
+   AuctionRecap and the ClaudeConversation. The selected state uses an
+   accent outline + slight scale so it's obvious without colour-coding. */
+
+.card-selector {
+  margin-top: 16px;
+  padding: 12px;
+  border-top: 2px solid var(--accent);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cs-heading {
+  font-weight: 600;
+  color: var(--accent);
+  font-size: 1em;
+}
+.cs-hint {
+  font-size: 0.85em;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.cs-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 0;
+}
+.cs-card {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 56px;
+  padding: 8px 6px;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--black);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  transition: transform 0.08s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.cs-card.cs-card-red { color: var(--red); }
+.cs-card:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.cs-card-on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+  transform: scale(1.05);
+}
+.cs-card-value { font-size: 0.95em; }
+.cs-card-suit  { font-size: 1.1em; line-height: 1; }
+.cs-count {
+  font-size: 0.85em;
+  color: var(--muted);
+}
+.cs-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cs-actions .btn-primary,
+.cs-actions .btn-secondary { flex: 1 1 140px; }
+
 /* ─── V2.2 Phase 2: Claude conversation ───────────────────────────────── */
 /* Inline chat panel rendered below the completion-summary card when the
    user submitted with divergenceAgreement === 'user-disagrees'. The panel

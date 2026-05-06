@@ -279,6 +279,19 @@ export default {
       required:    '(requis)',
       placeholder: 'Expliquez votre raisonnement...',
     },
+    // V2.2 Phase 2C — card selector shown on the completion screen
+    // before the conversation opens. User taps cards from their hand
+    // that motivated the bid; the selection feeds Claude's system prompt.
+    cardSelector: {
+      heading:        'Quelles cartes ont motivé ton choix ?',
+      hintDivergent:  'Sélectionne les cartes clés. Au moins une carte est requise.',
+      hintRuleSilent: 'Sélectionne les cartes clés, ou continue sans sélection.',
+      countLabel:     (n) => n === 0
+        ? 'Aucune carte sélectionnée'
+        : n === 1 ? '1 carte sélectionnée' : `${n} cartes sélectionnées`,
+      validateBtn:    'Valider',
+      skipBtn:        'Continuer sans sélection',
+    },
     // V2.2 Phase 2 — inline Claude conversation that opens after a
     // "Pas d'accord" annotation. Conversation content itself is always
     // French (system prompt locks it); these keys cover the surrounding UI.

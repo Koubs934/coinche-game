@@ -8,6 +8,7 @@
 // this module without configuring a key.
 
 const Anthropic = require('@anthropic-ai/sdk');
+const { describePatterns, describeSelectedCards } = require('../game/cardFeatures');
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -21,7 +22,7 @@ function getClient() {
   return _client;
 }
 
-function buildSystemPrompt({ feuilleContent, userName, userPastAnnotations, caseType }) {
+function buildSystemPrompt({ feuilleContent, userName, userPastAnnotations, caseType, cardSelection }) {
   // V2.2 Phase 2C: the CONTEXTE paragraph adapts to caseType so Claude
   // doesn't accuse a rule-silent annotator of "diverging from the rule"
   // (there is no rule). Default to the divergent framing for backward
@@ -65,13 +66,45 @@ LIMITES STRICTES
 - Tu es CONCIS — 2-4 phrases par tour, pas plus. La conversation est
   inline dans une UI mobile, pas un blog.
 
-LA FEUILLE V2.1 (référence)
+${formatCardSelectionSection(cardSelection)}LA FEUILLE V2.1 (référence)
 ${feuilleContent}
 
 ANNOTATIONS PASSÉES DE ${userName} (référence)
 ${userPastAnnotations}
 
-TON PREMIER MESSAGE
+${formatFirstMessageInstructions(cardSelection)}`;
+}
+
+// V2.2 Phase 2C — when the user selected cards on the completion screen
+// before opening the conversation, surface the selection (raw cards +
+// recognized patterns) so Claude's first question can lean on what the
+// user said motivated their bid. Returns '' when there's no selection,
+// keeping the system prompt unchanged for the no-selection path.
+function formatCardSelectionSection(cardSelection) {
+  if (!cardSelection || !cardSelection.features) return '';
+  if (cardSelection.features.selectedCount === 0)  return '';
+  return `SÉLECTION DE CARTES PAR L'UTILISATEUR
+L'utilisateur a sélectionné les cartes suivantes pour expliquer son raisonnement :
+${describeSelectedCards(cardSelection.features)}
+
+Patterns reconnus dans cette sélection :
+${describePatterns(cardSelection.features)}
+
+`;
+}
+
+function formatFirstMessageInstructions(cardSelection) {
+  const hasSelection = !!(cardSelection && cardSelection.features
+    && cardSelection.features.selectedCount > 0);
+  if (hasSelection) {
+    return `TON PREMIER MESSAGE
+Ton premier message doit S'APPUYER sur la sélection de cartes ci-dessus.
+Reformule le pattern reconnu et demande à l'utilisateur de confirmer ou
+préciser. Exemple : "Tu as sélectionné un maître à l'atout pique + 1 As
+extérieur — j'imagine que tu calcules X, c'est bien ça ?" Réfère-toi à
+son annonce pour cadrer.`;
+  }
+  return `TON PREMIER MESSAGE
 Tu commences par une question ouverte pour comprendre le raisonnement
 de l'utilisateur. Réfère-toi explicitement à son annonce et à ce que
 la Feuille suggère pour cadrer.`;
@@ -141,7 +174,7 @@ function formatExpectedAnswer(scenario) {
   return `- ${label} (la règle V2.1 suggère ${label})${ref}`;
 }
 
-function formatScenarioForClaude(scenario, annotation) {
+function formatScenarioForClaude(scenario, annotation, cardSelection = null) {
   const userSeat = scenario.userSeat;
   const userHand = scenario.hands?.[String(userSeat)] || [];
 
@@ -160,6 +193,21 @@ function formatScenarioForClaude(scenario, annotation) {
     lines.push(formatTimelineEvent(ev, userSeat));
   }
 
+  // V2.2 Phase 2C — append the card selection (raw + patterns) to the
+  // first user message so Claude has it in the conversation history, not
+  // just the system prompt. Skipped when no selection was made.
+  let selectionBlock = '';
+  if (cardSelection && cardSelection.features
+      && cardSelection.features.selectedCount > 0) {
+    selectionBlock = `
+
+CARTES QUE L'UTILISATEUR A SÉLECTIONNÉES POUR JUSTIFIER SON CHOIX :
+${describeSelectedCards(cardSelection.features)}
+
+Patterns reconnus :
+${describePatterns(cardSelection.features)}`;
+  }
+
   return `Voici le contexte de l'annotation :
 
 MAIN DE L'UTILISATEUR (${userHand.length} cartes) :
@@ -175,7 +223,7 @@ ANNONCE DE L'UTILISATEUR :
 - ${formatAction(userAction)} ("Pas d'accord")
 
 NOTE DE L'UTILISATEUR :
-- "${userNote}"
+- "${userNote}"${selectionBlock}
 
 Ton rôle : engager une conversation avec l'utilisateur pour comprendre
 son raisonnement. Pose une première question ouverte.`;
@@ -199,15 +247,16 @@ function formatPastAnnotations(pastAnnotations) {
   return lines.join('\n');
 }
 
-async function startConversation({ scenario, annotation, userName, pastAnnotations, feuilleContent, caseType }) {
+async function startConversation({ scenario, annotation, userName, pastAnnotations, feuilleContent, caseType, cardSelection }) {
   const systemPrompt = buildSystemPrompt({
     feuilleContent,
     userName,
     userPastAnnotations: formatPastAnnotations(pastAnnotations),
     caseType,
+    cardSelection,
   });
 
-  const userMessage = formatScenarioForClaude(scenario, annotation);
+  const userMessage = formatScenarioForClaude(scenario, annotation, cardSelection);
 
   const response = await getClient().messages.create({
     model: MODEL,
@@ -229,6 +278,7 @@ async function continueConversation({ conversationHistory, userMessage, context 
     userName: context.userName,
     userPastAnnotations: formatPastAnnotations(context.pastAnnotations),
     caseType: context.caseType,
+    cardSelection: context.cardSelection,
   });
 
   const messages = [

@@ -279,6 +279,18 @@ export default {
       required:    '(required)',
       placeholder: 'Explain your reasoning...',
     },
+    // V2.2 Phase 2C — card selector shown on the completion screen
+    // before the conversation opens. Same source as fr/cardSelector.
+    cardSelector: {
+      heading:        'Which cards motivated your call?',
+      hintDivergent:  'Tap to select the key cards. At least one card is required.',
+      hintRuleSilent: 'Tap to select the key cards, or continue without a selection.',
+      countLabel:     (n) => n === 0
+        ? 'No card selected'
+        : n === 1 ? '1 card selected' : `${n} cards selected`,
+      validateBtn:    'Validate',
+      skipBtn:        'Continue without selection',
+    },
     // V2.2 Phase 2 — inline Claude conversation that opens after a
     // "Disagree" annotation. Conversation content itself is always French
     // (the Anthropic system prompt locks it). These keys cover the

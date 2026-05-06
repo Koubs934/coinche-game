@@ -32,12 +32,16 @@ async function postJson(path, body) {
   return data;
 }
 
-// `caseType` is accepted but not currently used here — the backend reads
-// the same value from the annotation file when building Claude's system
-// prompt (see /api/conversation/start in server.js). The prop is plumbed
-// through so future UI tweaks (e.g. a different placeholder for rule-silent)
-// can be made without changing CompletionSummary.
-export default function ClaudeConversation({ userId, annotationFilename, userName, caseType, onClose }) { // eslint-disable-line no-unused-vars
+// V2.2 Phase 2C — when CompletionSummary's CardSelector returns a non-empty
+// `selectedCards` array, we POST to /api/conversation/select-cards instead
+// of /api/conversation/start. The two endpoints share the response shape
+// ({ message, usage }); /select-cards additionally feeds the cards into
+// Claude's first system prompt + user message. An empty array (the
+// rule-silent "skip" path) falls through to plain /start.
+//
+// `caseType` is accepted for forward-compat (different placeholders later)
+// but the backend already reads caseType from the annotation file.
+export default function ClaudeConversation({ userId, annotationFilename, userName, caseType, selectedCards, onClose }) { // eslint-disable-line no-unused-vars
   const { t } = useLang();
   const cc = t.training.claudeConversation;
 
@@ -52,13 +56,22 @@ export default function ClaudeConversation({ userId, annotationFilename, userNam
   const textareaRef  = useRef(null);
   const startedRef   = useRef(false);  // strict-mode guard — only fire /start once
 
-  // ── /start on mount ────────────────────────────────────────────────────
+  // V2.2 Phase 2C — pick the right opener: /select-cards if the user picked
+  // any, otherwise /start. We freeze the choice on mount so React StrictMode's
+  // double-render doesn't fire the API twice.
+  const hasSelection = Array.isArray(selectedCards) && selectedCards.length > 0;
+  const openEndpoint = hasSelection ? '/api/conversation/select-cards' : '/api/conversation/start';
+  const openBody     = hasSelection
+    ? { userId, annotationFilename, selectedCards }
+    : { userId, annotationFilename };
+
+  // ── start (or select-cards) on mount ───────────────────────────────────
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
     (async () => {
       try {
-        const data = await postJson('/api/conversation/start', { userId, annotationFilename });
+        const data = await postJson(openEndpoint, openBody);
         setMessages([{ role: 'claude', content: data.message }]);
         setPhase('idle');
       } catch (err) {
@@ -66,7 +79,10 @@ export default function ClaudeConversation({ userId, annotationFilename, userNam
         setPhase('error-start');
       }
     })();
-  }, [userId, annotationFilename, cc.errorRetry]);
+    // openEndpoint / openBody are derived from props that don't change
+    // during the lifetime of the component, so a single fire is correct.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Auto-scroll on new messages / phase changes ────────────────────────
   useEffect(() => {
@@ -102,10 +118,9 @@ export default function ClaudeConversation({ userId, annotationFilename, userNam
     startedRef.current = false;
     setPhase('starting');
     setErrorMsg('');
-    // Re-run effect by toggling a bogus state? Easier: replicate the call here.
     (async () => {
       try {
-        const data = await postJson('/api/conversation/start', { userId, annotationFilename });
+        const data = await postJson(openEndpoint, openBody);
         setMessages([{ role: 'claude', content: data.message }]);
         setPhase('idle');
       } catch (err) {
