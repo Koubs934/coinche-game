@@ -12,6 +12,7 @@ import CompletionSummary from './training/CompletionSummary';
 import TrainingPicker from './training/TrainingPicker';
 import TrainingPickerMock from './training/TrainingPickerMock';
 import EnvBadge from './components/EnvBadge';
+import { useHandCardSize } from './components/HandSizeToggle';
 import { cleanupOldDrafts } from './training/noteDraft';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
@@ -40,6 +41,7 @@ const MOCK_MODE = URL_PARAMS.get('mock');
 export default function App() {
   const { user, username, loading } = useAuth();
   const { lang, toggleLang, t } = useLang();
+  const { size: handSize, cycle: cycleHandSize } = useHandCardSize();
 
   // Mock short-circuit BEFORE any hooks below — static URL param, stable across
   // a single session, so hooks-count invariant holds.
@@ -374,7 +376,7 @@ export default function App() {
   // ── Training takes precedence over normal-room surfaces when active ────
   if (inTraining) {
     return (
-      <div className="app">
+      <div className="app" data-hand-size={handSize}>
         {socketError && <div className="toast-error">{socketError}</div>}
         {!socketReady && <div className="toast-info">{t.reconnecting}</div>}
 
@@ -398,6 +400,7 @@ export default function App() {
             game={trainingRun.game}
             myPosition={trainingRun.myPosition}
             trainingState={trainingRun.trainingState}
+            onCycleHandSize={cycleHandSize}
           />
         )}
 
@@ -420,11 +423,12 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className="app" data-hand-size={handSize}>
       <Header
         roomCode={roomState?.code}
         scores={roomState?.scores}
         targetScore={roomState?.targetScore}
+        onCycleHandSize={cycleHandSize}
       />
 
       {socketError && <div className="toast-error">{socketError}</div>}

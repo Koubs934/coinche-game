@@ -14,9 +14,10 @@
 
 import { useEffect, useRef } from 'react';
 import GameBoard from '../components/GameBoard';
+import HandSizeToggle from '../components/HandSizeToggle';
 
 export default function TrainingTable({
-  socket, runId, room, game, myPosition, trainingState,
+  socket, runId, room, game, myPosition, trainingState, onCycleHandSize,
 }) {
   const runState      = trainingState?.runState;
   const pendingAction = trainingState?.pendingAction;
@@ -36,13 +37,20 @@ export default function TrainingTable({
   }, [runState, pendingAction, runId, partialId, socket]);
 
   return (
-    <GameBoard
-      socket={socket}
-      trainingMode={{ runId }}
-      roomCode={runId}
-      room={room}
-      game={game}
-      myPosition={myPosition}
-    />
+    <>
+      {onCycleHandSize && (
+        <div className="training-topbar">
+          <HandSizeToggle onCycle={onCycleHandSize} />
+        </div>
+      )}
+      <GameBoard
+        socket={socket}
+        trainingMode={{ runId }}
+        roomCode={runId}
+        room={room}
+        game={game}
+        myPosition={myPosition}
+      />
+    </>
   );
 }
