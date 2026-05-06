@@ -405,10 +405,24 @@ app.post('/api/conversation/turn', async (req, res) => {
   return res.json({ message: result.text, usage: result.usage });
 });
 
+// V2.2 calibration follow-up — `reason` accepts:
+//   'skip'        — user closed without typing a message
+//   'completed'   — user typed at least one message before closing
+//   'navigation'  — user navigated away (Scénario suivant / Retour aux
+//                   scénarios) without explicitly closing; fired by the
+//                   ClaudeConversation unmount cleanup, best-effort.
+//
+// Idempotent: a second call on an already-ended conversation returns 200
+// with {ok:true, already_ended:true} and does NOT overwrite the original
+// ended_at / ended_reason. This preserves the explicit "completed" / "skip"
+// reason when the unmount cleanup races against a successful "Terminer la
+// discussion" click.
+const VALID_END_REASONS = new Set(['skip', 'completed', 'navigation']);
+
 app.post('/api/conversation/end', (req, res) => {
   const { userId, annotationFilename, reason } = req.body || {};
-  if (!userId || !annotationFilename || !['skip', 'completed'].includes(reason)) {
-    return res.status(400).json({ error: 'userId, annotationFilename, reason required (skip|completed)' });
+  if (!userId || !annotationFilename || !VALID_END_REASONS.has(reason)) {
+    return res.status(400).json({ error: 'userId, annotationFilename, reason required (skip|completed|navigation)' });
   }
   let annotation;
   try {
@@ -418,6 +432,9 @@ app.post('/api/conversation/end', (req, res) => {
   }
   if (!annotation)                    return res.status(404).json({ error: 'annotation not found' });
   if (!annotation.claude_conversation) return res.status(400).json({ error: 'no conversation on this annotation' });
+  if (annotation.claude_conversation.ended_at) {
+    return res.json({ ok: true, already_ended: true });
+  }
   annotation.claude_conversation.ended_at = nowIso();
   annotation.claude_conversation.ended_reason = reason;
   writeAnnotationAtomic(userId, annotationFilename, annotation);
