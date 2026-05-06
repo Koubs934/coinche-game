@@ -64,10 +64,30 @@ describe('computeFeatures — pièces (J + others in trump)', () => {
     expect(f.patterns).toContain('belote');
   });
 
-  it('neuf-d-atout: 9 of trump without J', () => {
+  // V2.2 calibration — "pièce" = J OR 9 of trump (Aaron's group treats
+  // both as the missing piece that completes the maître). Previously only
+  // J fired the piece-* patterns; 9-only now does too.
+  it('piece-2nde: 9 + 1 other trump (no J)', () => {
     const f = computeFeatures([c('9', 'D'), c('K', 'D')], 'D');
-    expect(f.patterns).toContain('neuf-d-atout');
-    expect(f.patterns).not.toContain('piece-2nde');
+    expect(f.patterns).toContain('piece-2nde');
+    expect(f.patterns).not.toContain('maitre');
+  });
+
+  it('piece-3eme: 9 + 2 other trumps (no J)', () => {
+    const f = computeFeatures([c('9', 'S'), c('K', 'S'), c('Q', 'S')], 'S');
+    expect(f.patterns).toContain('piece-3eme');
+    expect(f.patterns).toContain('belote'); // K+Q
+  });
+
+  it('piece-4eme: 9 + 3 other trumps (no J)', () => {
+    const f = computeFeatures([c('9', 'C'), c('K', 'C'), c('Q', 'C'), c('10', 'C')], 'C');
+    expect(f.patterns).toContain('piece-4eme');
+  });
+
+  it('maître still suppresses pièce when J + 9 + A all present', () => {
+    const f = computeFeatures([c('J', 'H'), c('9', 'H'), c('A', 'H')], 'H');
+    expect(f.patterns).toContain('maitre');
+    expect(f.patterns).not.toContain('piece-3eme');
   });
 });
 

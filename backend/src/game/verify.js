@@ -1190,12 +1190,12 @@ console.log('\n=== Bot V2.2 Anti-double-comptage ===\n');
   assert(action.type === 'pass', `T5: 90 + 1 As ext + partner-110 → pass (got ${action.type} ${action.value || ''})`);
 }
 
-// ─── BOT V2.2 — Cheek (minimal) ─────────────────────────────────────────────
+// ─── BOT V2.2 — Chiquer (minimal) ───────────────────────────────────────────
 //
 // Conditions: opponent overcalls partner's solid V2.1 opening, I have ≥1 ace,
-// I cheek (+10) in partner's suit. Hard cap at 160.
+// I chiquer (+10) in partner's suit. Hard cap at 160.
 
-console.log('\n=== Bot V2.2 Cheek ===\n');
+console.log('\n=== Bot V2.2 Chiquer ===\n');
 
 // ── T6: partner opened 90♠, opp raised to 100, I have 1 As ext → 110♠ ────
 {
@@ -1212,9 +1212,9 @@ console.log('\n=== Bot V2.2 Cheek ===\n');
   const currentBid = { value: 100, suit: 'H', playerIndex: 3, team: 1, coinched: false, surcoinched: false };
   const game = mockBidGame(hand, currentBid, 0, biddingHistory);
   const action = getBotBidAction(game, 0);
-  assert(action.type === 'bid', `T6: cheek fires (got ${action.type})`);
-  assert(action.value === 110,  `T6: cheek value 110 (got ${action.value})`);
-  assert(action.suit  === 'S',  `T6: cheek suit ♠ — partner's suit (got ${action.suit})`);
+  assert(action.type === 'bid', `T6: chiquer fires (got ${action.type})`);
+  assert(action.value === 110,  `T6: chiquer value 110 (got ${action.value})`);
+  assert(action.suit  === 'S',  `T6: chiquer suit ♠ — partner's suit (got ${action.suit})`);
 }
 
 // ── T7: partner opened 90♠, opp raised to 100, I have 0 aces → pass ─────
@@ -1231,10 +1231,10 @@ console.log('\n=== Bot V2.2 Cheek ===\n');
   const currentBid = { value: 100, suit: 'H', playerIndex: 3, team: 1, coinched: false, surcoinched: false };
   const game = mockBidGame(hand, currentBid, 0, biddingHistory);
   const action = getBotBidAction(game, 0);
-  assert(action.type === 'pass', `T7: cheek skipped on 0 aces (got ${action.type} ${action.value || ''})`);
+  assert(action.type === 'pass', `T7: chiquer skipped on 0 aces (got ${action.type} ${action.value || ''})`);
 }
 
-// ── T8: partner 90♠, opp 150, I have 1 As → cheek 160♠ (right at the cap)
+// ── T8: partner 90♠, opp 150, I have 1 As → chiquer 160♠ (right at the cap)
 {
   const hand = [
     card('A','D'),
@@ -1249,12 +1249,12 @@ console.log('\n=== Bot V2.2 Cheek ===\n');
   const currentBid = { value: 150, suit: 'H', playerIndex: 3, team: 1, coinched: false, surcoinched: false };
   const game = mockBidGame(hand, currentBid, 0, biddingHistory);
   const action = getBotBidAction(game, 0);
-  assert(action.type === 'bid', `T8: cheek fires at the cap (got ${action.type})`);
-  assert(action.value === 160,  `T8: cheek value 160 (got ${action.value})`);
-  assert(action.suit  === 'S',  `T8: cheek suit ♠ (got ${action.suit})`);
+  assert(action.type === 'bid', `T8: chiquer fires at the cap (got ${action.type})`);
+  assert(action.value === 160,  `T8: chiquer value 160 (got ${action.value})`);
+  assert(action.suit  === 'S',  `T8: chiquer suit ♠ (got ${action.suit})`);
 }
 
-// ── T9: partner 90♠, opp 160 — cheek would be 170 > 160 cap → pass ──────
+// ── T9: partner 90♠, opp 160 — chiquer would be 170 > 160 cap → pass ──────
 {
   const hand = [
     card('A','D'),
@@ -1287,7 +1287,7 @@ console.log('\n=== Bot V2.2 Cheek ===\n');
   const currentBid = { value: 100, suit: 'C', playerIndex: 3, team: 1, coinched: false, surcoinched: false };
   const game = mockBidGame(hand, currentBid, 0, biddingHistory);
   const action = getBotBidAction(game, 0);
-  assert(action.type === 'pass', `T10: no partner bid → cheek skipped (got ${action.type} ${action.value || ''})`);
+  assert(action.type === 'pass', `T10: no partner bid → chiquer skipped (got ${action.type} ${action.value || ''})`);
 }
 
 // ─── Bot Card Play ────────────────────────────────────────────────────────────

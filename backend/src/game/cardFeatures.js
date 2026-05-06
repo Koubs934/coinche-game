@@ -52,21 +52,27 @@ function suitFeatures(cards, suit) {
 function detectPatterns(bySuit, trumpSuit) {
   const patterns = [];
   // Trump-specific patterns (only when trumpSuit is set and present in bySuit).
-  // maître subsumes the pièce N-ème patterns (J+9+A is necessarily a pièce
-  // 3ème+) so we don't double-fire — the descriptor renders maître alone.
+  //
+  // V2.2 calibration: "pièce" = the J OR the 9 of trump (the "missing piece"
+  // that completes the maître). Aaron's group treats both equivalently for
+  // the pièce N-ème vocabulary; the only finer distinction is "9 sec" / "J
+  // sec" but those are positional and don't change the pattern enum here.
+  //
+  // maître subsumes the pièce N-ème patterns (J+9+A is necessarily a
+  // pièce 3ème+) so we don't double-fire — the descriptor renders maître
+  // alone.
   if (trumpSuit && bySuit[trumpSuit]) {
     const t = bySuit[trumpSuit];
     if (t.isMaitre) {
       patterns.push('maitre');
     } else {
-      if (t.hasJ && t.count === 2)     patterns.push('piece-2nde');
-      if (t.hasJ && t.count === 3)     patterns.push('piece-3eme');
-      if (t.hasJ && t.count === 4)     patterns.push('piece-4eme');
-      if (t.hasJ && t.count >= 5)      patterns.push('piece-longue');
-      // Non-J pièce: just a 9 of trump (sometimes bid-relevant)
-      if (!t.hasJ && t.has9)           patterns.push('neuf-d-atout');
+      const hasPiece = t.hasJ || t.has9;
+      if (hasPiece && t.count === 2)     patterns.push('piece-2nde');
+      if (hasPiece && t.count === 3)     patterns.push('piece-3eme');
+      if (hasPiece && t.count === 4)     patterns.push('piece-4eme');
+      if (hasPiece && t.count >= 5)      patterns.push('piece-longue');
     }
-    if (t.hasBelote)                   patterns.push('belote');
+    if (t.hasBelote)                     patterns.push('belote');
   }
   // Longues — any suit with ≥4 cards. We tag the suit so the prompt can
   // surface "longue ♠" (4) vs "longue ♥" (5+).
@@ -141,14 +147,23 @@ function describePatterns(features) {
   const t = features.trumpSuit;
   const tSym = t ? SUIT_SYMBOL[t] : null;
 
+  // V2.2 calibration: "pièce" = J OR 9 of trump. The descriptor reports
+  // which one(s) the user actually selected so the pattern stays concrete
+  // ("Pièce 2nde ♠ avec le 9" vs "Pièce 2nde ♠ avec le Valet").
+  const tFeat = t ? features.bySuit[t] : null;
+  const pieceLabel = tFeat
+    ? (tFeat.hasJ && tFeat.has9 ? 'V + 9'
+       : tFeat.hasJ             ? 'Valet'
+       : tFeat.has9             ? '9 d\'atout'
+       :                          'pièce')
+    : 'pièce';
   if (features.patterns.includes('maitre')) {
     lines.push(`- Maître à l'atout ${tSym} (V + 9 + As)`);
   } else {
-    if (features.patterns.includes('piece-2nde')) lines.push(`- Pièce 2nde ${tSym} (Valet + 1 autre atout)`);
-    if (features.patterns.includes('piece-3eme')) lines.push(`- Pièce 3ème ${tSym} (Valet + 2 autres atouts)`);
-    if (features.patterns.includes('piece-4eme')) lines.push(`- Pièce 4ème ${tSym} (Valet + 3 autres atouts)`);
-    if (features.patterns.includes('piece-longue')) lines.push(`- Pièce longue ${tSym} (Valet + 4+ autres atouts)`);
-    if (features.patterns.includes('neuf-d-atout')) lines.push(`- 9 d'atout ${tSym} (sans Valet)`);
+    if (features.patterns.includes('piece-2nde'))   lines.push(`- Pièce 2nde ${tSym} (${pieceLabel} + 1 autre atout)`);
+    if (features.patterns.includes('piece-3eme'))   lines.push(`- Pièce 3ème ${tSym} (${pieceLabel} + 2 autres atouts)`);
+    if (features.patterns.includes('piece-4eme'))   lines.push(`- Pièce 4ème ${tSym} (${pieceLabel} + 3 autres atouts)`);
+    if (features.patterns.includes('piece-longue')) lines.push(`- Pièce longue ${tSym} (${pieceLabel} + 4+ autres atouts)`);
   }
   if (features.patterns.includes('belote')) {
     lines.push(`- Belote ${tSym} (Roi + Dame d'atout)`);

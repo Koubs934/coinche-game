@@ -211,17 +211,20 @@ de sa valeur numérique.
   décrit pour cette annonce."
 - **Force** : Toute valeur, mais déterminée par la main réelle.
 
-#### Cheek
+#### Chiquer
 
-- **Définition** : Annonce de **+10 strict** par-dessus l'annonce courante,
-  dans un contexte compétitif (adversaire a parlé) ou de bloquage.
+- **Définition** : Annonce de **+10 strict** par-dessus l'annonce adverse
+  courante. Signal d'apport — "j'apporte un petit quelque chose" (typiquement
+  1 As ext, pièce d'atout faible, ou soutien minimal). **Ce N'EST PAS une
+  coinche** — pas de doublement de score, pas de pénalité, l'enchère continue
+  normalement.
 - **Promesse au partenaire** : "J'apporte quelque chose d'utile (As, pièce,
   belote, longue...) — la nature précise est déductible par élimination."
 - **Lisibilité** : Pas 100% au moment de l'annonce, mais converge vers
   100% au fil des plis joués.
-- **Réitérable** : Possible de cheek à nouveau si le tour revient et
+- **Réitérable** : Possible de chiquer à nouveau si le tour revient et
   qu'on veut signaler encore plus.
-- **Force** : Toujours +10 exactement. +20 ou plus n'est pas du cheek.
+- **Force** : Toujours +10 exactement. +20 ou plus n'est pas du chiquer.
 
 #### Exploration
 
@@ -230,7 +233,7 @@ de sa valeur numérique.
   (souvent inattendue) en pariant que partenaire complète.
 - **Promesse au partenaire** : "J'ai sûrement le reste du jeu dans cette
   couleur — espérons que tu aies les compléments."
-- **Différence avec cheek** : Le cheek soutient l'annonce existante.
+- **Différence avec chiquer** : Le chiquer soutient l'annonce existante.
   L'exploration **change la couleur d'atout** ou tente une voie inédite.
 - **Risque élevé** : Si partenaire ne complète pas, on chute.
 - **Statut formalisation** : **Non formalisée mécaniquement.**
@@ -246,7 +249,7 @@ de sa valeur numérique.
 - **Promesse au partenaire** : Difficile à interpréter — partenaire doit
   comprendre via le **contexte** (annonces adverses suggérant qu'ils ont
   du jeu) que c'est probablement défensif.
-- **Force** : N'importe quel montant selon la situation (+10 cheek-de-
+- **Force** : N'importe quel montant selon la situation (+10 chiquer-de-
   blocage, +20/+30/+40+ saut, ou même pass tactique).
 - **Coût** : Mutuellement risqué. Si on est laissés dessus, on doit faire
   le contrat avec moins que ce qu'on a annoncé.
@@ -278,7 +281,7 @@ prendre en compte ces 3 sous-modalités. **Non implémenté pour V2.2 bot.**
 | Catégorie | Force | Promesse | Statut bot V2.2 |
 |---|---|---|---|
 | Solide | n'importe | "j'ai exactement la main V2.1" | Implémenté (V2.1) |
-| Cheek | +10 strict | "j'apporte qqch, déduis" | À implémenter |
+| Chiquer | +10 strict | "j'apporte qqch, déduis" | Implémenté (V2.2) |
 | Exploration | n'importe | "j'ai du jeu dans cette couleur" | **Non formalisé** |
 | Défense/Bloquage | n'importe (incl. pass) | "ne se lit pas selon ma main" | À implémenter (partiellement) |
 | Coinche | action distincte | (à formaliser) | Reporté |
@@ -288,7 +291,7 @@ prendre en compte ces 3 sous-modalités. **Non implémenté pour V2.2 bot.**
 1. **Anti-double-comptage** : règle déterministe arithmétique (Niveau 1
    uniquement). Faisable en commit isolé.
 
-2. **Cheek** : règle conditionnelle (+10 si certaines conditions sont
+2. **Chiquer** : règle conditionnelle (+10 si certaines conditions sont
    réunies). Plus complexe — nécessite que le bot évalue le contexte
    compétitif.
 
@@ -321,6 +324,6 @@ Avant de coder V2.2 dans le bot :
 - [ ] Préciser la sémantique exacte du 90 (au moins 1 As ext vs exactement)
        quand pertinent pour anti-double-comptage
 - [ ] Designer 15-20 scénarios training ciblés sur Principe 1 et catégories
-       (cheek, défense)
+       (chiquer, défense)
 - [ ] Implémenter Niveau 1 anti-double-comptage dans `botBidding.js`
 - [ ] Ajouter R/B blocs pour anti-double-comptage dans `verify.js`

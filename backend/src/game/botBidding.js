@@ -203,7 +203,7 @@ function classifyResponseTo120(hand, partnerSuit) {
 // ─── V2.2 helpers ──────────────────────────────────────────────────────────
 //
 // Status: partial formalization (see docs/la-feuille-v2.md "V2.2" section).
-// Only Principle 1 (anti-double-comptage) and a minimal Cheek are wired.
+// Only Principle 1 (anti-double-comptage) and a minimal Chiquer are wired.
 // Defense/Bloquage, Exploration, Coinche are deliberately not implemented.
 
 // Minimum aces promised by each V2.1 opening, per the V2.2 mapping table.
@@ -211,7 +211,7 @@ function classifyResponseTo120(hand, partnerSuit) {
 // after my own opening.
 const AS_PROMIS_BY_OPENING = { 80: 2, 90: 1, 100: 1, 110: 2, 120: 1 };
 
-// Solid V2.1 opening values — used by Cheek to decide whether partner's
+// Solid V2.1 opening values — used by Chiquer to decide whether partner's
 // earlier bid is a Feuille promise we can support.
 const SOLIDE_OPENING_VALUES = [80, 90, 100, 110, 120];
 
@@ -228,7 +228,7 @@ function findMyOpeningBid(biddingHistory, position) {
 }
 
 // Find the most recent 'bid' entry by a given seat. Used to locate partner's
-// last bid for the Cheek-target suit.
+// last bid for the Chiquer-target suit.
 function findLastBidBy(biddingHistory, position) {
   let last = null;
   for (const e of (biddingHistory || [])) {
@@ -256,16 +256,23 @@ function antiDoubleComptageRaise(myHand, myOpening, partnerRaise) {
   };
 }
 
-// V2.2 minimal Cheek.
+// V2.2 minimal Chiquer.
+//
+// "Chiquer" = monter l'enchère de +10 strict au-dessus de l'annonce
+// adverse courante, dans la couleur d'atout du partenaire. C'est un signal
+// d'apport ("j'apporte un petit quelque chose", typiquement 1 As ext ou un
+// soutien minimal). Ce N'EST PAS une coinche — pas de doublement de score,
+// pas de pénalité, on continue l'enchère normalement.
+//
 // Conditions (all must hold):
 //   - currentBid is by an opponent (not me, not my partner)
 //   - partner has an earlier 'bid' in the history
 //   - partner's last bid is a SOLIDE V2.1 opening (80/90/100/110/120)
 //   - opponent's currentBid is a numeric overcall (> partner's last bid)
 //   - I have at least 1 ace
-//   - resulting +10 cheek is ≤ 160 (hard cap, no ridiculous escalation)
+//   - resulting +10 chiquer is ≤ 160 (hard cap, no ridiculous escalation)
 // Returns { value: currentBid.value + 10, suit: partner_last_bid.suit } or null.
-function cheekIfApplicable(myHand, currentBid, biddingHistory, myPosition) {
+function chiquerIfApplicable(myHand, currentBid, biddingHistory, myPosition) {
   if (!currentBid) return null;
   const partnerPos = (myPosition + 2) % 4;
   const bidderPos  = currentBid.playerIndex;
@@ -276,9 +283,9 @@ function cheekIfApplicable(myHand, currentBid, biddingHistory, myPosition) {
   if (typeof currentBid.value !== 'number') return null;
   if (currentBid.value <= partnerLast.value) return null;     // not an overcall
   if (totalAces(myHand) < 1) return null;
-  const cheekValue = currentBid.value + 10;
-  if (cheekValue > 160) return null;
-  return { value: cheekValue, suit: partnerLast.suit };
+  const chiquerValue = currentBid.value + 10;
+  if (chiquerValue > 160) return null;
+  return { value: chiquerValue, suit: partnerLast.suit };
 }
 
 function partnerResponseBid(hand, partnerBid) {
@@ -330,20 +337,20 @@ function getBotBidAction(game, position) {
       return { type: 'pass' };
     }
 
-    // 4. Opponent is highest bidder + partner has bid earlier → try Cheek
+    // 4. Opponent is highest bidder + partner has bid earlier → try Chiquer
     const partnerHasBid = history.some(
       e => e.position === partnerPos && e.type === 'bid',
     );
     if (partnerHasBid) {
-      const cheek = cheekIfApplicable(
+      const chiquer = chiquerIfApplicable(
         game.hands[position], game.currentBid, history, position,
       );
-      if (cheek && cheek.value > game.currentBid.value) {
-        return { type: 'bid', value: cheek.value, suit: cheek.suit };
+      if (chiquer && chiquer.value > game.currentBid.value) {
+        return { type: 'bid', value: chiquer.value, suit: chiquer.suit };
       }
     }
 
-    // 5. Opponent is highest bidder, no Cheek applicable → pass
+    // 5. Opponent is highest bidder, no Chiquer applicable → pass
     return { type: 'pass' };
   }
 
@@ -371,6 +378,6 @@ module.exports = {
   classifyResponseTo120,
   // V2.2 helpers
   antiDoubleComptageRaise,
-  cheekIfApplicable,
+  chiquerIfApplicable,
   findMyOpeningBid,
 };
