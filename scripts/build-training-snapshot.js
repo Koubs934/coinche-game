@@ -116,13 +116,14 @@ function actionMatches(userAction, expectedAction) {
 // v3 annotations carry divergenceType / divergenceAgreement directly. v2
 // annotations don't — they predate the divergence schema. Splitting the
 // dataset on schemaVersion lets us emit two distinct sections without
-// guessing.
+// guessing. v4 is a strict superset of v3 (adds optional claude_conversation),
+// so it analyses identically.
 function partitionByVersion(annotations) {
   const v2 = [], v3 = [];
   for (const a of annotations) {
-    if (a.schemaVersion === 3)      v3.push(a);
-    else if (a.schemaVersion === 2) v2.push(a);
-    else                            v2.push(a); // v1 / unknown — bucket with legacy
+    if (a.schemaVersion === 3 || a.schemaVersion === 4) v3.push(a);
+    else if (a.schemaVersion === 2)                     v2.push(a);
+    else                                                 v2.push(a); // v1 / unknown — bucket with legacy
   }
   return { v2, v3 };
 }

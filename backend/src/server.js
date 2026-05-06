@@ -2,6 +2,8 @@ const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 
 const rm = require('./roomManager');
 const { scheduleBotTurns, scheduleBotConfirms, scheduleBotShuffleCut } = require('./botProcessor');
@@ -9,6 +11,7 @@ const rateLimit = require('./rateLimit');
 const persistence = require('./persistence');
 const gameRecordStorage = require('./game/gameRecordStorage');
 const { registerTrainingHandlers, runStartupCleanup: trainingStartupCleanup } = require('./training/trainingSocket');
+const claudeService = require('./services/claudeService');
 // Event payload contract for every socket.on / socket.emit below:
 // see socketEvents.js. Update both sides (FE + BE) when changing a payload.
 require('./socketEvents');
@@ -69,6 +72,221 @@ app.use(cors({ origin: originAllowed }));
 app.use(express.json());
 
 app.get('/health', (_, res) => res.json({ ok: true }));
+
+// ─── V2.2 Claude conversational annotation (Phase 1) ──────────────────────
+// Three endpoints attach a Socratic-detective conversation to an existing
+// "Pas d'accord" annotation. State lives in the annotation file itself
+// under `claude_conversation` (schemaVersion 4). No socket.io path here —
+// the FE polls/streams via plain HTTP since the conversation is bound to
+// a specific annotation file, not a live game room.
+
+const TRAINING_ROOT = () => process.env.TRAINING_DATA_DIR
+  || path.join(__dirname, '..', 'data', 'training');
+const SCENARIOS_DIR = path.join(__dirname, 'training', 'scenarios');
+const FEUILLE_PATH  = path.join(__dirname, '..', '..', 'docs', 'la-feuille-v2.md');
+
+function safeUserSeg(userId) {
+  return String(userId).replace(/[\\/]/g, '_');
+}
+
+function annotationPath(userId, filename) {
+  // Defence-in-depth: filename must be a flat .json file, no path traversal.
+  const safe = String(filename);
+  if (!safe.endsWith('.json'))               throw new Error('annotationFilename must be a .json file');
+  if (safe.includes('/') || safe.includes('\\') || safe.includes('..')) {
+    throw new Error('annotationFilename must not contain path separators');
+  }
+  return path.join(TRAINING_ROOT(), safeUserSeg(userId), safe);
+}
+
+function readAnnotation(userId, filename) {
+  const p = annotationPath(userId, filename);
+  if (!fs.existsSync(p)) return null;
+  return JSON.parse(fs.readFileSync(p, 'utf8'));
+}
+
+function writeAnnotationAtomic(userId, filename, record) {
+  const target = annotationPath(userId, filename);
+  const tmp = `${target}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(record, null, 2));
+  fs.renameSync(tmp, target);
+}
+
+function loadScenario(scenarioId) {
+  const p = path.join(SCENARIOS_DIR, `${scenarioId}.json`);
+  if (!fs.existsSync(p)) return null;
+  return JSON.parse(fs.readFileSync(p, 'utf8'));
+}
+
+function loadFeuille() {
+  if (!fs.existsSync(FEUILLE_PATH)) return '(la-feuille-v2.md introuvable)';
+  return fs.readFileSync(FEUILLE_PATH, 'utf8');
+}
+
+// last 10 completed annotations of this user, excluding the current file
+// and the _exhausted.json sidecar. Sorted by completedAt desc.
+function loadPastAnnotations(userId, currentFilename) {
+  const dir = path.join(TRAINING_ROOT(), safeUserSeg(userId));
+  if (!fs.existsSync(dir)) return [];
+  const out = [];
+  for (const entry of fs.readdirSync(dir)) {
+    if (!entry.endsWith('.json'))         continue;
+    if (entry === currentFilename)        continue;
+    if (entry.startsWith('_'))            continue; // _exhausted.json etc.
+    try {
+      const rec = JSON.parse(fs.readFileSync(path.join(dir, entry), 'utf8'));
+      if (rec.status !== 'complete') continue;
+      out.push(rec);
+    } catch {
+      // skip corrupt files silently — best-effort context
+    }
+  }
+  out.sort((a, b) => String(b.completedAt || '').localeCompare(String(a.completedAt || '')));
+  return out.slice(0, 10);
+}
+
+function nowIso() { return new Date().toISOString(); }
+
+function buildContext(userId, annotation, currentFilename) {
+  const scenario = loadScenario(annotation.scenarioId);
+  if (!scenario) throw new Error(`scenario not found: ${annotation.scenarioId}`);
+  return {
+    scenario,
+    feuilleContent:  loadFeuille(),
+    userName:        annotation.username || 'l\'utilisateur',
+    pastAnnotations: loadPastAnnotations(userId, currentFilename),
+  };
+}
+
+app.post('/api/conversation/start', async (req, res) => {
+  const { userId, annotationFilename } = req.body || {};
+  if (!userId || !annotationFilename) {
+    return res.status(400).json({ error: 'userId and annotationFilename required' });
+  }
+  let annotation;
+  try {
+    annotation = readAnnotation(userId, annotationFilename);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  if (!annotation) return res.status(404).json({ error: 'annotation not found' });
+  if (annotation.decisions?.[0]?.divergenceAgreement !== 'user-disagrees') {
+    return res.status(400).json({ error: 'conversation only available for "user-disagrees" annotations' });
+  }
+  if (annotation.claude_conversation && !annotation.claude_conversation.ended_at) {
+    return res.status(400).json({ error: 'conversation already started for this annotation' });
+  }
+
+  let context;
+  try {
+    context = buildContext(userId, annotation, annotationFilename);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+
+  let result;
+  try {
+    result = await claudeService.startConversation({
+      scenario: context.scenario,
+      annotation,
+      userName: context.userName,
+      pastAnnotations: context.pastAnnotations,
+      feuilleContent: context.feuilleContent,
+    });
+  } catch (err) {
+    console.error('[conversation/start] Anthropic call failed:', err.message);
+    return res.status(502).json({ error: 'Claude API call failed', detail: err.message });
+  }
+
+  const startedAt = nowIso();
+  annotation.schemaVersion = 4;
+  annotation.claude_conversation = {
+    started_at:      startedAt,
+    messages: [
+      { role: 'claude', content: result.text, timestamp: startedAt },
+    ],
+    card_selections: [],
+    rule_candidates: [],
+    ended_at:        null,
+    ended_reason:    null,
+  };
+  writeAnnotationAtomic(userId, annotationFilename, annotation);
+  return res.json({ message: result.text, usage: result.usage });
+});
+
+app.post('/api/conversation/turn', async (req, res) => {
+  const { userId, annotationFilename, userMessage } = req.body || {};
+  if (!userId || !annotationFilename || typeof userMessage !== 'string' || !userMessage.trim()) {
+    return res.status(400).json({ error: 'userId, annotationFilename, userMessage required' });
+  }
+  let annotation;
+  try {
+    annotation = readAnnotation(userId, annotationFilename);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  if (!annotation) return res.status(404).json({ error: 'annotation not found' });
+  const conv = annotation.claude_conversation;
+  if (!conv)              return res.status(400).json({ error: 'no conversation on this annotation' });
+  if (conv.ended_at)      return res.status(400).json({ error: 'conversation already ended' });
+
+  let context;
+  try {
+    context = buildContext(userId, annotation, annotationFilename);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+
+  // Rebuild the seed scenario message so Claude has context on every turn.
+  // We don't store it in `messages[]` (FE doesn't need to render the synthetic
+  // seed) but we always prepend it before calling the API.
+  const seedMessage = claudeService.formatScenarioForClaude(context.scenario, annotation);
+  const conversationHistory = [
+    { role: 'user', content: seedMessage },
+    ...conv.messages,
+  ];
+
+  let result;
+  try {
+    result = await claudeService.continueConversation({
+      conversationHistory,
+      userMessage,
+      context: {
+        feuilleContent:  context.feuilleContent,
+        userName:        context.userName,
+        pastAnnotations: context.pastAnnotations,
+      },
+    });
+  } catch (err) {
+    console.error('[conversation/turn] Anthropic call failed:', err.message);
+    return res.status(502).json({ error: 'Claude API call failed', detail: err.message });
+  }
+
+  const userTs = nowIso();
+  conv.messages.push({ role: 'user', content: userMessage, timestamp: userTs });
+  conv.messages.push({ role: 'claude', content: result.text, timestamp: nowIso() });
+  writeAnnotationAtomic(userId, annotationFilename, annotation);
+  return res.json({ message: result.text, usage: result.usage });
+});
+
+app.post('/api/conversation/end', (req, res) => {
+  const { userId, annotationFilename, reason } = req.body || {};
+  if (!userId || !annotationFilename || !['skip', 'completed'].includes(reason)) {
+    return res.status(400).json({ error: 'userId, annotationFilename, reason required (skip|completed)' });
+  }
+  let annotation;
+  try {
+    annotation = readAnnotation(userId, annotationFilename);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  if (!annotation)                    return res.status(404).json({ error: 'annotation not found' });
+  if (!annotation.claude_conversation) return res.status(400).json({ error: 'no conversation on this annotation' });
+  annotation.claude_conversation.ended_at = nowIso();
+  annotation.claude_conversation.ended_reason = reason;
+  writeAnnotationAtomic(userId, annotationFilename, annotation);
+  return res.json({ ok: true });
+});
 
 // ─── Auth middleware ───────────────────────────────────────────────────────
 

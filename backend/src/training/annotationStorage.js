@@ -7,6 +7,20 @@
 //
 // Atomicity: writes go through <path>.tmp then fs.renameSync to <path>.
 //
+// v4 (2026-05-05): introduced optional `claude_conversation` field for the
+// V2.2 conversational-annotation flow (Phase 1). New annotations are written
+// with schemaVersion: 4. Existing v3 records are not migrated and remain
+// valid on disk; readers handle v3 and v4 identically except that v4 may
+// carry the conversation field. Shape of `claude_conversation`:
+//   {
+//     started_at:       ISO 8601,
+//     messages:         [{ role: 'claude' | 'user', content, timestamp }, ...],
+//     card_selections:  [],   // Phase 3 — always empty in Phase 1
+//     rule_candidates:  [],   // Phase 3 — always empty in Phase 1
+//     ended_at:         ISO 8601 | null,
+//     ended_reason:     'skip' | 'completed' | null,
+//   }
+//
 // v3 (2026-05-04): replaced structured tag vocabulary with a divergence-
 // driven flow. New fields:
 //   - divergenceType:        null | 'value-different' | 'suit-different' |
@@ -31,8 +45,9 @@
 const fs   = require('fs');
 const path = require('path');
 
-// Annotation-record schema bumped from 2 to 3 with the v3 cutover.
-const SCHEMA_VERSION          = 3;
+// Annotation-record schema bumped to 4 for the V2.2 Claude conversational
+// flow. New annotations write v4. v3 records stay valid on disk.
+const SCHEMA_VERSION          = 4;
 const PARTIAL_TTL_MS          = 30 * 60 * 1000;
 const STATUS_AWAITING_REASON  = 'awaiting-reason';
 const STATUS_COMPLETE         = 'complete';

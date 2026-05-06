@@ -125,7 +125,7 @@ describe('training flow — happy path (match case, v3)', () => {
     expect(partialFiles).toHaveLength(1);
     const partialPath = path.join(userDir, partialFiles[0]);
     const partial = JSON.parse(fs.readFileSync(partialPath, 'utf8'));
-    expect(partial.schemaVersion).toBe(3);
+    expect(partial.schemaVersion).toBe(4);
     expect(partial).not.toHaveProperty('tagsSchemaVersion');
     expect(partial.status).toBe('awaiting-reason');
     expect(partial.decisions[0].action).toEqual({ type: 'pass' });
@@ -153,7 +153,7 @@ describe('training flow — happy path (match case, v3)', () => {
     expect(finalFiles).toHaveLength(1);
     expect(finalFiles[0]).toBe(partialFiles[0]);
     const annotation = JSON.parse(fs.readFileSync(partialPath, 'utf8'));
-    expect(annotation.schemaVersion).toBe(3);
+    expect(annotation.schemaVersion).toBe(4);
     expect(annotation.scenarioSchemaVersion).toBe(2);
     expect(annotation).not.toHaveProperty('tagsSchemaVersion');
     expect(annotation.status).toBe('complete');
@@ -267,7 +267,7 @@ describe('training flow — partial resume', () => {
     expect(finalFiles[0]).toBe(partialFilename);
 
     const finalAnnotation = JSON.parse(fs.readFileSync(partialPath, 'utf8'));
-    expect(finalAnnotation.schemaVersion).toBe(3);
+    expect(finalAnnotation.schemaVersion).toBe(4);
     expect(finalAnnotation.status).toBe('complete');
     expect(finalAnnotation.startedAt).toBe(partialBefore.startedAt);
     expect(finalAnnotation.decisions[0].divergenceType).toBe('rule-silent');
