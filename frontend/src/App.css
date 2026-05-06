@@ -50,18 +50,23 @@ a      { color: var(--accent); }
 /* ─── Header ────────────────────────────────────────────────────────────── */
 .app-header {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 10px;
   background: var(--ui-bg);
   border-bottom: 1px solid #333;
   flex-shrink: 0;
-  min-height: 44px;
-  flex-wrap: wrap;
 }
-.header-left  { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-.header-left-row { display: flex; align-items: center; gap: 6px; }
-.header-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.app-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.app-header-row-left  { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.app-header-row-right { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .app-logo     { font-weight: bold; font-size: 1.1em; color: var(--accent); }
 .room-code    { font-size: 0.75em; background: #333; padding: 2px 6px; border-radius: 4px; letter-spacing: 2px; }
 
@@ -70,8 +75,9 @@ a      { color: var(--accent); }
   align-items: center;
   gap: 4px;
   font-size: 0.85em;
-  flex: 1;
-  justify-content: center;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
 }
 .score-item   { white-space: nowrap; }
 .score-item strong { font-size: 1.05em; }
@@ -567,6 +573,9 @@ a      { color: var(--accent); }
 
 @media (max-width: 480px) {
   .hand-size-toggle { padding: 8px 12px; }
+  /* Narrow portrait phones: drop the "— targetScore" suffix so the score
+     fits next to the logo + room-code on Row 1 without overflow. */
+  .score-target { display: none; }
 }
 
 /* Training-mode top bar — narrow strip above GameBoard hosting the toggle.
@@ -1647,9 +1656,8 @@ a      { color: var(--accent); }
 
   /* ── Header ── */
   .app-header {
-    min-height: 32px;
-    padding: 3px 8px;
-    flex-wrap: nowrap;
+    padding: 2px 8px;
+    gap: 2px;
   }
   .header-user  { display: none; }
   .score-target { display: none; }
