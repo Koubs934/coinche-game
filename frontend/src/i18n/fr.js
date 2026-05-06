@@ -278,5 +278,21 @@ export default {
       required:    '(requis)',
       placeholder: 'Expliquez votre raisonnement...',
     },
+    // V2.2 Phase 2 — inline Claude conversation that opens after a
+    // "Pas d'accord" annotation. Conversation content itself is always
+    // French (system prompt locks it); these keys cover the surrounding UI.
+    claudeConversation: {
+      heading:           'Discussion avec Claude',
+      authorClaude:      'Claude',
+      loadingFirst:      'Claude prépare sa première question…',
+      loadingTurn:       'Claude réfléchit…',
+      inputPlaceholder:  'Votre réponse…',
+      sendBtn:           'Envoyer',
+      endBtn:            'Terminer la discussion',
+      errorRetry:        'Erreur de connexion. Réessayer ?',
+      retryBtn:          'Réessayer',
+      contextHand:       'Votre main',
+      contextBidding:    'Enchères',
+    },
   },
 };

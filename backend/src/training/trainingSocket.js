@@ -234,12 +234,16 @@ function registerTrainingHandlers(socket) {
 
     socket.emit('trainingCompleted', {
       runId:      run.runId,
+      // V2.2 Phase 2: clients post to /api/conversation/* with this filename
+      // when divergenceAgreement === 'user-disagrees'. partialId is the
+      // stable filename token used by annotationStorage; .json is appended
+      // exactly as on disk.
+      annotationFilename: `${run.partialId}.json`,
       annotation: {
         scenarioId:  run.scenarioId,
         startedAt:   run.startedAt,
         completedAt: new Date().toISOString(),
         decisions:   run.decisions,
-        // NOTE: the client doesn't need the file path; kept out of payload.
       },
     });
 

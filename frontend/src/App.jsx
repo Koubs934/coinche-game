@@ -92,6 +92,7 @@ export default function App() {
   const [trainingScenarios,  setTrainingScenarios]  = useState([]);
   const [trainingRun,        setTrainingRun]        = useState(null); // { trainingState, room, game, myPosition }
   const [trainingAnnotation, setTrainingAnnotation] = useState(null); // set by trainingCompleted
+  const [trainingAnnotationFilename, setTrainingAnnotationFilename] = useState(null);
   const [trainingResumable,  setTrainingResumable]  = useState([]);
   const [trainingExhausted,  setTrainingExhausted]  = useState([]);   // list from exhaustedScenarios event
   // v3 (2026-05-04): the structured tag vocabulary was removed. The
@@ -206,8 +207,9 @@ export default function App() {
     });
     socket.on('trainingUpdate',         (payload) => setTrainingRun(payload));
     socket.on('trainingAwaitingReason', (payload) => setTrainingRun(payload));
-    socket.on('trainingCompleted', ({ annotation }) => {
+    socket.on('trainingCompleted', ({ annotation, annotationFilename }) => {
       setTrainingAnnotation(annotation);
+      setTrainingAnnotationFilename(annotationFilename ?? null);
       setTrainingView('complete');
     });
     // v3.1 (2026-05-04): the post-submit "Autre stratégie possible ?"
@@ -289,6 +291,7 @@ export default function App() {
     }
     setTrainingRun(null);
     setTrainingAnnotation(null);
+    setTrainingAnnotationFilename(null);
     setTrainingView('picker');
   }
   function goToPickerFromLobby() {
@@ -297,6 +300,7 @@ export default function App() {
   function exitTraining() {
     setTrainingRun(null);
     setTrainingAnnotation(null);
+    setTrainingAnnotationFilename(null);
     setTrainingResumable(list => list); // keep resumable around; user may come back
     setTrainingView(null);
   }
@@ -309,6 +313,7 @@ export default function App() {
     const next = idx >= 0 && idx < sorted.length - 1 ? sorted[idx + 1] : null;
     if (!next) { backToPicker(); return; }
     setTrainingAnnotation(null);
+    setTrainingAnnotationFilename(null);
     setTrainingRun(null);
     socketRef.current?.emit('startTrainingScenario', { scenarioId: next.id });
   }
@@ -380,6 +385,10 @@ export default function App() {
         {trainingView === 'complete' && trainingAnnotation && (
           <CompletionSummary
             annotation={trainingAnnotation}
+            annotationFilename={trainingAnnotationFilename}
+            userId={user?.id}
+            userName={username}
+            scenarioSnapshot={trainingRun}
             onBackToPicker={backToPicker}
             onNextScenario={nextScenario}
             hasNextScenario={hasNextScenario}

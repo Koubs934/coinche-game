@@ -278,5 +278,22 @@ export default {
       required:    '(required)',
       placeholder: 'Explain your reasoning...',
     },
+    // V2.2 Phase 2 — inline Claude conversation that opens after a
+    // "Disagree" annotation. Conversation content itself is always French
+    // (the Anthropic system prompt locks it). These keys cover the
+    // surrounding UI chrome only.
+    claudeConversation: {
+      heading:           'Discussion with Claude',
+      authorClaude:      'Claude',
+      loadingFirst:      'Claude is preparing the first question…',
+      loadingTurn:       'Claude is thinking…',
+      inputPlaceholder:  'Your response…',
+      sendBtn:           'Send',
+      endBtn:            'End discussion',
+      errorRetry:        'Connection error. Retry?',
+      retryBtn:          'Retry',
+      contextHand:       'Your hand',
+      contextBidding:    'Bidding',
+    },
   },
 };
