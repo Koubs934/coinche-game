@@ -22,6 +22,9 @@ docs/games-report.html
 # ── Playwright smoke screenshots ──────────────────────────────────────────────
 frontend/tests/shots/
 
+# ── Playwright MCP session traces (per-session, regenerated on use) ──────────
+.playwright-mcp/
+
 # ── OS / editor noise ─────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
