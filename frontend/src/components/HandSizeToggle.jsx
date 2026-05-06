@@ -38,7 +38,7 @@ export default function HandSizeToggle({ onCycle }) {
       aria-label="Mode Delfino — agrandir les cartes"
       title="Mode Delfino — agrandir les cartes"
     >
-      <span className="hand-size-toggle-icon" aria-hidden="true">🃏</span>
+      <span className="hand-size-toggle-icon" aria-hidden="true">🧐</span>
       <span className="hand-size-toggle-label">Mode Delfino</span>
     </button>
   );

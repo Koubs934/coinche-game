@@ -9,8 +9,10 @@ export default function Header({ roomCode, scores, targetScore, onCycleHandSize 
   return (
     <header className="app-header">
       <div className="header-left">
-        <span className="app-logo">♦ Belote</span>
-        {roomCode && <span className="room-code">{roomCode}</span>}
+        <div className="header-left-row">
+          <span className="app-logo">♦ Belote</span>
+          {roomCode && <span className="room-code">{roomCode}</span>}
+        </div>
         {onCycleHandSize && <HandSizeToggle onCycle={onCycleHandSize} />}
       </div>
 
