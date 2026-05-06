@@ -2435,44 +2435,21 @@ a      { color: var(--accent); }
    is scoped to its own .claude-conversation block so it can later be
    reused outside CompletionSummary if the integration point moves. */
 
-.claude-context-card {
+/* Wrapper for the AuctionRecap embedded in the completion-summary card.
+   The recap's natural width (4 seats × ~130px ≈ 520px) is wider than the
+   .summary-card max-width (440px) on narrow viewports, so we let it scroll
+   horizontally inside its container instead of letting it break the card
+   layout. The bottom margin matches the gap between summary-card sections. */
+.completion-summary-recap {
+  width: 100%;
   margin: 0 0 16px;
-  padding: 10px 12px;
-  background: var(--ui-bg);
-  border-radius: var(--radius);
-  font-size: 0.85em;
+  overflow-x: auto;
 }
-.cc-context-section { margin-bottom: 8px; }
-.cc-context-section:last-child { margin-bottom: 0; }
-.cc-context-label {
-  font-size: 0.7em;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-.cc-context-hand {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  font-weight: 600;
-}
-.cc-context-suit {
-  display: inline-flex;
-  gap: 4px;
-  align-items: baseline;
-}
-.cc-context-suit-symbol { font-size: 1.1em; }
-.cc-context-red { color: var(--accent2); }
-.cc-context-bids {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-}
-.cc-bid {
-  display: inline-flex;
-  white-space: nowrap;
+.completion-summary-recap .auction-recap {
+  /* The recap defaults to max-width: 440px; let it expand to its natural
+     width so the seat grid breathes when there's room, then scroll if not. */
+  max-width: none;
+  margin: 0 auto;
 }
 
 .claude-conversation {

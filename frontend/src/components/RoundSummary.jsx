@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLang } from '../context/LanguageContext';
+import AuctionRecap from './shared/AuctionRecap';
 
 const SUIT_SYM      = { S: '♠', H: '♥', D: '♦', C: '♣' };
 const TRUMP_PTS     = { J: 20, '9': 14, A: 11, '10': 10, K: 4, Q: 3, '8': 0, '7': 0 };
@@ -7,60 +8,6 @@ const NON_TRUMP_PTS = { A: 11, '10': 10, K: 4, Q: 3, J: 2, '9': 0, '8': 0, '7': 
 
 function cardPts(card, trump) {
   return ((card.suit === trump) ? TRUMP_PTS : NON_TRUMP_PTS)[card.value] || 0;
-}
-
-// Explicit rank arrays (TRUMP_PTS / NON_TRUMP_PTS would tie 8/7 at 0 points,
-// which would make the sort non-deterministic for those cards).
-const TRUMP_RANK     = ['J', '9', 'A', '10', 'K', 'Q', '8', '7'];
-const NON_TRUMP_RANK = ['A', '10', 'K', 'Q', 'J', '9', '8', '7'];
-const SUIT_ORDER     = ['S', 'H', 'D', 'C'];
-
-// Sort a hand for display: trump cards first (in trump-rank order), then
-// the other 3 suits in canonical order, each in non-trump rank order.
-function sortHandByTrump(hand, trump) {
-  return [...hand].sort((a, b) => {
-    const aTrump = a.suit === trump;
-    const bTrump = b.suit === trump;
-    if (aTrump !== bTrump) return aTrump ? -1 : 1;
-    if (aTrump) return TRUMP_RANK.indexOf(a.value) - TRUMP_RANK.indexOf(b.value);
-    const suitDiff = SUIT_ORDER.indexOf(a.suit) - SUIT_ORDER.indexOf(b.suit);
-    if (suitDiff !== 0) return suitDiff;
-    return NON_TRUMP_RANK.indexOf(a.value) - NON_TRUMP_RANK.indexOf(b.value);
-  });
-}
-
-// Per-seat atout used to sort the displayed initial hand at round end:
-//   - Taker and partner: sorted by the contract trump
-//   - Opponent who bid:  sorted by the suit of their LAST bid
-//   - Opponent who only passed: sorted by the contract trump (fallback)
-function getAtoutForSeat(position, currentBid, biddingHistory) {
-  if (!currentBid) return null;
-  const takerPos   = currentBid.playerIndex;
-  const partnerPos = (takerPos + 2) % 4;
-  if (position === takerPos || position === partnerPos) return currentBid.suit;
-  let lastBid = null;
-  for (const e of (biddingHistory || [])) {
-    if (e.position === position && e.type === 'bid') lastBid = e;
-  }
-  return lastBid ? lastBid.suit : currentBid.suit;
-}
-
-// Compact 8-card mini-strip shown under each seat at round end. Pure display.
-function HandStrip({ hand, trump }) {
-  if (!Array.isArray(hand) || hand.length !== 8) return null;
-  const sorted = sortHandByTrump(hand, trump);
-  return (
-    <div className="hand-strip">
-      {sorted.map((c, i) => {
-        const isRed = c.suit === 'H' || c.suit === 'D';
-        return (
-          <span key={i} className={`hand-strip-card ${isRed ? 'red' : 'black'}`}>
-            {c.value}{SUIT_SYM[c.suit]}
-          </span>
-        );
-      })}
-    </div>
-  );
 }
 
 // ─── All-tricks view ──────────────────────────────────────────────────────────
@@ -126,8 +73,8 @@ function AllTricksView({ tricks, trumpSuit, players, onBack, t }) {
 
 // ─── Unified top area: auction recap ↔ trick replay ──────────────────────────
 //
-// replayStep -1  → auction recap mode
-// replayStep 0+  → trick replay mode, showing tricks[replayStep]
+// replayStep -1  → auction recap mode (delegated to <AuctionRecap />)
+// replayStep 0+  → trick replay mode (rendered inline below)
 
 function TopArea({
   biddingHistory, currentBid,
@@ -140,6 +87,35 @@ function TopArea({
   const isReplaying = replayStep >= 0;
   const hasTricks   = tricks?.length > 0;
 
+  // ── Auction-mode branch — delegated to AuctionRecap ─────────────────────────
+  // The Rejouer button is rendered as children so it stays inside the
+  // .auction-recap flex column (and inherits the 4px gap) instead of jumping
+  // out as a sibling and losing its visual anchoring to the recap.
+  if (!isReplaying) {
+    return (
+      <AuctionRecap
+        players={players}
+        biddingHistory={biddingHistory}
+        currentBid={currentBid}
+        myPosition={myPosition}
+        trumpSuit={trumpSuit}
+        initialHands={initialHands}
+      >
+        {hasTricks && (
+          <div className="ta-nav">
+            <button className="ta-btn ta-btn-pri ta-btn-replay" onClick={onStartReplay}>
+              {t.replayBtn}
+            </button>
+          </div>
+        )}
+      </AuctionRecap>
+    );
+  }
+
+  // ── Replay-mode branch (replayStep >= 0) ────────────────────────────────────
+  // Same 2x2 seat grid layout, but the chip stack is replaced by a single
+  // played card per seat and the centre felt becomes a trick-info badge.
+
   const topPos   = (myPosition + 2) % 4;
   const leftPos  = (myPosition + 3) % 4;
   const rightPos = (myPosition + 1) % 4;
@@ -148,83 +124,32 @@ function TopArea({
     return players.find(p => p.position === pos)?.username || '?';
   }
 
-  // ── Auction data ────────────────────────────────────────────────────────────
-  const perPlayer = { 0: [], 1: [], 2: [], 3: [] };
-  for (const entry of (biddingHistory || [])) {
-    if (perPlayer[entry.position]) perPlayer[entry.position].push(entry);
+  const trick       = tricks[replayStep];
+  const isLastTrick = replayStep === tricks.length - 1;
+  const leaderId    = trick?.cards[0]?.playerIndex ?? null;
+  const winTeam     = trick ? trick.winner % 2 : null;
+  const winnerName  = trick ? (players.find(p => p.position === trick.winner)?.username || '?') : null;
+
+  let trickPts = trick.cards.reduce((s, { card }) => s + cardPts(card, trumpSuit), 0);
+  if (isLastTrick) trickPts += 10;
+  const cumul = [0, 0];
+  for (let i = 0; i <= replayStep; i++) {
+    const team = tricks[i].winner % 2;
+    for (const { card } of tricks[i].cards) cumul[team] += cardPts(card, trumpSuit);
   }
-  const firstBidderPos = (biddingHistory || [])[0]?.position ?? null;
+  if (isLastTrick) cumul[trick.winner % 2] += 10;
 
-  // ── Replay data ─────────────────────────────────────────────────────────────
-  const trick      = isReplaying ? tricks[replayStep] : null;
-  const isLastTrick = isReplaying && replayStep === tricks.length - 1;
-  const leaderId   = trick?.cards[0]?.playerIndex ?? null;
-  const winTeam    = trick ? trick.winner % 2 : null;
-  const winnerName = trick ? (players.find(p => p.position === trick.winner)?.username || '?') : null;
-
-  let trickPts = 0;
-  const cumul  = [0, 0];
-  if (isReplaying) {
-    trickPts = trick.cards.reduce((s, { card }) => s + cardPts(card, trumpSuit), 0);
-    if (isLastTrick) trickPts += 10;
-    for (let i = 0; i <= replayStep; i++) {
-      const team = tricks[i].winner % 2;
-      for (const { card } of tricks[i].cards) cumul[team] += cardPts(card, trumpSuit);
-    }
-    if (isLastTrick) cumul[trick.winner % 2] += 10;
-  }
-
-  // ── Per-seat content (switches with mode) ───────────────────────────────────
-  function SeatContent({ pos }) {
-    if (isReplaying) {
-      const entry = trick.cards.find(({ playerIndex }) => playerIndex === pos);
-      if (!entry) return <div className="ta-card-empty" />;
-      const isWin  = entry.playerIndex === trick.winner;
-      const isLead = entry.playerIndex === leaderId;
-      const isRed  = entry.card.suit === 'H' || entry.card.suit === 'D';
-      return (
-        <div className={`ta-card${isRed ? ' red' : ''}${isWin ? ' ta-win' : ''}`}>
-          {isLead && <span className="ta-lead">{t.trickLead}</span>}
-          <span className="ta-cf">{entry.card.value}{SUIT_SYM[entry.card.suit]}</span>
-        </div>
-      );
-    }
-
-    // Auction mode
-    const isFirst = pos === firstBidderPos;
-    const actions = [...perPlayer[pos]].reverse();
-    const seatHand = initialHands?.[pos];
-    const seatTrump = currentBid && seatHand ? getAtoutForSeat(pos, currentBid, biddingHistory) : null;
+  function SeatCard({ pos }) {
+    const entry = trick.cards.find(({ playerIndex }) => playerIndex === pos);
+    if (!entry) return <div className="ta-card-empty" />;
+    const isWin  = entry.playerIndex === trick.winner;
+    const isLead = entry.playerIndex === leaderId;
+    const isRed  = entry.card.suit === 'H' || entry.card.suit === 'D';
     return (
-      <>
-        {isFirst && <span className="ar-first-badge">{t.trickLead}</span>}
-        {actions.length > 0 && (
-          <div className="ar-stack">
-            {actions.map((entry, i) => {
-              const isWinningBid =
-                entry.type === 'bid' &&
-                pos === currentBid?.playerIndex &&
-                entry.value === currentBid?.value &&
-                entry.suit  === currentBid?.suit;
-              const isRed = entry.suit === 'H' || entry.suit === 'D';
-              let label;
-              if      (entry.type === 'pass')        label = t.pass;
-              else if (entry.type === 'coinche')     label = t.coinched;
-              else if (entry.type === 'surcoinche')  label = t.surcoinched;
-              else label = entry.value === 'capot' ? t.capot : `${entry.value} ${SUIT_SYM[entry.suit]}`;
-              let cls = 'ar-action';
-              if      (entry.type === 'surcoinche')  cls += ' ar-surcoinche';
-              else if (entry.type === 'coinche')     cls += ' ar-coinche';
-              else if (isWinningBid)                 cls += ` ar-win${isRed ? ' red' : ''}`;
-              else if (entry.type === 'pass')        cls += ' ar-pass';
-              else if (i === 0)                      cls += ` ar-latest${isRed ? ' red' : ''}`;
-              else                                   cls += ' ar-old';
-              return <span key={i} className={cls}>{label}</span>;
-            })}
-          </div>
-        )}
-        {seatHand && seatTrump && <HandStrip hand={seatHand} trump={seatTrump} />}
-      </>
+      <div className={`ta-card${isRed ? ' red' : ''}${isWin ? ' ta-win' : ''}`}>
+        {isLead && <span className="ta-lead">{t.trickLead}</span>}
+        <span className="ta-cf">{entry.card.value}{SUIT_SYM[entry.card.suit]}</span>
+      </div>
     );
   }
 
@@ -232,69 +157,44 @@ function TopArea({
     return (
       <div className="ar-seat">
         <span className="ar-name">{nameAt(pos)}{isMe ? ` (${t.you})` : ''}</span>
-        <SeatContent pos={pos} />
+        <SeatCard pos={pos} />
       </div>
     );
   }
 
   return (
     <div className="auction-recap">
-
-      {/* Mode label */}
       <div className="ta-header">
-        <span className="ta-mode-label">
-          {isReplaying
-            ? `${t.trick} ${replayStep + 1} / ${tricks.length}`
-            : t.biddingPhase}
-        </span>
+        <span className="ta-mode-label">{t.trick} {replayStep + 1} / {tricks.length}</span>
       </div>
-
-      {/* Seats */}
       <div className="ar-top-row"><Seat pos={topPos} /></div>
       <div className="ar-mid-row">
         <Seat pos={leftPos} />
-
-        {/* Center: felt in auction mode, trick info in replay mode */}
-        {isReplaying ? (
-          <div className="ta-trick-info">
-            <span className={`ta-winner-badge twb-team${winTeam}`}>✓ {winnerName}</span>
-            <span className="ta-pts">{trickPts} pts</span>
-            {isLastTrick && <span className="ta-ddd">{t.dixDeDer}</span>}
-            <div className="ta-cumul">
-              <span className="rcu-t0"><strong>{cumul[0]}</strong></span>
-              <span className="rcu-sep"> – </span>
-              <span className="rcu-t1"><strong>{cumul[1]}</strong></span>
-            </div>
+        <div className="ta-trick-info">
+          <span className={`ta-winner-badge twb-team${winTeam}`}>✓ {winnerName}</span>
+          <span className="ta-pts">{trickPts} pts</span>
+          {isLastTrick && <span className="ta-ddd">{t.dixDeDer}</span>}
+          <div className="ta-cumul">
+            <span className="rcu-t0"><strong>{cumul[0]}</strong></span>
+            <span className="rcu-sep"> – </span>
+            <span className="rcu-t1"><strong>{cumul[1]}</strong></span>
           </div>
-        ) : (
-          <div className="ar-table-felt" />
-        )}
-
+        </div>
         <Seat pos={rightPos} />
       </div>
       <div className="ar-bot-row"><Seat pos={myPosition} isMe /></div>
 
-      {/* Bottom nav: Rejouer in summary mode, Précédent+Suivant in replay mode */}
-      {hasTricks && (
-        <div className={`ta-nav${isReplaying ? ' ta-nav-replay' : ''}`}>
-          {isReplaying ? (
-            <>
-              <button className="ta-btn ta-btn-sec" onClick={replayStep === 0 ? onEndReplay : onPrevTrick}>
-                ◀ {replayStep === 0 ? t.replayEnd : t.replayPrev}
-              </button>
-              <button
-                className={isLastTrick ? 'ta-btn ta-btn-sec' : 'ta-btn ta-btn-pri'}
-                onClick={isLastTrick ? onEndReplay : onNextTrick}
-              >
-                {isLastTrick ? t.replayEnd : `${t.replayNext} ▶`}
-              </button>
-            </>
-          ) : (
-            <button className="ta-btn ta-btn-pri ta-btn-replay" onClick={onStartReplay}>{t.replayBtn}</button>
-          )}
-        </div>
-      )}
-
+      <div className="ta-nav ta-nav-replay">
+        <button className="ta-btn ta-btn-sec" onClick={replayStep === 0 ? onEndReplay : onPrevTrick}>
+          ◀ {replayStep === 0 ? t.replayEnd : t.replayPrev}
+        </button>
+        <button
+          className={isLastTrick ? 'ta-btn ta-btn-sec' : 'ta-btn ta-btn-pri'}
+          onClick={isLastTrick ? onEndReplay : onNextTrick}
+        >
+          {isLastTrick ? t.replayEnd : `${t.replayNext} ▶`}
+        </button>
+      </div>
     </div>
   );
 }

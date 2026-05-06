@@ -110,6 +110,7 @@ export default {
   partner: 'Partner',
   left: 'Left',
   right: 'Right',
+  opponent: 'Opponent',
 
   // Misc
   coincheBonus: 'Coinche',

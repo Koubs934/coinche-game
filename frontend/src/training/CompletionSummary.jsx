@@ -23,61 +23,37 @@ import { useState } from 'react';
 import { useLang } from '../context/LanguageContext';
 import { formatActionText, actionIsRed } from './formatAction';
 import ClaudeConversation from './ClaudeConversation';
+import AuctionRecap from '../components/shared/AuctionRecap';
 
-const SUIT_SYMBOL = { S: '♠', H: '♥', D: '♦', C: '♣' };
-const SUIT_RED    = { H: true,  D: true };
+// Build a synthetic 4-player array (positions 0..3) for AuctionRecap with
+// labels relative to the user's seat: self → t.you, +2 → t.partner, +1/+3
+// → t.opponent. The training-mode publicView already includes a `room.players`
+// array but its scripted seats carry `username: null`, which would render
+// as '?' in AuctionRecap — relabelling here keeps the recap readable.
+function buildPlayersForRecap(userSeat, t) {
+  return [0, 1, 2, 3].map(pos => {
+    const offset = (pos - userSeat + 4) % 4;
+    let username;
+    if      (offset === 0) username = t.you;
+    else if (offset === 2) username = t.partner;
+    else                   username = t.opponent;
+    return { position: pos, username, team: pos % 2, isBot: pos !== userSeat };
+  });
+}
 
-function ScenarioContext({ scenarioSnapshot, userName, t }) {
-  // Compact recap of the hand + bidding history. Kept tiny because the
-  // primary surface is the conversation below; this is just a memory aid.
+function ScenarioContextRecap({ scenarioSnapshot, t }) {
   const game     = scenarioSnapshot?.game;
   const userSeat = scenarioSnapshot?.myPosition ?? scenarioSnapshot?.trainingState?.userSeat;
   if (!game || userSeat == null) return null;
-
-  const hand = (game.hands?.[userSeat] || []).filter(c => c && c.suit && c.value);
-  const grouped = { S: [], H: [], D: [], C: [] };
-  for (const c of hand) if (grouped[c.suit]) grouped[c.suit].push(c.value);
-
-  // biddingHistory entries have shape { position, type, value?, suit? }.
-  const bidEvents = (game.biddingHistory || []).filter(e => e && typeof e.type === 'string');
-
-  const cc = t.training.claudeConversation;
   return (
-    <div className="claude-context-card">
-      <div className="cc-context-section">
-        <div className="cc-context-label">{cc.contextHand}</div>
-        <div className="cc-context-hand">
-          {['S', 'H', 'D', 'C'].map(s => grouped[s].length > 0 && (
-            <span key={s} className={`cc-context-suit${SUIT_RED[s] ? ' cc-context-red' : ''}`}>
-              <span className="cc-context-suit-symbol">{SUIT_SYMBOL[s]}</span>
-              <span>{grouped[s].join(' ')}</span>
-            </span>
-          ))}
-        </div>
-      </div>
-      {bidEvents.length > 0 && (
-        <div className="cc-context-section">
-          <div className="cc-context-label">{cc.contextBidding}</div>
-          <div className="cc-context-bids">
-            {bidEvents.map((e, i) => {
-              const role = e.position === userSeat
-                ? userName
-                : e.position === (userSeat + 2) % 4 ? '⤢' : '✕';
-              if (e.type === 'pass')       return <span key={i} className="cc-bid">{role}: pass</span>;
-              if (e.type === 'coinche')    return <span key={i} className="cc-bid">{role}: coinche</span>;
-              if (e.type === 'surcoinche') return <span key={i} className="cc-bid">{role}: surcoinche</span>;
-              if (e.type === 'bid') {
-                return (
-                  <span key={i} className={`cc-bid${SUIT_RED[e.suit] ? ' cc-context-red' : ''}`}>
-                    {role}: {e.value} {SUIT_SYMBOL[e.suit] || ''}
-                  </span>
-                );
-              }
-              return <span key={i} className="cc-bid">{role}: {e.type}</span>;
-            })}
-          </div>
-        </div>
-      )}
+    <div className="completion-summary-recap">
+      <AuctionRecap
+        players={buildPlayersForRecap(userSeat, t)}
+        biddingHistory={game.biddingHistory}
+        currentBid={game.currentBid}
+        myPosition={userSeat}
+        trumpSuit={game.trumpSuit}
+      />
     </div>
   );
 }
@@ -115,7 +91,7 @@ export default function CompletionSummary({
         </div>
 
         {showConversation && scenarioSnapshot && (
-          <ScenarioContext scenarioSnapshot={scenarioSnapshot} userName={userName} t={t} />
+          <ScenarioContextRecap scenarioSnapshot={scenarioSnapshot} t={t} />
         )}
 
         <section className="tc-section">
