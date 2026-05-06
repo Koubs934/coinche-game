@@ -12,6 +12,7 @@ const persistence = require('./persistence');
 const gameRecordStorage = require('./game/gameRecordStorage');
 const { registerTrainingHandlers, runStartupCleanup: trainingStartupCleanup } = require('./training/trainingSocket');
 const claudeService = require('./services/claudeService');
+const { caseTypeFor } = require('./training/divergence');
 // Event payload contract for every socket.on / socket.emit below:
 // see socketEvents.js. Update both sides (FE + BE) when changing a payload.
 require('./socketEvents');
@@ -170,8 +171,15 @@ app.post('/api/conversation/start', async (req, res) => {
     return res.status(400).json({ error: err.message });
   }
   if (!annotation) return res.status(404).json({ error: 'annotation not found' });
-  if (annotation.decisions?.[0]?.divergenceAgreement !== 'user-disagrees') {
-    return res.status(400).json({ error: 'conversation only available for "user-disagrees" annotations' });
+  // V2.2 Phase 2C: rule-silent annotations are also written with
+  // divergenceAgreement === 'user-disagrees' (server-canonical). The only
+  // case without a conversation is the match path, where divergenceType
+  // is null. Match annotations skip the completion screen entirely on the
+  // FE and never hit this endpoint, but guard defensively for direct API
+  // callers (curl, smoke test).
+  const decision = annotation.decisions?.[0];
+  if (!decision || decision.divergenceType === null) {
+    return res.status(400).json({ error: 'conversation only available for divergent or rule-silent annotations' });
   }
   if (annotation.claude_conversation && !annotation.claude_conversation.ended_at) {
     return res.status(400).json({ error: 'conversation already started for this annotation' });
@@ -184,6 +192,8 @@ app.post('/api/conversation/start', async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 
+  const caseType = caseTypeFor(decision.divergenceType);
+
   let result;
   try {
     result = await claudeService.startConversation({
@@ -192,6 +202,7 @@ app.post('/api/conversation/start', async (req, res) => {
       userName: context.userName,
       pastAnnotations: context.pastAnnotations,
       feuilleContent: context.feuilleContent,
+      caseType,
     });
   } catch (err) {
     console.error('[conversation/start] Anthropic call failed:', err.message);
@@ -255,6 +266,7 @@ app.post('/api/conversation/turn', async (req, res) => {
         feuilleContent:  context.feuilleContent,
         userName:        context.userName,
         pastAnnotations: context.pastAnnotations,
+        caseType:        caseTypeFor(annotation.decisions?.[0]?.divergenceType),
       },
     });
   } catch (err) {

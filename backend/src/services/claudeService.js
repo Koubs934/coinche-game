@@ -21,7 +21,21 @@ function getClient() {
   return _client;
 }
 
-function buildSystemPrompt({ feuilleContent, userName, userPastAnnotations }) {
+function buildSystemPrompt({ feuilleContent, userName, userPastAnnotations, caseType }) {
+  // V2.2 Phase 2C: the CONTEXTE paragraph adapts to caseType so Claude
+  // doesn't accuse a rule-silent annotator of "diverging from the rule"
+  // (there is no rule). Default to the divergent framing for backward
+  // compat with the smoke-test script and any caller that doesn't pass
+  // caseType explicitly.
+  const contexte = caseType === 'rule-silent'
+    ? `L'utilisateur s'appelle ${userName}. Il vient de faire une annotation
+sur un cas que la Feuille V2.1 ne couvre pas explicitement. Il a fait
+un choix et le justifie — son raisonnement va aider à compléter la
+Feuille.`
+    : `L'utilisateur s'appelle ${userName}. Il vient de faire une annotation
+"Pas d'accord" — il a annoncé une valeur différente de ce que la Feuille
+V2.1 prescrit, et il défend explicitement son choix.`;
+
   return `Tu es Claude, un assistant conversationnel pour annoter des décisions de coinche.
 
 RÔLE
@@ -30,9 +44,7 @@ pour révéler le raisonnement implicite de l'annotateur. Tu ne donnes JAMAIS
 ton avis sur ce qui est juste ou faux.
 
 CONTEXTE
-L'utilisateur s'appelle ${userName}. Il vient de faire une annotation
-"Pas d'accord" — il a annoncé une valeur différente de ce que la Feuille
-V2.1 prescrit, et il défend explicitement son choix.
+${contexte}
 
 OBJECTIF
 Tu dois COMPRENDRE son raisonnement, pas le corriger. Tes questions doivent :
@@ -187,11 +199,12 @@ function formatPastAnnotations(pastAnnotations) {
   return lines.join('\n');
 }
 
-async function startConversation({ scenario, annotation, userName, pastAnnotations, feuilleContent }) {
+async function startConversation({ scenario, annotation, userName, pastAnnotations, feuilleContent, caseType }) {
   const systemPrompt = buildSystemPrompt({
     feuilleContent,
     userName,
     userPastAnnotations: formatPastAnnotations(pastAnnotations),
+    caseType,
   });
 
   const userMessage = formatScenarioForClaude(scenario, annotation);
@@ -215,6 +228,7 @@ async function continueConversation({ conversationHistory, userMessage, context 
     feuilleContent: context.feuilleContent,
     userName: context.userName,
     userPastAnnotations: formatPastAnnotations(context.pastAnnotations),
+    caseType: context.caseType,
   });
 
   const messages = [

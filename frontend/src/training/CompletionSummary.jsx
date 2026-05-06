@@ -1,23 +1,22 @@
 // Brief summary shown after a scenario is annotated and persisted. Two
 // terminal actions: back to picker, or next scenario.
 //
+// V2.2 Phase 2C (2026-05-05): the "D'accord/Pas d'accord" modal and the
+// rule-silent obligatory-note modal are gone. Match annotations skip the
+// completion screen entirely (App.jsx auto-advances). Divergent and
+// rule-silent annotations both land here and the Claude conversation
+// opens unconditionally — the conversation replaces the modal as the
+// reasoning-collection surface. Note section is rendered only when the
+// user actually wrote one (which won't happen via the new flow, but
+// pre-Phase 2C annotations on disk may still carry a note).
+//
 // V2.2 Phase 2 (2026-05-05): the auction recap is rendered above the card
-// for every completion path (match, divergent, rule-silent) — it's the
-// permanent header per the Phase 2A spec. When the user also submitted
-// with divergenceAgreement === 'user-disagrees' AND we have an
-// annotationFilename, the inline Claude conversation opens below the
-// action/note sections.
+// for every completion path — it's the permanent header per Phase 2A.
 //
 // v3.1 (2026-05-04): the post-submit "Autre stratégie possible ?" overlay
-// was removed; every annotation auto-concludes server-side. The
-// pendingReview / onReviewContinue / onReviewEnd props are gone, and so
-// is the ReviewPromptOverlay component.
+// was removed; every annotation auto-concludes server-side.
 //
-// v3 (2026-05-04): tag rendering removed. The annotation now contains only
-// action + divergenceType + divergenceAgreement + note. We render the
-// action and the note (if present); the divergence machinery is plumbed
-// through but not surfaced — users don't need to see "you matched the
-// rule / you diverged" framing on the success screen.
+// v3 (2026-05-04): tag rendering removed.
 
 import { useState } from 'react';
 import { useLang } from '../context/LanguageContext';
@@ -76,6 +75,7 @@ function ScenarioContextRecap({ scenarioSnapshot, fallbackAction, t }) {
 export default function CompletionSummary({
   annotation,
   annotationFilename,
+  caseType,
   userId,
   userName,
   scenarioSnapshot,
@@ -89,7 +89,13 @@ export default function CompletionSummary({
   const decision = annotation?.decisions?.[0];
   const action   = decision?.action;
   const note     = decision?.note ?? '';
-  const showConversation = decision?.divergenceAgreement === 'user-disagrees'
+
+  // V2.2 Phase 2C — Claude opens for every divergent or rule-silent
+  // annotation. Match never reaches CompletionSummary (App.jsx auto-
+  // advances), but defensively gate on caseType so a stale match
+  // annotation that does land here doesn't try to start a conversation
+  // (the /start endpoint would 400 on a match anyway).
+  const showConversation = (caseType === 'divergent' || caseType === 'rule-silent')
     && !!annotationFilename
     && !!userId;
 
@@ -118,20 +124,22 @@ export default function CompletionSummary({
           <div className={`tc-action${actionRed ? ' tc-red' : ''}`}>{actionText}</div>
         </section>
 
-        <section className="tc-section">
-          <div className="tc-section-label">{c.noteLabel}</div>
-          {note ? (
+        {/* Note section only when the user actually wrote one. Phase 2C's
+            new flow leaves the note empty; legacy annotations may still
+            carry one. */}
+        {note && (
+          <section className="tc-section">
+            <div className="tc-section-label">{c.noteLabel}</div>
             <div className="tc-note">{note}</div>
-          ) : (
-            <div className="tc-empty">{c.noNote}</div>
-          )}
-        </section>
+          </section>
+        )}
 
         {showConversation && !conversationClosed && (
           <ClaudeConversation
             userId={userId}
             annotationFilename={annotationFilename}
             userName={userName}
+            caseType={caseType}
             onClose={() => setConversationClosed(true)}
           />
         )}

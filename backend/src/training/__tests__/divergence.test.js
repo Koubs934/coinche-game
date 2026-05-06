@@ -69,26 +69,22 @@ describe('computeDivergenceType', () => {
   });
 });
 
-describe('validateSubmission — match path', () => {
-  it('accepts a match with null agreement and empty note', () => {
-    const r = validateSubmission({
-      scenario: bidScenario(110, 'S'),
-      action:   { type: 'bid', value: 110, suit: 'S' },
-      divergenceAgreement: null,
-      note: '',
-    });
-    expect(r).toEqual({ ok: true, divergenceType: null });
-  });
+// ─── V2.2 Phase 2C — server-canonical agreement ─────────────────────────
+//
+// The "D'accord / Pas d'accord" modal and the rule-silent obligatory-note
+// modal are gone. validateSubmission no longer rejects — it always returns
+// { ok: true } plus the divergenceType and the canonical agreement to
+// persist. The 4 sentinel error codes (MISSING_REQUIRED_NOTE,
+// MISSING_DIVERGENCE_AGREEMENT, INVALID_DIVERGENCE_AGREEMENT,
+// UNEXPECTED_DIVERGENCE_AGREEMENT) are removed in this phase.
 
-  it('rejects a match if user provided a divergenceAgreement', () => {
+describe('validateSubmission — match path', () => {
+  it('returns null agreement on a match', () => {
     const r = validateSubmission({
       scenario: bidScenario(110, 'S'),
       action:   { type: 'bid', value: 110, suit: 'S' },
-      divergenceAgreement: 'could-be-either',
-      note: '',
     });
-    expect(r.ok).toBe(false);
-    expect(r.code).toBe('UNEXPECTED_DIVERGENCE_AGREEMENT');
+    expect(r).toEqual({ ok: true, divergenceType: null, agreement: null });
   });
 });
 
@@ -96,30 +92,15 @@ describe('validateSubmission — divergent path', () => {
   const scenario = bidScenario(110, 'S');
   const action   = { type: 'bid', value: 100, suit: 'S' }; // value-different
 
-  it('rejects when divergenceAgreement is null on a divergent action', () => {
-    const r = validateSubmission({ scenario, action, divergenceAgreement: null, note: 'x' });
-    expect(r.ok).toBe(false);
-    expect(r.code).toBe('MISSING_DIVERGENCE_AGREEMENT');
+  it('returns user-disagrees + correct divergenceType for a value-different bid', () => {
+    const r = validateSubmission({ scenario, action });
+    expect(r).toEqual({ ok: true, divergenceType: 'value-different', agreement: 'user-disagrees' });
   });
 
-  it('rejects when divergenceAgreement is not in the legal set', () => {
-    const r = validateSubmission({ scenario, action, divergenceAgreement: 'maybe', note: 'x' });
-    expect(r.ok).toBe(false);
-    expect(r.code).toBe('INVALID_DIVERGENCE_AGREEMENT');
-  });
-
-  it('rejects when note is empty (or whitespace-only)', () => {
-    const r1 = validateSubmission({ scenario, action, divergenceAgreement: 'could-be-either', note: '' });
-    const r2 = validateSubmission({ scenario, action, divergenceAgreement: 'user-disagrees',  note: '   ' });
-    expect(r1.code).toBe('MISSING_REQUIRED_NOTE');
-    expect(r2.code).toBe('MISSING_REQUIRED_NOTE');
-  });
-
-  it('accepts a divergent submission with valid agreement + non-empty note', () => {
-    const r = validateSubmission({
-      scenario, action, divergenceAgreement: 'user-disagrees', note: 'because…',
-    });
-    expect(r).toEqual({ ok: true, divergenceType: 'value-different' });
+  it('returns user-disagrees for an action-type-different submission', () => {
+    const r = validateSubmission({ scenario: passScenario(), action: { type: 'bid', value: 80, suit: 'D' } });
+    expect(r.divergenceType).toBe('action-type-different');
+    expect(r.agreement).toBe('user-disagrees');
   });
 });
 
@@ -127,21 +108,8 @@ describe('validateSubmission — rule-silent path', () => {
   const scenario = silentScenario();
   const action   = { type: 'bid', value: 90, suit: 'C' };
 
-  it('rejects when divergenceAgreement is provided on a rule-silent case', () => {
-    const r = validateSubmission({ scenario, action, divergenceAgreement: 'could-be-either', note: 'x' });
-    expect(r.ok).toBe(false);
-    expect(r.code).toBe('UNEXPECTED_DIVERGENCE_AGREEMENT');
-  });
-
-  it('rejects when note is empty on a rule-silent case', () => {
-    const r = validateSubmission({ scenario, action, divergenceAgreement: null, note: '' });
-    expect(r.code).toBe('MISSING_REQUIRED_NOTE');
-  });
-
-  it('accepts a rule-silent submission with null agreement + non-empty note', () => {
-    const r = validateSubmission({
-      scenario, action, divergenceAgreement: null, note: 'I tried 90♣ because…',
-    });
-    expect(r).toEqual({ ok: true, divergenceType: 'rule-silent' });
+  it('returns user-disagrees on a rule-silent submission (server-canonical)', () => {
+    const r = validateSubmission({ scenario, action });
+    expect(r).toEqual({ ok: true, divergenceType: 'rule-silent', agreement: 'user-disagrees' });
   });
 });

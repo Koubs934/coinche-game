@@ -6,7 +6,6 @@ import Auth from './components/Auth';
 import Header from './components/Header';
 import Lobby from './components/Lobby';
 import GameBoard from './components/GameBoard';
-import ReasonPanelMock from './training/ReasonPanelMock';
 import GameErrorTaggerMock from './game/GameErrorTaggerMock';
 import TrainingTable from './training/TrainingTable';
 import CompletionSummary from './training/CompletionSummary';
@@ -30,9 +29,9 @@ const EMPTY_GAME = {
 };
 
 // URL flags (read once at module load; don't change during a session):
-//   ?mock=training-panel     → reason-panel UX preview, no auth, no sockets
 //   ?mock=training-picker    → picker UX preview, no auth, no sockets
 //   ?mock=game-error-tagger  → Game Review tag overlay preview, no auth, no sockets
+// (V2.2 Phase 2C: ?mock=training-panel was retired with ReasonPanel)
 const URL_PARAMS = typeof window !== 'undefined'
   ? new URLSearchParams(window.location.search)
   : new URLSearchParams();
@@ -44,17 +43,6 @@ export default function App() {
 
   // Mock short-circuit BEFORE any hooks below — static URL param, stable across
   // a single session, so hooks-count invariant holds.
-  if (MOCK_MODE === 'training-panel') {
-    return (
-      <>
-        <div className="lang-toggle-fixed">
-          <button className="btn-lang" onClick={toggleLang}>{lang.toUpperCase()}</button>
-        </div>
-        <ReasonPanelMock />
-        <EnvBadge />
-      </>
-    );
-  }
   if (MOCK_MODE === 'training-picker') {
     return (
       <>
@@ -93,6 +81,7 @@ export default function App() {
   const [trainingRun,        setTrainingRun]        = useState(null); // { trainingState, room, game, myPosition }
   const [trainingAnnotation, setTrainingAnnotation] = useState(null); // set by trainingCompleted
   const [trainingAnnotationFilename, setTrainingAnnotationFilename] = useState(null);
+  const [trainingCaseType, setTrainingCaseType] = useState(null); // 'match' | 'divergent' | 'rule-silent'
   const [trainingResumable,  setTrainingResumable]  = useState([]);
   const [trainingExhausted,  setTrainingExhausted]  = useState([]);   // list from exhaustedScenarios event
   // v3 (2026-05-04): the structured tag vocabulary was removed. The
@@ -104,8 +93,10 @@ export default function App() {
   // Ref mirrors so the socket handler closure sees current state without re-subscribing
   const gameStateRef = useRef(null);
   const myPositionRef = useRef(null);
+  const trainingScenariosRef = useRef([]);
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
   useEffect(() => { myPositionRef.current = myPosition; }, [myPosition]);
+  useEffect(() => { trainingScenariosRef.current = trainingScenarios; }, [trainingScenarios]);
 
   // Housekeeping — drop any reason-panel drafts from localStorage older than
   // 24 h. Cheap, runs once per page load.
@@ -207,9 +198,34 @@ export default function App() {
     });
     socket.on('trainingUpdate',         (payload) => setTrainingRun(payload));
     socket.on('trainingAwaitingReason', (payload) => setTrainingRun(payload));
-    socket.on('trainingCompleted', ({ annotation, annotationFilename }) => {
+    socket.on('trainingCompleted', ({ annotation, annotationFilename, caseType }) => {
       setTrainingAnnotation(annotation);
       setTrainingAnnotationFilename(annotationFilename ?? null);
+      setTrainingCaseType(caseType ?? null);
+
+      // V2.2 Phase 2C — match path skips the completion screen entirely
+      // and auto-advances to the next scenario. Divergent and rule-silent
+      // both surface the completion view (which now opens the Claude
+      // conversation unconditionally; see CompletionSummary).
+      if (caseType === 'match') {
+        const sorted = [...trainingScenariosRef.current].sort((a, b) => a.id.localeCompare(b.id));
+        const idx = sorted.findIndex(s => s.id === annotation.scenarioId);
+        const next = idx >= 0 && idx < sorted.length - 1 ? sorted[idx + 1] : null;
+        // Clear trainingRun so React doesn't briefly render the prior board
+        // while the new scenario loads.
+        setTrainingRun(null);
+        setTrainingAnnotation(null);
+        setTrainingAnnotationFilename(null);
+        setTrainingCaseType(null);
+        if (next) {
+          socket.emit('startTrainingScenario', { scenarioId: next.id });
+        } else {
+          // No next scenario in the alphabetical sequence — bounce back to picker.
+          setTrainingView('picker');
+        }
+        return;
+      }
+
       setTrainingView('complete');
     });
     // v3.1 (2026-05-04): the post-submit "Autre stratégie possible ?"
@@ -292,6 +308,7 @@ export default function App() {
     setTrainingRun(null);
     setTrainingAnnotation(null);
     setTrainingAnnotationFilename(null);
+    setTrainingCaseType(null);
     setTrainingView('picker');
   }
   function goToPickerFromLobby() {
@@ -301,6 +318,7 @@ export default function App() {
     setTrainingRun(null);
     setTrainingAnnotation(null);
     setTrainingAnnotationFilename(null);
+    setTrainingCaseType(null);
     setTrainingResumable(list => list); // keep resumable around; user may come back
     setTrainingView(null);
   }
@@ -314,6 +332,7 @@ export default function App() {
     if (!next) { backToPicker(); return; }
     setTrainingAnnotation(null);
     setTrainingAnnotationFilename(null);
+    setTrainingCaseType(null);
     setTrainingRun(null);
     socketRef.current?.emit('startTrainingScenario', { scenarioId: next.id });
   }
@@ -386,6 +405,7 @@ export default function App() {
           <CompletionSummary
             annotation={trainingAnnotation}
             annotationFilename={trainingAnnotationFilename}
+            caseType={trainingCaseType}
             userId={user?.id}
             userName={username}
             scenarioSnapshot={trainingRun}

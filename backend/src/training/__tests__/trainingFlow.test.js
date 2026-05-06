@@ -134,14 +134,18 @@ describe('training flow — happy path (match case, v3)', () => {
     expect(partial.decisions[0].divergenceAgreement).toBeNull();
     expect(partial.decisions[0].note).toBeNull();
 
-    // Match-case reason payload: null agreement + empty note (server allows).
-    client.emit('submitTrainingReason', { runId, divergenceAgreement: null, note: '' });
+    // V2.2 Phase 2C: FE auto-fires submitTrainingReason with `note: ''` for
+    // every case. Server canonicalises agreement (match → null).
+    client.emit('submitTrainingReason', { runId, note: '' });
 
     await waitFor(() => events.trainingCompleted.length > 0);
     expect(events.error).toHaveLength(0);
 
     const completed = events.trainingCompleted[0];
     expect(completed.runId).toBe(runId);
+    // V2.2 Phase 2 / 2C — payload now carries annotationFilename + caseType.
+    expect(completed.annotationFilename).toMatch(/\.json$/);
+    expect(completed.caseType).toBe('match');
     expect(completed.annotation.decisions).toHaveLength(1);
     const decision = completed.annotation.decisions[0];
     expect(decision.divergenceType).toBeNull();
@@ -250,14 +254,15 @@ describe('training flow — partial resume', () => {
 
     // The scenario `petit-jeu-after-opp-80-spades` is rule-silent
     // (`expectedAnswer: null`, `competitive-bidding-not-formalized` flag).
-    // v3 rules: divergenceAgreement must be null, note must be non-empty.
+    // V2.2 Phase 2C: rule-silent annotations are written with agreement
+    // 'user-disagrees' (server-canonical); note is optional.
     client2.emit('submitTrainingReason', {
       runId: runId2,
-      divergenceAgreement: null,
       note: 'reasserted after resume',
     });
     await waitFor(() => events2.trainingCompleted.length > 0);
     expect(events2.error).toHaveLength(0);
+    expect(events2.trainingCompleted[0].caseType).toBe('rule-silent');
 
     // ── Disk checks ──────────────────────────────────────────────────────
     // Still exactly one JSON file
@@ -271,7 +276,7 @@ describe('training flow — partial resume', () => {
     expect(finalAnnotation.status).toBe('complete');
     expect(finalAnnotation.startedAt).toBe(partialBefore.startedAt);
     expect(finalAnnotation.decisions[0].divergenceType).toBe('rule-silent');
-    expect(finalAnnotation.decisions[0].divergenceAgreement).toBeNull();
+    expect(finalAnnotation.decisions[0].divergenceAgreement).toBe('user-disagrees');
     expect(finalAnnotation.decisions[0].note).toBe('reasserted after resume');
     expect(finalAnnotation.decisions[0]).not.toHaveProperty('tags');
 
@@ -283,82 +288,65 @@ describe('training flow — partial resume', () => {
   });
 });
 
-// ─── Test C: v3 divergence error paths ───────────────────────────────────
+// ─── Test C: V2.2 Phase 2C — server-canonical agreement, no required modal ──
+//
+// The "D'accord / Pas d'accord" modal and the rule-silent obligatory-note
+// modal are gone. The frontend auto-fires submitTrainingReason with
+// `note: ''` (and no agreement field) for every case. The server
+// canonicalises the stored divergenceAgreement based on divergenceType:
+// match → null, divergent or rule-silent → 'user-disagrees'. The strict
+// validation errors that backed the old modal (MISSING_DIVERGENCE_AGREEMENT,
+// MISSING_REQUIRED_NOTE, INVALID_DIVERGENCE_AGREEMENT) no longer exist.
 
-describe('training flow — v3 divergence validation errors', () => {
-  const USER_ID = 'test-user-divergence-errors';
+describe('training flow — V2.2 Phase 2C divergence canonicalisation', () => {
   const USERNAME = 'Divergence Tester';
   // Expected = pass; submitting a bid is action-type-different (divergent).
-  const SCENARIO = 'opening-petit-jeu-first-to-speak';
+  const DIVERGENT_SCENARIO = 'opening-petit-jeu-first-to-speak';
 
-  async function startAndAct(client, events) {
+  async function startAndAct(client, events, scenarioId, action) {
     await new Promise(resolve => client.on('connect', resolve));
-    client.emit('startTrainingScenario', { scenarioId: SCENARIO });
+    client.emit('startTrainingScenario', { scenarioId });
     await waitFor(() =>
       events.trainingUpdate.some(u => u.trainingState.runState === 'AWAITING-ACTION'),
     );
     const runId = events.trainingStarted[0].trainingState.runId;
-    client.emit('submitTrainingAction', { runId, action: { type: 'bid', value: 90, suit: 'S' } });
+    client.emit('submitTrainingAction', { runId, action });
     await waitFor(() => events.trainingAwaitingReason.length > 0);
     return runId;
   }
 
-  it('rejects divergent submission missing divergenceAgreement', async () => {
-    const client = connectClient(USER_ID, USERNAME);
+  it('divergent + empty note + no agreement → caseType:divergent, agreement:user-disagrees', async () => {
+    const client = connectClient('test-user-divergent-empty-note', USERNAME);
     const events = collectEvents(client, [
       'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
       'trainingCompleted', 'error',
     ]);
-    const runId = await startAndAct(client, events);
+    const runId = await startAndAct(client, events, DIVERGENT_SCENARIO, { type: 'bid', value: 90, suit: 'S' });
 
-    client.emit('submitTrainingReason', { runId, divergenceAgreement: null, note: 'has note but no agreement' });
-    await waitFor(() => events.error.length > 0);
-    expect(events.trainingCompleted).toHaveLength(0);
-    expect(events.error[events.error.length - 1].code).toBe('MISSING_DIVERGENCE_AGREEMENT');
+    // No `divergenceAgreement` field; empty note. Both used to be rejected.
+    client.emit('submitTrainingReason', { runId, note: '' });
+    await waitFor(() => events.trainingCompleted.length > 0);
+    expect(events.error).toHaveLength(0);
+
+    const completed = events.trainingCompleted[0];
+    expect(completed.caseType).toBe('divergent');
+    const decision = completed.annotation.decisions[0];
+    expect(decision.divergenceType).toBe('action-type-different');
+    expect(decision.divergenceAgreement).toBe('user-disagrees');
+    expect(decision.note).toBe('');
     client.disconnect();
   });
 
-  it('rejects divergent submission with invalid divergenceAgreement value', async () => {
-    const client = connectClient('test-user-invalid-agree', USERNAME);
+  it('divergent + non-empty note → server still canonicalises agreement to user-disagrees', async () => {
+    const client = connectClient('test-user-divergent-with-note', USERNAME);
     const events = collectEvents(client, [
       'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
       'trainingCompleted', 'error',
     ]);
-    const runId = await startAndAct(client, events);
-
-    client.emit('submitTrainingReason', { runId, divergenceAgreement: 'maybe-so', note: 'whatever' });
-    await waitFor(() => events.error.length > 0);
-    expect(events.trainingCompleted).toHaveLength(0);
-    expect(events.error[events.error.length - 1].code).toBe('INVALID_DIVERGENCE_AGREEMENT');
-    client.disconnect();
-  });
-
-  it('rejects divergent submission with empty note', async () => {
-    const client = connectClient('test-user-empty-note', USERNAME);
-    const events = collectEvents(client, [
-      'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
-      'trainingCompleted', 'error',
-    ]);
-    const runId = await startAndAct(client, events);
-
-    client.emit('submitTrainingReason', { runId, divergenceAgreement: 'could-be-either', note: '   ' });
-    await waitFor(() => events.error.length > 0);
-    expect(events.trainingCompleted).toHaveLength(0);
-    expect(events.error[events.error.length - 1].code).toBe('MISSING_REQUIRED_NOTE');
-    client.disconnect();
-  });
-
-  it('accepts valid divergent submission and stores divergenceType', async () => {
-    const client = connectClient('test-user-valid-divergent', USERNAME);
-    const events = collectEvents(client, [
-      'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
-      'trainingCompleted', 'error',
-    ]);
-    const runId = await startAndAct(client, events);
+    const runId = await startAndAct(client, events, DIVERGENT_SCENARIO, { type: 'bid', value: 90, suit: 'S' });
 
     client.emit('submitTrainingReason', {
       runId,
-      divergenceAgreement: 'user-disagrees',
       note: 'I think 90♠ is the right opening here',
     });
     await waitFor(() => events.trainingCompleted.length > 0);
@@ -369,6 +357,28 @@ describe('training flow — v3 divergence validation errors', () => {
     expect(decision.divergenceAgreement).toBe('user-disagrees');
     expect(decision.note).toBe('I think 90♠ is the right opening here');
     expect(decision).not.toHaveProperty('tags');
+    client.disconnect();
+  });
+
+  it('client-supplied divergenceAgreement is ignored (server is canonical)', async () => {
+    // A misbehaving client sends a stale 'could-be-either' value. The
+    // server must still write 'user-disagrees' for every divergent case.
+    const client = connectClient('test-user-ignored-agreement', USERNAME);
+    const events = collectEvents(client, [
+      'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
+      'trainingCompleted', 'error',
+    ]);
+    const runId = await startAndAct(client, events, DIVERGENT_SCENARIO, { type: 'bid', value: 90, suit: 'S' });
+
+    client.emit('submitTrainingReason', {
+      runId,
+      divergenceAgreement: 'could-be-either',  // server should ignore
+      note: '',
+    });
+    await waitFor(() => events.trainingCompleted.length > 0);
+    expect(events.error).toHaveLength(0);
+    expect(events.trainingCompleted[0].annotation.decisions[0].divergenceAgreement)
+      .toBe('user-disagrees');
     client.disconnect();
   });
 });
@@ -408,12 +418,13 @@ describe('training flow — v3.1 auto-conclude', () => {
     expect(sessionId).toMatch(/^[0-9a-f-]{36}$/);
     expect(started.trainingState.session.alternativeIndex).toBe(0);
 
-    // Submit a divergent action (expected is pass; user picks 90♠)
+    // Submit a divergent action (expected is pass; user picks 90♠).
+    // V2.2 Phase 2C — agreement is server-canonicalised; FE no longer
+    // sends one. Note may be empty.
     client.emit('submitTrainingAction', { runId, action: { type: 'bid', value: 90, suit: 'S' } });
     await waitFor(() => events.trainingAwaitingReason.length > 0);
     client.emit('submitTrainingReason', {
       runId,
-      divergenceAgreement: 'could-be-either',
       note: 'auto-conclude smoke',
     });
 

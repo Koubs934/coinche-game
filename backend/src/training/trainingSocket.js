@@ -158,12 +158,15 @@ function registerTrainingHandlers(socket) {
     socket.emit('trainingAwaitingReason', trainingRooms.publicView(run));
   });
 
-  // v3 payload: { runId, divergenceAgreement, note }.  No more tags array.
-  // The server recomputes divergenceType from the scenario's expectedAnswer
-  // and the action stored on the run — clients send divergenceAgreement
-  // (their yes/no answer) plus a free-text note. The previous soft-warning
-  // path is gone (no vocabulary to warn about).
-  socket.on('submitTrainingReason', ({ runId, divergenceAgreement = null, note = '' } = {}) => {
+  // V2.2 Phase 2C — simplified payload semantics.
+  // Frontend now auto-fires submitTrainingReason for every case (no modal),
+  // sending `{ runId, divergenceAgreement: null, note: '' }`. The server
+  // computes the canonical agreement from divergenceType (match → null,
+  // anything else → 'user-disagrees'). The note is whatever the client
+  // sent, including ''. Strict validation errors that backed the old
+  // modal (MISSING_DIVERGENCE_AGREEMENT / MISSING_REQUIRED_NOTE / etc.)
+  // are gone — see divergence.validateSubmission for the new contract.
+  socket.on('submitTrainingReason', ({ runId, note = '' } = {}) => {
     const run = trainingRooms.getRun(runId);
     if (!run || run.userId !== socket.userId) return emitError(socket, 'Unknown training run', 'UNKNOWN_TRAINING_RUN');
     if (run.runState !== 'AWAITING-REASON') return emitError(socket, `Cannot submit reason in state ${run.runState}`);
@@ -171,10 +174,7 @@ function registerTrainingHandlers(socket) {
     const v = divergence.validateSubmission({
       scenario: run.scenario,
       action:   run.pendingAction.action,
-      divergenceAgreement,
-      note,
     });
-    if (!v.ok) return emitError(socket, v.message, v.code);
 
     const trimmedNote = (note ?? '').trim();
     const decidedAt   = new Date().toISOString();
@@ -184,7 +184,7 @@ function registerTrainingHandlers(socket) {
       phase:               run.game.phase,
       action:              run.pendingAction.action,
       divergenceType:      v.divergenceType,
-      divergenceAgreement: divergenceAgreement ?? null,
+      divergenceAgreement: v.agreement,
       note:                trimmedNote,
       decidedAt,
     };
@@ -203,7 +203,7 @@ function registerTrainingHandlers(socket) {
     try {
       annotationStorage.writeComplete(run, {
         divergenceType:      v.divergenceType,
-        divergenceAgreement: divergenceAgreement ?? null,
+        divergenceAgreement: v.agreement,
         note:                trimmedNote,
         decidedAt,
       });
@@ -239,6 +239,11 @@ function registerTrainingHandlers(socket) {
       // stable filename token used by annotationStorage; .json is appended
       // exactly as on disk.
       annotationFilename: `${run.partialId}.json`,
+      // V2.2 Phase 2C — frontend uses caseType to branch:
+      //   'match'       → auto-advance to next scenario, no completion screen
+      //   'divergent'   → completion screen + Claude conversation
+      //   'rule-silent' → completion screen + Claude conversation
+      caseType:   divergence.caseTypeFor(v.divergenceType),
       annotation: {
         scenarioId:  run.scenarioId,
         startedAt:   run.startedAt,

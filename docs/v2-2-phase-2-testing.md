@@ -22,40 +22,68 @@ npm run dev
 ```
 Frontend serves on http://localhost:5173.
 
-## Test scenario
+## Phase 2C flow summary
 
-1. Open http://localhost:5173 in your browser.
-2. Login with your Supabase account (any existing test account).
-3. Click "Mode entraînement" / open the training picker.
-4. Pick a scenario where you'll deliberately diverge from the rule
-   (e.g. `raise-partner-90-hearts` — V2.1 expects 110 ♥; bid something else like 130 ♥).
-5. Submit your action.
-6. The reason panel opens. Click "Pas d'accord" and write a brief
-   reasoning note. Click "Valider".
-7. The completion screen appears. Below the action / note card, a Claude
-   conversation panel should open inline with a "Votre main / Enchères"
-   recap above the existing card.
-8. Verify Claude's first question arrives within ~5 seconds.
-9. Type a response and either press Enter or click "Envoyer".
-10. Verify Claude's reply arrives within 2-5 seconds.
-11. Click "Terminer la discussion" to close the conversation
-    (or "Scénario suivant" / "Retour aux scénarios" to move on
-    without closing — the conversation will be auto-marked `skip`
-    only if you click "Terminer la discussion" first).
+After the user submits a training action, three branches run with **no
+intermediate modal**:
+
+| Case          | Trigger                                | Result                                                        |
+|---------------|----------------------------------------|---------------------------------------------------------------|
+| `match`       | action equals scenario.expectedAnswer  | Auto-advance to next scenario (no completion screen)          |
+| `divergent`   | action differs from expectedAnswer     | Completion screen + Claude conversation opens automatically    |
+| `rule-silent` | scenario has no expectedAnswer         | Completion screen + Claude conversation opens automatically    |
+
+The "D'accord / Pas d'accord" modal and the rule-silent obligatory-note
+modal are gone. The note field is empty by default — the conversation
+with Claude replaces it as the reasoning-collection surface.
+
+## Test scenarios
+
+### A. Match → auto-advance (no completion screen)
+
+1. Open http://localhost:5173, login.
+2. Open the training picker.
+3. Pick a scenario where the V2.1 expected answer is e.g. `pass`
+   (`opening-petit-jeu-first-to-speak` qualifies).
+4. Submit `pass`.
+5. Verify: NO completion screen flashes. The next scenario in
+   alphabetical order loads directly.
+6. If there's no next scenario, you bounce back to the picker.
+
+### B. Divergent → completion + Claude
+
+1. Pick `raise-partner-90-hearts` (V2.1 expects `110 ♥`).
+2. Submit a different bid, e.g. `130 ♥`.
+3. Verify: NO modal appears. Completion screen shows directly with the
+   AuctionRecap header + your action + the Claude conversation panel.
+4. Claude's first question arrives within ~5 seconds.
+
+### C. Rule-silent → completion + Claude
+
+1. Pick `petit-jeu-after-opp-80-spades` (rule-silent — `expectedAnswer: null`).
+2. Submit any bid.
+3. Verify: NO obligatory-note modal. Completion screen shows directly
+   with the AuctionRecap header + your action + the Claude conversation.
+4. Claude's first question is framed for rule-silent (he says the
+   Feuille doesn't cover this case rather than accusing you of diverging).
 
 ## Verification checklist
 
-- [ ] Claude's first message arrives within ~5 seconds.
-- [ ] Message is in French and concise (2-4 sentences).
-- [ ] Message references your bid AND the Feuille's expected bid.
-- [ ] Textarea accepts multi-line input. Shift+Enter inserts a newline,
-      plain Enter submits.
+- [ ] Match scenarios skip the completion screen entirely.
+- [ ] Divergent scenarios skip the modal — completion screen with
+      Claude opens immediately on submit.
+- [ ] Rule-silent scenarios skip the modal — completion screen with
+      Claude opens immediately on submit.
+- [ ] No "VOTRE NOTE" section appears for new annotations (note is empty).
+- [ ] AuctionRecap header is visible on every completion screen.
+- [ ] Claude's first message is in French and concise (2-4 sentences).
+- [ ] For rule-silent: Claude does NOT say "you diverged from the rule".
+- [ ] Textarea accepts multi-line input. Shift+Enter newline, Enter submits.
 - [ ] Loading indicator shows during Claude's response.
 - [ ] Conversation auto-scrolls to the bottom on each new message.
-- [ ] Hand and bidding context are visible above the action / note card.
 - [ ] "Terminer la discussion" closes the conversation without errors.
 - [ ] "Scénario suivant" still works while conversation is open.
-- [ ] Reload of the page → annotation file on disk still has the
+- [ ] Reload of the page → annotation file on disk has the
       `claude_conversation` field with stored messages
       (`backend/data/training/<userId>/<...>.json`).
 
@@ -73,21 +101,30 @@ Frontend serves on http://localhost:5173.
 Each turn costs ~$0.02–0.05. A typical 5-turn conversation ≈ ~$0.15.
 Budget cap: $50/month set in Anthropic console.
 
-## File touchpoints
+## File touchpoints (Phase 2C)
 
 - Frontend
-  - `frontend/src/training/ClaudeConversation.jsx` (new)
-  - `frontend/src/training/CompletionSummary.jsx` (modified — renders the
-    conversation + a hand/bidding recap)
-  - `frontend/src/App.jsx` (modified — threads `userId` and
-    `annotationFilename` through to CompletionSummary)
-  - `frontend/src/i18n/{fr,en}.js` (new keys: `training.claudeConversation.*`)
-  - `frontend/src/App.css` (new `.claude-*` rules)
+  - `frontend/src/training/ClaudeConversation.jsx` (Phase 2)
+  - `frontend/src/training/CompletionSummary.jsx` (Phase 2C — Claude
+    opens for divergent + rule-silent; note section conditional)
+  - `frontend/src/training/TrainingTable.jsx` (Phase 2C — auto-fires
+    submitTrainingReason for every case; modal removed)
+  - `frontend/src/App.jsx` (Phase 2C — match auto-advances; threads
+    caseType through to CompletionSummary)
+  - `frontend/src/training/ReasonPanel.jsx`        — DELETED in Phase 2C
+  - `frontend/src/training/ReasonPanelMock.jsx`    — DELETED in Phase 2C
+  - `frontend/src/training/formatActionLabel.jsx`  — DELETED in Phase 2C
 - Backend
-  - `backend/src/training/trainingSocket.js` (modified — `trainingCompleted`
-    now also emits `annotationFilename`)
+  - `backend/src/training/divergence.js` (Phase 2C — server-canonical
+    agreement, no rejection paths)
+  - `backend/src/training/trainingSocket.js` (Phase 2C — emits caseType
+    in trainingCompleted)
+  - `backend/src/services/claudeService.js` (Phase 2C — caseType-aware
+    system prompt)
+  - `backend/src/server.js` (Phase 2C — derives caseType from annotation
+    in /api/conversation/start)
 
-## Phase 1 endpoints exercised
+## Endpoints exercised
 
 - `POST /api/conversation/start` — on conversation mount
 - `POST /api/conversation/turn`  — on each user message submit

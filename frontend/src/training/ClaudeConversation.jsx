@@ -32,7 +32,12 @@ async function postJson(path, body) {
   return data;
 }
 
-export default function ClaudeConversation({ userId, annotationFilename, userName, onClose }) {
+// `caseType` is accepted but not currently used here — the backend reads
+// the same value from the annotation file when building Claude's system
+// prompt (see /api/conversation/start in server.js). The prop is plumbed
+// through so future UI tweaks (e.g. a different placeholder for rule-silent)
+// can be made without changing CompletionSummary.
+export default function ClaudeConversation({ userId, annotationFilename, userName, caseType, onClose }) { // eslint-disable-line no-unused-vars
   const { t } = useLang();
   const cc = t.training.claudeConversation;
 

@@ -20,6 +20,24 @@
 
 const VALID_AGREEMENT_VALUES = new Set(['could-be-either', 'user-disagrees']);
 
+// V2.2 Phase 2C: collapse divergenceType into a 3-way caseType the frontend
+// branches on. 'match' → auto-advance, 'divergent' / 'rule-silent' → open
+// the completion screen with a Claude conversation.
+function caseTypeFor(divergenceType) {
+  if (divergenceType === null)         return 'match';
+  if (divergenceType === 'rule-silent') return 'rule-silent';
+  return 'divergent';
+}
+
+// V2.2 Phase 2C: the canonical agreement that gets written to disk for a
+// given divergenceType, irrespective of what the client sent. The "D'accord
+// / Pas d'accord" modal is gone — every divergent or rule-silent submission
+// is treated as a disagreement (Claude's job is to surface the reasoning).
+function canonicalAgreementFor(divergenceType) {
+  if (divergenceType === null) return null;
+  return 'user-disagrees';
+}
+
 /**
  * @param {object|null|undefined} scenarioOrExpected
  *   Pass either the full scenario (preferred) or just its expectedAnswer
@@ -69,75 +87,38 @@ function computeDivergenceType(scenarioOrExpected, userAction) {
 }
 
 /**
- * Validate the {action, divergenceAgreement, note} triple for v3 annotation
- * submissions. Returns either { ok: true, divergenceType } or
- * { ok: false, code, message }.
+ * V2.2 Phase 2C — simplified validation.
  *
- * Rules (driven by the divergenceType the system computed):
- *   - match (null):            agreement must be null,    note may be empty
- *   - rule-silent:             agreement must be null,    note must be non-empty
- *   - any other (divergent):   agreement must be valid,   note must be non-empty
+ * The "D'accord / Pas d'accord" modal and the rule-silent obligatory-note
+ * modal are gone. The frontend submits with sensible defaults
+ * (`divergenceAgreement: null`, `note: ''`) and the server writes the
+ * canonical values:
+ *
+ *   - match (null):       agreement = null,            note = whatever
+ *                         was sent (typically '')
+ *   - rule-silent:        agreement = 'user-disagrees', note = whatever
+ *                         was sent (the Claude conversation replaces the
+ *                         modal-collected note)
+ *   - any other type:     agreement = 'user-disagrees', note = whatever
+ *                         was sent
+ *
+ * Returns { ok: true, divergenceType, agreement } — the resolved
+ * agreement is what callers should persist. Sentinel error codes from
+ * the V3 schema (MISSING_DIVERGENCE_AGREEMENT / MISSING_REQUIRED_NOTE /
+ * INVALID_DIVERGENCE_AGREEMENT / UNEXPECTED_DIVERGENCE_AGREEMENT) are
+ * gone — the only error path now is a malformed scenario / action which
+ * computeDivergenceType already handles upstream.
  */
-function validateSubmission({ scenario, action, divergenceAgreement, note }) {
+function validateSubmission({ scenario, action }) {
   const divergenceType = computeDivergenceType(scenario, action);
-  const trimmed = (note ?? '').trim();
-
-  if (divergenceType === null) {
-    if (divergenceAgreement !== null && divergenceAgreement !== undefined) {
-      return {
-        ok: false,
-        code: 'UNEXPECTED_DIVERGENCE_AGREEMENT',
-        message: 'divergenceAgreement must be null when the action matches the expected answer',
-      };
-    }
-    return { ok: true, divergenceType };
-  }
-
-  if (divergenceType === 'rule-silent') {
-    if (divergenceAgreement !== null && divergenceAgreement !== undefined) {
-      return {
-        ok: false,
-        code: 'UNEXPECTED_DIVERGENCE_AGREEMENT',
-        message: 'divergenceAgreement must be null for rule-silent scenarios',
-      };
-    }
-    if (trimmed === '') {
-      return {
-        ok: false,
-        code: 'MISSING_REQUIRED_NOTE',
-        message: 'note is required when the scenario is rule-silent',
-      };
-    }
-    return { ok: true, divergenceType };
-  }
-
-  // True divergence: need yes/no AND non-empty note.
-  if (divergenceAgreement === null || divergenceAgreement === undefined) {
-    return {
-      ok: false,
-      code: 'MISSING_DIVERGENCE_AGREEMENT',
-      message: 'divergenceAgreement is required when the action diverges from the expected answer',
-    };
-  }
-  if (!VALID_AGREEMENT_VALUES.has(divergenceAgreement)) {
-    return {
-      ok: false,
-      code: 'INVALID_DIVERGENCE_AGREEMENT',
-      message: `divergenceAgreement must be one of ${[...VALID_AGREEMENT_VALUES].join(', ')}`,
-    };
-  }
-  if (trimmed === '') {
-    return {
-      ok: false,
-      code: 'MISSING_REQUIRED_NOTE',
-      message: 'note is required when the action diverges from the expected answer',
-    };
-  }
-  return { ok: true, divergenceType };
+  const agreement      = canonicalAgreementFor(divergenceType);
+  return { ok: true, divergenceType, agreement };
 }
 
 module.exports = {
   computeDivergenceType,
   validateSubmission,
+  caseTypeFor,
+  canonicalAgreementFor,
   VALID_AGREEMENT_VALUES,
 };
