@@ -51,6 +51,9 @@
     { "event": "user-turn" }
   ],
 
-  "expectedAnswer": null,
-  "ambiguityFlags": ["fourth-position-not-formalized"]
+  "expectedAnswer": {
+    "action": { "type": "pass" },
+    "ruleReference": "opening:pass:no-qualification"
+  },
+  "ambiguityFlags": []
 }

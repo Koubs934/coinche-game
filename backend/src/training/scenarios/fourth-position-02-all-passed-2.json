@@ -51,6 +51,9 @@
     { "event": "user-turn" }
   ],
 
-  "expectedAnswer": null,
-  "ambiguityFlags": ["fourth-position-not-formalized"]
+  "expectedAnswer": {
+    "action": { "type": "bid", "value": 80, "suit": "D" },
+    "ruleReference": "opening:80:two-aces-petit-jeu-strongest"
+  },
+  "ambiguityFlags": []
 }

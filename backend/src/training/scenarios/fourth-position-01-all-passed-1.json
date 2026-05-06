@@ -51,6 +51,9 @@
     { "event": "user-turn" }
   ],
 
-  "expectedAnswer": null,
-  "ambiguityFlags": ["fourth-position-not-formalized"]
+  "expectedAnswer": {
+    "action": { "type": "bid", "value": 90, "suit": "S" },
+    "ruleReference": "opening:90:piece-4eme"
+  },
+  "ambiguityFlags": []
 }

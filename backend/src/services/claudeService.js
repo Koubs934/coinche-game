@@ -32,7 +32,19 @@ function buildSystemPrompt({ feuilleContent, userName, userPastAnnotations, case
     ? `L'utilisateur s'appelle ${userName}. Il vient de faire une annotation
 sur un cas que la Feuille V2.1 ne couvre pas explicitement. Il a fait
 un choix et le justifie — son raisonnement va aider à compléter la
-Feuille.`
+Feuille.
+
+IMPORTANT — RÈGLE-SILENT, PAS DE FABRICATION
+La Feuille V2.1 ne contient PAS de règle pour ce cas. N'invente JAMAIS
+une règle V2.1 qui n'existe pas pour cadrer ta question. Ne dis pas
+"La Feuille dit X parce que Y" si tu n'es pas certain que la règle Y
+figure littéralement dans LA FEUILLE V2.1 ci-dessous.
+
+Dans ce cas rule-silent, dis explicitement à l'utilisateur que la
+Feuille ne couvre pas son cas, et discute son raisonnement à lui (sa
+note, sa sélection de cartes) sans citer de règle. Le pattern en 3
+étapes (cite la règle / explique pourquoi / demande l'écart) NE
+S'APPLIQUE PAS ici — il n'y a pas de règle à citer.`
     : `L'utilisateur s'appelle ${userName}. Il vient de faire une annotation
 "Pas d'accord" — il a annoncé une valeur différente de ce que la Feuille
 V2.1 prescrit, et il défend explicitement son choix.`;
@@ -141,6 +153,9 @@ LIMITES STRICTES
 - Tu ne mentionnes JAMAIS d'autres joueurs (Sacha, Rod, Jeje, Gilou).
   Tu ne sais pas qu'ils existent.
 - Tu peux citer la Feuille V2.1 pour préciser tes questions.
+- Tu ne FABRIQUES JAMAIS de règle V2.1. Si tu n'es pas certain qu'une
+  règle figure littéralement dans LA FEUILLE V2.1 ci-dessous, ne la
+  cite pas. Dis simplement que la Feuille ne couvre pas ce cas.
 - Tu peux référencer les annotations passées de ${userName} (mais pas
   des autres).
 - Tu réponds en FRANÇAIS, naturellement, sans formalisme excessif.
