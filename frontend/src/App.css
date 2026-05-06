@@ -839,9 +839,46 @@ a      { color: var(--accent); }
   border-radius: 40%;
   background: radial-gradient(ellipse at center, #1e6b30 0%, #164f22 70%, #0f3a18 100%);
   border: 1px solid rgba(255,255,255,0.06);
-  min-height: 50px;
+  /* V2.2 Phase 2D: min-height bumped from 50px to 72px so the optional
+     2x4 centerHand grid (2 × 30px cards + 4px gap + 6px padding) fits
+     without crushing the gradient. The empty/RoundSummary case grows
+     the felt by ~22px, which sits unnoticed inside the column. */
+  min-height: 72px;
   margin: 4px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+/* V2.2 Phase 2D — optional 2x4 mini-card grid centered in the felt. */
+.ar-table-felt-cards {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px;
+}
+.ar-table-felt-cards-row {
+  display: flex;
+  gap: 4px;
+}
+.ar-table-felt-card {
+  width: 22px;
+  height: 30px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65em;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.ar-table-felt-card.red   { color: var(--red); }
+.ar-table-felt-card.black { color: var(--black); }
 .ar-seat {
   background: rgba(0,0,0,0.38);
   border: 1px solid rgba(255,255,255,0.07);

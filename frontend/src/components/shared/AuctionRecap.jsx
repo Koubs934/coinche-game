@@ -17,6 +17,14 @@
 // the seat grid. RoundSummary uses this slot for the "Rejouer" nav so the
 // button stays inside the flex column (and inherits the 4px gap) instead
 // of jumping out as a sibling.
+//
+// V2.2 Phase 2D — `centerHand` (optional): when set, the user's 8 cards
+// are drawn as 2x4 mini-cards inside the green felt oval. Used by
+// CompletionSummary as a memory aid during the Claude conversation.
+// Caller is responsible for sort order (export `sortHandByTrump` below
+// is available for callers that want trump-first sort to match the
+// round-end HandStrip). RoundSummary doesn't pass centerHand → felt
+// stays empty as today, no regression.
 
 import { useLang } from '../../context/LanguageContext';
 
@@ -27,7 +35,9 @@ const SUIT_ORDER     = ['S', 'H', 'D', 'C'];
 
 // Sort a hand for display: trump cards first (in trump-rank order), then
 // the other 3 suits in canonical order, each in non-trump rank order.
-function sortHandByTrump(hand, trump) {
+// Exported so CompletionSummary (Phase 2D centerHand) can match the
+// trump-aware sort used by HandStrip without duplicating the helper.
+export function sortHandByTrump(hand, trump) {
   return [...hand].sort((a, b) => {
     const aTrump = a.suit === trump;
     const bTrump = b.suit === trump;
@@ -80,6 +90,7 @@ export default function AuctionRecap({
   myPosition,
   trumpSuit, // eslint-disable-line no-unused-vars
   initialHands,
+  centerHand,
   children,
 }) {
   const { t } = useLang();
@@ -153,7 +164,34 @@ export default function AuctionRecap({
       <div className="ar-top-row"><Seat pos={topPos} /></div>
       <div className="ar-mid-row">
         <Seat pos={leftPos} />
-        <div className="ar-table-felt" />
+        <div className="ar-table-felt">
+          {Array.isArray(centerHand) && centerHand.length > 0 && (
+            <div className="ar-table-felt-cards">
+              <div className="ar-table-felt-cards-row">
+                {centerHand.slice(0, 4).map((card, i) => {
+                  const isRed = card.suit === 'H' || card.suit === 'D';
+                  return (
+                    <span key={i} className={`ar-table-felt-card ${isRed ? 'red' : 'black'}`}>
+                      <span>{card.value}</span>
+                      <span>{SUIT_SYM[card.suit]}</span>
+                    </span>
+                  );
+                })}
+              </div>
+              <div className="ar-table-felt-cards-row">
+                {centerHand.slice(4, 8).map((card, i) => {
+                  const isRed = card.suit === 'H' || card.suit === 'D';
+                  return (
+                    <span key={i + 4} className={`ar-table-felt-card ${isRed ? 'red' : 'black'}`}>
+                      <span>{card.value}</span>
+                      <span>{SUIT_SYM[card.suit]}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
         <Seat pos={rightPos} />
       </div>
       <div className="ar-bot-row"><Seat pos={myPosition} isMe /></div>

@@ -23,7 +23,7 @@ import { useLang } from '../context/LanguageContext';
 import { formatActionText, actionIsRed } from './formatAction';
 import ClaudeConversation from './ClaudeConversation';
 import CardSelector from './CardSelector';
-import AuctionRecap from '../components/shared/AuctionRecap';
+import AuctionRecap, { sortHandByTrump } from '../components/shared/AuctionRecap';
 
 // Build a synthetic 4-player array (positions 0..3) for AuctionRecap with
 // labels relative to the user's seat: self → t.you, +2 → t.partner, +1/+3
@@ -41,7 +41,7 @@ function buildPlayersForRecap(userSeat, t) {
   });
 }
 
-function ScenarioContextRecap({ scenarioSnapshot, fallbackAction, t }) {
+function ScenarioContextRecap({ scenarioSnapshot, fallbackAction, centerHand, t }) {
   const game     = scenarioSnapshot?.game;
   const userSeat = scenarioSnapshot?.myPosition ?? scenarioSnapshot?.trainingState?.userSeat;
   if (!game || userSeat == null) return null;
@@ -68,6 +68,7 @@ function ScenarioContextRecap({ scenarioSnapshot, fallbackAction, t }) {
         currentBid={game.currentBid}
         myPosition={userSeat}
         trumpSuit={game.trumpSuit}
+        centerHand={centerHand}
       />
     </div>
   );
@@ -117,6 +118,17 @@ export default function CompletionSummary({
   const userHand   = (userSeat != null) ? (scenarioSnapshot?.game?.hands?.[userSeat] || []) : [];
   const trumpSuit  = action?.type === 'bid' ? (action.suit ?? null) : null;
 
+  // V2.2 Phase 2D — once the user has finished the CardSelector step
+  // (validated or skipped), surface the full 8-card hand inside the
+  // AuctionRecap's green felt as a memory aid during the conversation.
+  // During the CardSelector phase we leave the felt empty so the user's
+  // attention stays on the picker below. selectedCards === null means
+  // "selector still showing"; any non-null array means selector is done.
+  const cardSelectionDone = selectedCards !== null;
+  const sortedHand = cardSelectionDone && userHand.length === 8
+    ? sortHandByTrump(userHand, trumpSuit)
+    : null;
+
   const actionText = formatActionText(action, t);
   const actionRed  = actionIsRed(action);
 
@@ -131,6 +143,7 @@ export default function CompletionSummary({
           <ScenarioContextRecap
             scenarioSnapshot={scenarioSnapshot}
             fallbackAction={action}
+            centerHand={sortedHand}
             t={t}
           />
         )}
