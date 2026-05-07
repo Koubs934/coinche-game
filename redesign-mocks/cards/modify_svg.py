@@ -55,12 +55,21 @@ import re
 
 def collapse_switch(match):
     block = match.group(0)
-    # Find the systemLanguage="fr"... text element. There's exactly one per switch.
+    # Find the <text> with systemLanguage matching "fr". There's exactly
+    # one per switch in this SVG.
     fr_text = re.search(
         r'<text systemLanguage="[^"]*fr[^"]*"[^>]*>[^<]*</text>',
         block,
     )
-    return fr_text.group(0) if fr_text else block
+    if not fr_text:
+        return block
+    # CRITICAL: strip systemLanguage from the kept <text>. Even outside a
+    # <switch>, Chromium's SVG renderer treats systemLanguage as a filter
+    # and hides elements whose attribute doesn't match the document
+    # locale (en-US in headless mode). That's why V/D/R disappeared in
+    # the prior pipeline — the <switch> collapse left the attribute on,
+    # so the render skipped the rank text entirely.
+    return re.sub(r'\s*systemLanguage="[^"]*"', '', fr_text.group(0))
 
 text = re.sub(r'<switch>.*?</switch>', collapse_switch, text, flags=re.DOTALL)
 

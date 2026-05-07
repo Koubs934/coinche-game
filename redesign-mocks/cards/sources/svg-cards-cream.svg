@@ -58,13 +58,13 @@
       <text transform="scale(0.56453 1.05741)" font-family="Noto Serif, DejaVu Serif, serif" font-weight="bold" font-size="43">A</text>
     </g>
     <g id="king">
-      <text systemLanguage="fr" transform="scale(0.56453 1.05741)" font-family="Noto Serif, DejaVu Serif, serif" font-weight="bold" font-size="43">R</text>
+      <text transform="scale(0.56453 1.05741)" font-family="Noto Serif, DejaVu Serif, serif" font-weight="bold" font-size="43">R</text>
     </g>
     <g id="queen">
-      <text systemLanguage="fr, de" transform="scale(0.56453 1)" font-family="Noto Serif, DejaVu Serif, serif" font-weight="bold" font-size="41">D</text>
+      <text transform="scale(0.56453 1)" font-family="Noto Serif, DejaVu Serif, serif" font-weight="bold" font-size="41">D</text>
     </g>
     <g id="jack">
-      <text systemLanguage="fr" transform="scale(0.56453 1)" font-family="Noto Serif, DejaVu Serif, serif" font-weight="bold" font-size="40">V</text>
+      <text transform="scale(0.56453 1)" font-family="Noto Serif, DejaVu Serif, serif" font-weight="bold" font-size="40">V</text>
     </g>
     <g id="base">
       <path style="fill:#f4e8d0;stroke:none" d="M 0,0C0,3.78 3.09,6.87 6.87,6.87L159.715,6.87C163.485,6.87 166.575,3.78 166.575,0L166.575,-228.4C166.575,-232.18 163.485,-235.27 159.715,-235.27L6.87,-235.27C3.09,-235.27 0,-232.18 0,-228.4L0,0 z"/>

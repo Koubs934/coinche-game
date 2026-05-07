@@ -102,17 +102,55 @@ def main():
                     dark_count += 1
         if suit in RED_SUITS:
             if red_count < 1000:
-                color_issues.append(f"{name}: red_count={red_count} (need ≥1000)")
+                color_issues.append(f"{name}: red_count={red_count} (need >=1000)")
         else:
             if dark_count < 1000:
-                color_issues.append(f"{name}: dark_count={dark_count} (need ≥1000)")
+                color_issues.append(f"{name}: dark_count={dark_count} (need >=1000)")
     if color_issues:
         fails.extend(color_issues)
         print(f"[4/5] Suit colors: FAIL ({len(color_issues)} suspect)")
     else:
         print(f"[4/5] Suit colors: OK")
 
-    # 5. Alpha.
+    # 5b. Figure cards must have a visible rank LETTER (V/D/R) in the
+    #     top-left rank zone. Without this, the SVG render is silently
+    #     dropping the <text> rank glyph (the bug fixed in modify_svg.py
+    #     where collapsed switches retained a systemLanguage attribute
+    #     that Chromium still treats as a language filter).
+    #
+    #     The V letter on V-coeur lives in roughly x=10-80, y=10-115.
+    #     Below y~150 sits the small suit symbol (a separate use-href
+    #     to #heart/#spade), which we must NOT count — otherwise a
+    #     figure card with the suit but no rank would still pass.
+    rank_zone = (10, 10, 80, 115)
+    rank_issues = []
+    for name in sorted(actual):
+        rank, suit = name[:-4].split("-")
+        if rank not in {"V", "D", "R"}:
+            continue
+        img = Image.open(ROOT / name).convert("RGB")
+        non_cream = 0
+        in_suit_color = 0
+        for y in range(rank_zone[1], rank_zone[3]):
+            for x in range(rank_zone[0], rank_zone[2]):
+                p = img.getpixel((x, y))
+                if cream_distance(p) > 60:
+                    non_cream += 1
+                    if suit in RED_SUITS and is_red(p):
+                        in_suit_color += 1
+                    elif suit not in RED_SUITS and is_dark(p):
+                        in_suit_color += 1
+        if non_cream < 100:
+            rank_issues.append(f"{name}: only {non_cream} non-cream px in rank zone (need >=100)")
+        elif in_suit_color < 50:
+            rank_issues.append(f"{name}: only {in_suit_color} px in suit color in rank zone (need >=50)")
+    if rank_issues:
+        fails.extend(rank_issues)
+        print(f"[5/6] Rank letters V/D/R: FAIL ({len(rank_issues)} cards missing rank)")
+    else:
+        print(f"[5/6] Rank letters V/D/R: OK (all 12 figure cards render their rank)")
+
+    # 6. Alpha.
     alpha_issues = []
     for name in sorted(actual):
         img = Image.open(ROOT / name)
@@ -122,9 +160,9 @@ def main():
                 alpha_issues.append(f"{name}: alpha min={extrema[0]}")
     if alpha_issues:
         fails.extend(alpha_issues)
-        print(f"[5/5] Alpha: FAIL ({len(alpha_issues)} non-opaque)")
+        print(f"[6/6] Alpha: FAIL ({len(alpha_issues)} non-opaque)")
     else:
-        print(f"[5/5] Alpha: OK")
+        print(f"[6/6] Alpha: OK")
 
     print()
     if fails:
