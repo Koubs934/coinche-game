@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 280" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <pattern id="diamonds" width="20" height="28" patternUnits="userSpaceOnUse">
+      <rect width="20" height="28" fill="#5a2a2a"/>
+      <path d="M10 0 L20 14 L10 28 L0 14 Z" fill="#7a3838"/>
+      <path d="M10 4 L16 14 L10 24 L4 14 Z" fill="none" stroke="#c9a961" stroke-width="0.6"/>
+      <circle cx="10" cy="14" r="1.5" fill="#c9a961"/>
+      <circle cx="0" cy="0" r="1" fill="#c9a961"/>
+      <circle cx="20" cy="0" r="1" fill="#c9a961"/>
+      <circle cx="0" cy="28" r="1" fill="#c9a961"/>
+      <circle cx="20" cy="28" r="1" fill="#c9a961"/>
+    </pattern>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.10)"/>
+      <stop offset="50%" stop-color="rgba(255,255,255,0)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.18)"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="280" rx="10" ry="10" fill="#f4e8d0"/>
+  <rect x="6" y="6" width="188" height="268" rx="6" ry="6" fill="url(#diamonds)"/>
+  <rect x="6" y="6" width="188" height="268" rx="6" ry="6" fill="none" stroke="#c9a961" stroke-width="2"/>
+  <rect x="10" y="10" width="180" height="260" rx="4" ry="4" fill="none" stroke="#e0c987" stroke-width="0.6" opacity="0.7"/>
+  <rect x="6" y="6" width="188" height="268" rx="6" ry="6" fill="url(#sheen)"/>
+</svg>

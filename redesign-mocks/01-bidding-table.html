@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Coinche — Bidding Table Mockup</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+SC:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet" />
+
+<style>
+:root {
+  --vert-tapis:  #1f3d2e;
+  --vert-ombre:  #0d1f17;
+  --or-laiton:   #c9a961;
+  --or-clair:    #e0c987;
+  --creme:       #f4e8d0;
+  --bordeaux:    #5a2a2a;
+  --vert-sauge:  #7daa7a;
+
+  --display: 'Cinzel', serif;
+  --body:    'Cormorant Garamond', serif;
+
+  /* Fluid sizing — scales 360x640 → 430x950 viewports */
+  --avatar-h:    clamp(48px, 7.8vh, 64px);
+  /* Hand cards: ~70% larger than v1 max (was 56). Vh-based so card
+     height fits the available hand container, not just viewport width. */
+  --card-w:      clamp(40px, 10vh, 96px);
+  --card-h:      calc(var(--card-w) * 1.5);
+  --card-back-w: clamp(22px, 5.2vw, 32px);
+  --card-back-h: calc(var(--card-back-w) * 1.5);
+}
+
+body.font-b {
+  --display: 'Cormorant SC', serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: #000;
+  color: var(--creme);
+  font-family: var(--body);
+  font-size: clamp(0.7rem, 1.3vh, 0.9rem);
+  -webkit-font-smoothing: antialiased;
+  font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ------- Debug font toggle (out of mockup) ------- */
+.font-toggle {
+  position: fixed;
+  top: 2px;
+  right: 2px;
+  z-index: 999;
+  display: inline-flex;
+  background: rgba(20,20,20,0.85);
+  border: 1px solid #333;
+  border-radius: 3px;
+  overflow: hidden;
+  font-family: ui-monospace, monospace;
+  font-size: 8px;
+  color: #aaa;
+  opacity: 0.4;
+  transition: opacity 0.15s ease;
+}
+.font-toggle:hover { opacity: 1; }
+.font-toggle button {
+  background: transparent;
+  color: #aaa;
+  border: 0;
+  padding: 2px 4px;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  font-family: inherit;
+  font-size: inherit;
+}
+.font-toggle button.active {
+  background: #c9a961;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+/* Hide chip on narrow viewports — keyboard `T` shortcut still works */
+@media (max-width: 380px) {
+  .font-toggle { display: none; }
+}
+
+/* ------- App frame: fills viewport, capped on desktop ------- */
+.app {
+  position: relative;
+  width: 100%;
+  max-width: 430px;
+  height: 100%;
+  background:
+    /* central warm spotlight — light pulled higher and stronger so the
+       eye is drawn toward the contract panel */
+    radial-gradient(
+      ellipse at 50% 30%,
+      rgba(48, 88, 65, 0.35) 0%,
+      transparent 50%
+    ),
+    /* lit center / dark corners — pronounced felt vignette */
+    radial-gradient(
+      ellipse at center,
+      var(--vert-tapis) 25%,
+      rgba(13, 31, 23, 0.88) 100%
+    ),
+    var(--vert-tapis);
+  overflow: hidden;
+  font-family: var(--body);
+  color: var(--creme);
+  box-shadow: 0 0 80px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+}
+
+.display { font-family: var(--display); }
+
+/* ============= TOP BAR ============= */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: clamp(4px, 1.6vw, 10px);
+  padding: clamp(4px, 1vh, 9px) clamp(8px, 3vw, 14px) clamp(2px, 0.5vh, 5px);
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  flex-shrink: 0;
+  width: clamp(32px, 5.2vh, 42px);
+  height: clamp(32px, 5.2vh, 42px);
+  border: 1px solid var(--or-laiton);
+  border-radius: 6px;
+  background:
+    linear-gradient(to bottom, rgba(0,0,0,0.05), rgba(0,0,0,0.25));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--or-laiton);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.25),
+    0 2px 6px rgba(0, 0, 0, 0.15);
+}
+.icon-btn .label {
+  font-family: var(--body);
+  font-size: clamp(7px, 1.1vh, 9px);
+  letter-spacing: 0.5px;
+  margin-top: 1px;
+}
+.icon-btn.score { flex-direction: column; gap: 0; }
+.icon-btn.score .bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.5px;
+  height: 11px;
+}
+.icon-btn.score .bars span {
+  width: 2px;
+  background: var(--or-laiton);
+  border-radius: 1px;
+}
+.icon-btn.score .bars span:nth-child(1){ height: 5px; }
+.icon-btn.score .bars span:nth-child(2){ height: 8px; }
+.icon-btn.score .bars span:nth-child(3){ height: 11px; }
+
+.icon-btn.menu {
+  border-radius: 50%;
+  font-size: 18px;
+  letter-spacing: 1px;
+  flex-direction: column;
+  gap: 3px;
+}
+.icon-btn.menu span {
+  display: block;
+  width: 16px;
+  height: 1.5px;
+  background: var(--or-laiton);
+  border-radius: 1px;
+}
+
+.score-panels {
+  display: flex;
+  flex: 1;
+  gap: 0;
+  height: clamp(32px, 5.2vh, 42px);
+  border: 1px solid var(--or-laiton);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 0 0 0.5px rgba(224, 201, 135, 0.15),
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 3px 8px rgba(0, 0, 0, 0.18);
+}
+
+.score-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+  background: rgba(0,0,0,0.15);
+  border-right: 1px solid var(--or-laiton);
+}
+.score-panel:last-child { border-right: 0; }
+
+.score-panel .lbl {
+  font-family: var(--body);
+  font-size: clamp(8px, 1.3vh, 11px);
+  color: var(--or-clair);
+  letter-spacing: 0.5px;
+}
+.score-panel .val {
+  font-family: var(--display);
+  font-size: clamp(0.95rem, 2vh, 1.2rem);
+  color: var(--or-clair);
+  font-weight: 500;
+  margin-top: -1px;
+}
+
+.score-panel.coinche {
+  flex: 1.5;
+  background: rgba(0,0,0,0.25);
+}
+.score-panel.coinche .lbl {
+  font-size: clamp(9px, 1.4vh, 12px);
+  letter-spacing: 1.5px;
+  color: var(--or-laiton);
+}
+.score-panel.coinche .val {
+  font-size: clamp(10px, 1.5vh, 13px);
+  letter-spacing: 0.5px;
+  font-family: var(--body);
+  color: var(--or-clair);
+  margin-top: 0;
+}
+
+.score-panel.eux {
+  background: linear-gradient(to bottom, rgba(90,42,42,0.5), rgba(0,0,0,0.15));
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* ============= TABLE ============= */
+.table {
+  position: relative;
+  flex: 1 1 auto;
+  margin: 0 clamp(6px, 2vw, 12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+/* Oval — lit playing surface distinct from the outer felt.
+   Flat 2D ellipse, sized to occupy the majority of the table area
+   (96% wide × 58% tall ≈ 1.66:1) so it has presence — like the
+   WhatsApp ref. Depth-pass styling (interior gradient, gold rim,
+   inner ring, inset pénombre, warm halo) carries the table feel. */
+.oval {
+  position: absolute;
+  top: 21%;
+  left: 2%;
+  right: 2%;
+  bottom: 21%;
+  border: 1.5px solid rgba(201, 169, 97, 0.65);
+  border-radius: 50%;
+  pointer-events: none;
+  /* Interior fill — slightly warmer/lighter than the felt outside,
+     giving the impression of a lit playing zone */
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(40, 75, 56, 0.45) 0%,
+      rgba(31, 61, 46, 0) 75%
+    );
+  box-shadow:
+    /* inner gold ring — the table's rim */
+    inset 0 0 0 0.5px rgba(224, 201, 135, 0.25),
+    /* internal pénombre — felt curves inward */
+    inset 0 0 30px rgba(13, 31, 23, 0.35),
+    /* warm ambient halo around the rim */
+    0 0 24px rgba(201, 169, 97, 0.10);
+}
+
+/* Players — avatar/name positioned around the oval */
+.player {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: auto;
+  text-align: center;
+}
+
+/* Players — flat 2D positioning. Avatars straddle the oval line at
+   their respective edges. With the larger oval (21% top / 79% bottom)
+   there's more clearance room between Pierre and the center logo, so
+   the Pierre shift is reduced — he can sit closer to the oval edge. */
+/* Pierre: a small shift only — avatar straddles the new oval top
+   edge (21%). Name-wrap descends into the (taller) oval interior. */
+.player.top    { top: 21%; left: 50%; transform: translate(-50%, calc(var(--avatar-h) / -2 - clamp(8px, 1.2vh, 14px))); }
+/* Sophie: avatar-center on oval mid-left (equator, 50%) */
+.player.left   { top: 50%; left: 0;   transform: translateY(calc(var(--avatar-h) / -2)); }
+/* Marc: avatar-center on oval mid-right (equator, 50%) */
+.player.right  { top: 50%; right: 0;  transform: translateY(calc(var(--avatar-h) / -2)); }
+/* Vous: avatar-center on the new oval bottom edge (79%); name-wrap
+   descends into the bid-row zone, which is intended. */
+.player.bottom { top: 79%; left: 50%; transform: translate(-50%, calc(var(--avatar-h) / -2)); }
+
+.avatar {
+  position: relative;
+  width: var(--avatar-h);
+  height: var(--avatar-h);
+  border-radius: 50%;
+  border: clamp(2px, 0.4vh, 3px) solid var(--or-laiton);
+  box-shadow:
+    inset 0 0 0 0.5px rgba(224, 201, 135, 0.25),
+    inset 0 1px 2px rgba(0, 0, 0, 0.4),
+    0 0 10px rgba(224, 201, 135, 0.12),
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 6px 14px rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--display);
+  font-size: clamp(1.2rem, 3vh, 1.8rem);
+  color: var(--or-clair);
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  letter-spacing: 1px;
+  background:
+    radial-gradient(circle at 35% 30%,
+      rgba(201, 169, 97, 0.18) 0%,
+      transparent 60%),
+    radial-gradient(circle at center,
+      var(--vert-tapis) 0%,
+      var(--vert-ombre) 100%);
+}
+
+.player .name {
+  font-family: var(--body);
+  font-size: clamp(11px, 1.7vh, 14px);
+  color: var(--creme);
+  margin-top: 4px;
+  letter-spacing: 0.3px;
+}
+.player .status {
+  font-family: var(--body);
+  font-size: clamp(9px, 1.3vh, 11px);
+  letter-spacing: 1.5px;
+  color: var(--vert-sauge);
+  font-weight: 500;
+}
+.player.bottom .status {
+  color: var(--or-clair);
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.player .name-wrap {
+  position: relative;
+  border: 1px solid rgba(201,169,97,0.5);
+  border-radius: 4px;
+  padding: clamp(1px, 0.3vh, 3px) clamp(6px, 2vw, 10px);
+  background: rgba(0,0,0,0.25);
+  margin-top: clamp(2px, 0.5vh, 4px);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+}
+.player .name-wrap .name { margin-top: 0; }
+.player .name-wrap .status { margin-top: 0; }
+
+/* Vous info row — name-wrap + contextual PASSE button alongside */
+.vous-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: clamp(6px, 1.5vw, 10px);
+  margin-top: clamp(2px, 0.5vh, 4px);
+}
+.vous-info .name-wrap {
+  /* override the player name-wrap top margin (we manage it on the row) */
+  margin-top: 0;
+}
+
+.pass-btn {
+  font-family: var(--body);
+  font-size: clamp(9px, 1.3vh, 11px);
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  color: var(--vert-sauge);
+  background: var(--vert-tapis);
+  border: 1px solid var(--or-laiton);
+  border-radius: 4px;
+  padding: clamp(3px, 0.6vh, 6px) clamp(8px, 2.2vw, 14px);
+  /* Comfortable tap target via min-height even though visual stays compact */
+  min-height: clamp(30px, 4.2vh, 40px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+.pass-btn:hover,
+.pass-btn:focus,
+.pass-btn:focus-visible {
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--or-clair);
+  border-color: var(--or-clair);
+  outline: none;
+}
+
+/* Dealer badge — mini avatar treatment, clearly raised over the avatar */
+.dealer-badge {
+  position: absolute;
+  right: -6px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--or-laiton);
+  background:
+    radial-gradient(circle at 35% 30%,
+      rgba(244, 232, 208, 0.4) 0%,
+      transparent 60%),
+    radial-gradient(circle at center, #d4b878 0%, #a8893f 100%);
+  color: var(--vert-ombre);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.25);
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,0.35),
+    0 0 6px rgba(224, 201, 135, 0.25),
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    0 4px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* Pierre's card fan — opens wider above his head for a clearer
+   "cards held above" impression */
+.card-fan {
+  position: absolute;
+  top: calc(var(--card-back-h) * -0.5 - 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(var(--card-back-w) * 5);
+  height: calc(var(--card-back-h) * 1.5);
+  pointer-events: none;
+  z-index: 0;
+}
+.card-back {
+  position: absolute;
+  width: var(--card-back-w);
+  height: var(--card-back-h);
+  left: 50%;
+  top: 0;
+  margin-left: calc(var(--card-back-w) / -2);
+  border-radius: 4px;
+  background-color: var(--vert-tapis);
+  background-image:
+    repeating-linear-gradient(45deg,
+      transparent 0, transparent 7px,
+      rgba(201, 169, 97, 0.25) 7px, rgba(201, 169, 97, 0.25) 8px),
+    repeating-linear-gradient(-45deg,
+      transparent 0, transparent 7px,
+      rgba(201, 169, 97, 0.25) 7px, rgba(201, 169, 97, 0.25) 8px);
+  border: 1.5px solid var(--or-laiton);
+  box-shadow:
+    inset 0 0 0 1px rgba(15,30,22,0.6),
+    0 1px 3px rgba(0,0,0,0.4);
+  transform-origin: 50% 100%;
+}
+.card-back::after {
+  content: '♠';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(9px, 1.4vh, 12px);
+  color: var(--or-laiton);
+  opacity: 0.3;
+}
+.card-fan .card-back:nth-child(1) { transform: rotate(-32deg) translate(calc(var(--card-back-w) * -1),    25%); }
+.card-fan .card-back:nth-child(2) { transform: rotate(-16deg) translate(calc(var(--card-back-w) * -0.5),  6%); }
+.card-fan .card-back:nth-child(3) { transform: rotate(0deg)   translate(0, 0); }
+.card-fan .card-back:nth-child(4) { transform: rotate(16deg)  translate(calc(var(--card-back-w) * 0.5),   6%); }
+.card-fan .card-back:nth-child(5) { transform: rotate(32deg)  translate(var(--card-back-w),              25%); }
+
+/* Make Pierre's avatar sit above the fan */
+.player.top .avatar { z-index: 2; }
+.player.top .card-fan { z-index: 0; }
+
+/* ============= CENTER LOGO + CONTRAT ============= */
+/* Centered both axes inside the oval bounding box. On tall viewports
+   (>=740px), nudged down a few pixels to compensate for the asymmetry
+   created by Pierre's name-wrap eating the upper oval space while
+   Vous's name-wrap lives below the oval entirely. */
+.center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: clamp(140px, 50vw, 200px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+@media (min-height: 740px) {
+  .center {
+    top: calc(50% + clamp(0px, 0.2vh, 2px));
+  }
+}
+/* (max-height: 700px center upshift removed — the larger oval gives
+   Vous enough clearance below center without compensation, and the
+   upshift was causing Pierre's name-wrap to overlap the logo
+   ornament on small viewports.) */
+
+.logo-block {
+  text-align: center;
+  margin-bottom: clamp(2px, 0.6vh, 6px);
+  /* Logo sits ABOVE the contrat-panel for the slight overlap effect */
+  position: relative;
+  z-index: 2;
+}
+.logo-ornament {
+  font-size: clamp(11px, 1.8vh, 15px);
+  color: var(--or-laiton);
+  letter-spacing: 6px;
+  line-height: 1;
+  margin-bottom: clamp(1px, 0.3vh, 3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.logo-ornament .swirl {
+  display: inline-block;
+  height: 1px;
+  background: var(--or-laiton);
+  width: clamp(20px, 6vw, 30px);
+  position: relative;
+}
+.logo-ornament .swirl::before,
+.logo-ornament .swirl::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border: 1px solid var(--or-laiton);
+  border-radius: 50%;
+  top: -2px;
+}
+.logo-ornament .swirl.left::before { right: 0; }
+.logo-ornament .swirl.right::after { left: 0; }
+
+.logo-title {
+  font-family: var(--display);
+  font-size: clamp(1.2rem, 3.5vh, 1.8rem);
+  letter-spacing: 0.22em;
+  color: var(--or-laiton);
+  font-weight: 600;
+  line-height: 1;
+  margin: clamp(1px, 0.3vh, 4px) 0 clamp(2px, 0.5vh, 5px);
+}
+.logo-tagline {
+  font-family: var(--body);
+  font-size: clamp(0.55rem, 1vh, 0.7rem);
+  letter-spacing: 0.3em;
+  color: var(--or-laiton);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.logo-tagline::before,
+.logo-tagline::after {
+  content: '';
+  height: 1px;
+  background: var(--or-laiton);
+  width: clamp(10px, 4vw, 18px);
+  display: inline-block;
+}
+
+/* Hide swirls on tight viewports — keep just the central spade */
+@media (max-height: 700px) {
+  .logo-ornament .swirl { display: none; }
+}
+
+/* Contrat panel — premium focal point: gold-rimmed casket with the
+   cream "80" cell sitting like a jeton inside.
+   Negative margin-top + lower z-index makes the logo above appear
+   to slightly overlap the panel's top edge ("posé au centre, sous
+   le logo"). */
+.contrat-panel {
+  width: clamp(108px, 32vw, 140px);
+  margin-top: clamp(-8px, -1vh, -4px);
+  position: relative;
+  z-index: 1;
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(20, 45, 32, 0.95) 0%,
+      var(--vert-ombre) 100%
+    );
+  border: 1px solid var(--or-laiton);
+  border-radius: 4px;
+  padding: clamp(3px, 0.7vh, 7px) clamp(8px, 2.5vw, 12px) clamp(4px, 0.8vh, 8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow:
+    /* inner gold ring — the casket's lining */
+    inset 0 0 0 0.5px rgba(224, 201, 135, 0.4),
+    /* subtle top highlight as if lit from above */
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    /* internal darkening into the corners */
+    inset 0 0 14px rgba(0, 0, 0, 0.45),
+    /* deep drop shadow — sits above the felt */
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    /* warm gold halo — premium ambient */
+    0 0 24px rgba(201, 169, 97, 0.06);
+}
+.contrat-panel .header {
+  font-family: var(--body);
+  font-size: clamp(9px, 1.4vh, 11px);
+  font-style: italic;
+  color: var(--or-clair);
+  letter-spacing: 0.5px;
+  margin-bottom: clamp(2px, 0.4vh, 4px);
+}
+.contrat-value {
+  width: clamp(70px, 22vw, 92px);
+  height: clamp(34px, 5.5vh, 50px);
+  background:
+    linear-gradient(to bottom, #fdf3da 0%, var(--creme) 100%);
+  border: 1px solid var(--or-laiton);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--display);
+  font-size: clamp(1.5rem, 3.5vh, 2.2rem);
+  font-weight: 600;
+  color: var(--vert-tapis);
+  line-height: 1;
+  box-shadow:
+    /* top edge highlight — light catches the bevel */
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.05),
+    /* the cell sits raised above the dark casket floor */
+    0 2px 4px rgba(0, 0, 0, 0.35),
+    0 4px 10px rgba(0, 0, 0, 0.18);
+}
+.contrat-atout {
+  font-family: var(--body);
+  font-size: clamp(10px, 1.5vh, 13px);
+  color: var(--creme);
+  margin-top: clamp(2px, 0.5vh, 6px);
+  letter-spacing: 0.5px;
+}
+.contrat-atout .suit {
+  color: var(--creme);
+  font-size: clamp(11px, 1.6vh, 14px);
+  margin-left: 2px;
+}
+
+/* ============= BID ROW =============
+   Symmetric 6+6 grid inside the bordered wrapper:
+     Row 1: 80 | 90 | 100 | 110 | 120 | COINCHE
+     Row 2: 130 | 140 | 150 | 160 | CAPOT | SURCOINCHE
+   PASSE moved out of bid-row entirely — now lives next to "À VOUS"
+   under the Vous avatar.
+*/
+.bid-section {
+  flex-shrink: 0;
+  padding: clamp(2px, 0.5vh, 5px) clamp(6px, 2vw, 12px);
+}
+
+.bid-row {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(3px, 0.6vh, 6px);
+  border: 1px solid var(--or-laiton);
+  border-radius: 4px;
+  padding: clamp(3px, 0.5vh, 5px);
+  background: rgba(0,0,0,0.2);
+}
+
+.bid-row__line {
+  display: flex;
+  gap: clamp(3px, 0.8vw, 6px);
+}
+
+.bid-row__line .bid-btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.bid-btn {
+  /* 6 buttons per row → ~53px each at 360, gives comfortable tap area
+     horizontally (vs the ~30px we had with 10 buttons). Vertical tap
+     target 44px ideal, viewport-fit forces smaller on tight phones. */
+  min-height: clamp(26px, 4vh, 44px);
+  border: 1px solid var(--or-laiton);
+  background:
+    linear-gradient(to bottom, rgba(0,0,0,0.05), rgba(0,0,0,0.18));
+  color: var(--or-clair);
+  font-family: var(--display);
+  font-size: clamp(0.75rem, 1.6vh, 1rem);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(2px, 0.4vh, 6px) clamp(2px, 0.7vw, 6px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.bid-btn.selected {
+  background:
+    linear-gradient(to bottom, #fdf3da 0%, var(--creme) 100%);
+  color: var(--vert-tapis);
+  font-weight: 700;
+  font-size: clamp(0.85rem, 1.8vh, 1.1rem);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 4px 10px rgba(0, 0, 0, 0.15);
+}
+.bid-btn.capot {
+  /* premium intermediate: numeric body + emphasised gold treatment */
+  background: var(--vert-tapis);
+  border: 1.5px solid var(--or-laiton);
+  color: var(--or-clair);
+  font-weight: 600;
+  letter-spacing: 1px;
+  box-shadow: inset 0 0 6px rgba(224, 201, 135, 0.18);
+}
+.bid-btn.coinche {
+  background: var(--bordeaux);
+  color: var(--creme);
+  border-color: var(--or-laiton);
+  font-family: var(--body);
+  font-size: clamp(0.7rem, 1.5vh, 0.9rem);
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+.bid-btn.surcoinche {
+  /* deeper, more saturated oxblood vs COINCHE for clear distinction */
+  background: #3a1818;
+  color: var(--creme);
+  border-color: var(--or-laiton);
+  font-family: var(--body);
+  font-size: clamp(0.6rem, 1.3vh, 0.8rem);
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+
+.last-bid {
+  text-align: center;
+  font-family: var(--body);
+  font-size: clamp(9px, 1.3vh, 11px);
+  font-style: italic;
+  color: var(--or-clair);
+  margin-top: clamp(2px, 0.4vh, 5px);
+  letter-spacing: 0.3px;
+}
+.last-bid b { font-weight: 600; font-style: normal; }
+
+/* ============= HAND =============
+   Subtle "displayed hand" fan: cards mostly upright, modest rotation
+   (±10° at edges), spread mainly via horizontal offset. Bottom-anchored
+   pivot (transform-origin: 50% 100%) keeps card bottoms aligned so
+   no card descends into the bottom nav regardless of rotation. */
+.hand {
+  flex-shrink: 0;
+  position: relative;
+  height: clamp(85px, 16vh, 155px);
+  margin-top: clamp(0px, 0.3vh, 4px);
+  /* horizontal step between adjacent card centers — bounded by both
+     vh (so it scales with card height) and vw (so the fan never
+     overflows narrow viewports). At 430x950 ≈ 38px gap on 95px
+     cards → ~60% overlap. At 360x640 ≈ 32px gap on 64px cards
+     → ~50% overlap. */
+  --gap: clamp(22px, min(5.5vh, 9vw), 42px);
+  /* Global shadow under the entire fan — reinforces the "cards held
+     in front of the player, away from the felt" feel. Pure GPU op,
+     negligible perf cost on a static element. */
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4));
+  /* No explicit overflow — default 'visible' lets the hover lift rise
+     into the bid-row zone above; the bottom offset on .card keeps
+     rotated card bottoms from poking into the bottom-nav below. */
+}
+
+.card {
+  position: absolute;
+  /* Lift the card a fraction of its width off the hand bottom so the
+     ±10° bottom-pivot rotation (which dips the outer bottom corner by
+     ~card_w/2 * sin(10°)) doesn't poke into the bottom-nav. */
+  bottom: calc(var(--card-w) * 0.1);
+  left: 50%;
+  width: var(--card-w);
+  aspect-ratio: 2 / 3;
+  background: #F4E8D0;
+  /* No CSS border — the SVG draws its own gold-brown rect stroke
+     at the same color/width to keep the visual edge consistent. */
+  border: 0;
+  border-radius: 4%;
+  /* Two-layer shadow per card — close contact + further lift —
+     stacked with the .hand-level drop-shadow gives the "cards held
+     in front of you" depth. */
+  box-shadow:
+    0 6px 12px rgba(0, 0, 0, 0.45),
+    0 14px 28px rgba(0, 0, 0, 0.25),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  overflow: hidden;
+  user-select: none;
+  cursor: pointer;
+  transform-origin: 50% 100%;
+  /* Order matters: the two translateX collapse into a single
+     horizontal placement (centering + per-card offset), then rotate
+     around the bottom-center pivot, then translateY(0) baseline so
+     hover can interpolate cleanly to a lift value. */
+  transform:
+    translateX(-50%)
+    translateX(calc(var(--off, 0) * var(--gap)))
+    rotate(var(--rot, 0deg))
+    translateY(0);
+  transition:
+    transform 200ms ease-out,
+    filter 200ms ease-out,
+    box-shadow 200ms ease-out;
+}
+.card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* Hover/focus/active: lift the card 14px in its own rotated frame
+   while preserving rotation + horizontal offset. The card rises out
+   of the fan diagonally for outer cards (natural "pulled from hand"
+   motion), straight up for the centered card. */
+.card:hover,
+.card:focus,
+.card:focus-visible,
+.card:active {
+  transform:
+    translateX(-50%)
+    translateX(calc(var(--off, 0) * var(--gap)))
+    rotate(var(--rot, 0deg))
+    translateY(-14px);
+  filter: brightness(1.08);
+  z-index: 20;
+  box-shadow:
+    0 6px 12px rgba(0, 0, 0, 0.5),
+    0 14px 28px rgba(0, 0, 0, 0.28),
+    0 0 0 1px var(--or-laiton),
+    0 0 16px rgba(201, 169, 97, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  outline: none;
+}
+
+/* Per-card offset (--off) and rotation (--rot). 9 cards centered on
+   the 5th, ±10° at edges in 2.5° steps. */
+.hand .card:nth-child(1) { --off: -4; --rot: -10deg;  z-index: 1; }
+.hand .card:nth-child(2) { --off: -3; --rot: -7.5deg; z-index: 2; }
+.hand .card:nth-child(3) { --off: -2; --rot: -5deg;   z-index: 3; }
+.hand .card:nth-child(4) { --off: -1; --rot: -2.5deg; z-index: 4; }
+.hand .card:nth-child(5) { --off:  0; --rot:  0deg;   z-index: 5; }
+.hand .card:nth-child(6) { --off:  1; --rot:  2.5deg; z-index: 6; }
+.hand .card:nth-child(7) { --off:  2; --rot:  5deg;   z-index: 7; }
+.hand .card:nth-child(8) { --off:  3; --rot:  7.5deg; z-index: 8; }
+.hand .card:nth-child(9) { --off:  4; --rot:  10deg;  z-index: 9; }
+
+/* ============= BOTTOM NAV ============= */
+.bottom-nav {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  padding: clamp(2px, 0.5vh, 6px) clamp(6px, 2vw, 10px) clamp(4px, 0.8vh, 10px);
+  border-top: 1px solid rgba(201,169,97,0.3);
+  background: linear-gradient(to bottom, rgba(0,0,0,0.05), rgba(13,31,23,0.4));
+}
+
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(1px, 0.2vh, 2px);
+  color: var(--or-laiton);
+  font-family: var(--body);
+  font-size: clamp(8px, 1.2vh, 10px);
+  letter-spacing: 0.5px;
+}
+
+.nav-icon {
+  width: clamp(22px, 3.6vh, 30px);
+  height: clamp(22px, 3.6vh, 30px);
+  border: 1px solid var(--or-laiton);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(11px, 1.7vh, 14px);
+}
+
+.nav-item.active {
+  color: var(--or-clair);
+}
+.nav-item.active .nav-icon {
+  width: clamp(34px, 5.5vh, 48px);
+  height: clamp(34px, 5.5vh, 48px);
+  border: 1.5px solid var(--or-laiton);
+  background:
+    radial-gradient(
+      ellipse at 50% 35%,
+      rgba(31, 61, 46, 0.95) 0%,
+      var(--vert-ombre) 100%
+    );
+  font-size: clamp(12px, 1.9vh, 15px);
+  position: relative;
+  margin-bottom: clamp(1px, 0.3vh, 3px);
+  box-shadow:
+    /* surrounding ring of dark felt — separates the button from neighbors */
+    0 0 0 2px var(--vert-tapis),
+    /* second ring in soft gold — premium glow */
+    0 0 0 3px rgba(201, 169, 97, 0.35),
+    /* inner top highlight */
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    /* drop shadow stack — clearly floats above the nav row */
+    0 4px 8px rgba(0, 0, 0, 0.45),
+    0 10px 22px rgba(0, 0, 0, 0.22),
+    /* warm ambient halo */
+    0 0 18px rgba(201, 169, 97, 0.1);
+  margin-top: clamp(-12px, -1.5vh, -8px);
+}
+.nav-item.active .nav-label {
+  font-size: clamp(9px, 1.3vh, 11px);
+  font-weight: 500;
+  color: var(--or-clair);
+}
+
+/* Mini cards icon for active "Jeu" */
+.mini-cards {
+  position: relative;
+  width: clamp(14px, 2.2vh, 20px);
+  height: clamp(18px, 2.7vh, 24px);
+}
+.mini-cards .mc {
+  position: absolute;
+  width: 65%;
+  height: 80%;
+  background: var(--creme);
+  border: 1px solid var(--or-laiton);
+  border-radius: 2px;
+}
+.mini-cards .mc:nth-child(1) {
+  left: -5%;
+  top: 8%;
+  transform: rotate(-12deg);
+}
+.mini-cards .mc:nth-child(2) {
+  left: 40%;
+  top: 0;
+  transform: rotate(8deg);
+  background: linear-gradient(145deg, #fefaf0, #f4e8d0);
+}
+.mini-cards .mc:nth-child(2)::after {
+  content: '♠';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1a1a1a;
+  font-size: clamp(7px, 1.1vh, 9px);
+}
+
+</style>
+</head>
+<body>
+
+<!-- Debug toggle: swap display font for A/B comparison (press T to toggle) -->
+<div class="font-toggle" role="group" aria-label="Display font toggle" title="Display font (T to toggle)">
+  <button id="font-a" class="active" type="button">Cz</button>
+  <button id="font-b" type="button">CSC</button>
+</div>
+
+<div class="app">
+
+  <!-- ============================================
+       TOP BAR: score icon | Nous | COINCHE | Eux | menu
+       ============================================ -->
+  <header class="topbar">
+    <div class="icon-btn score" aria-label="Score">
+      <div class="bars"><span></span><span></span><span></span></div>
+      <div class="label">Score</div>
+    </div>
+
+    <div class="score-panels">
+      <div class="score-panel nous">
+        <span class="lbl">Nous</span>
+        <span class="val">82</span>
+      </div>
+      <div class="score-panel coinche">
+        <span class="lbl">COINCHE</span>
+        <span class="val">500 pts</span>
+      </div>
+      <div class="score-panel eux">
+        <span class="lbl">Eux</span>
+        <span class="val">67</span>
+      </div>
+    </div>
+
+    <div class="icon-btn menu" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </div>
+  </header>
+
+  <!-- ============================================
+       TABLE: oval felt with 4 players + center logo
+       ============================================ -->
+  <section class="table" aria-label="Table de jeu">
+    <div class="oval"></div>
+
+    <!-- Pierre (top) — fan of card backs behind avatar -->
+    <div class="player top">
+      <div class="card-fan" aria-hidden="true">
+        <div class="card-back"></div>
+        <div class="card-back"></div>
+        <div class="card-back"></div>
+        <div class="card-back"></div>
+        <div class="card-back"></div>
+      </div>
+      <div class="avatar">P</div>
+      <div class="name-wrap">
+        <span class="name">Pierre</span>
+        <span class="status">PASSE</span>
+      </div>
+    </div>
+
+    <!-- Sophie (left) -->
+    <div class="player left">
+      <div class="avatar">S</div>
+      <div class="name-wrap">
+        <span class="name">Sophie</span>
+        <span class="status">PASSE</span>
+      </div>
+    </div>
+
+    <!-- Marc (right) -->
+    <div class="player right">
+      <div class="avatar">M</div>
+      <div class="name-wrap">
+        <span class="name">Marc</span>
+        <span class="status">PASSE</span>
+      </div>
+    </div>
+
+    <!-- Center: logo + contrat panel -->
+    <div class="center">
+      <div class="logo-block">
+        <div class="logo-ornament">
+          <span class="swirl left"></span>
+          <span>♠</span>
+          <span class="swirl right"></span>
+        </div>
+        <div class="logo-title">COINCHE</div>
+        <div class="logo-tagline">Depuis 1921</div>
+      </div>
+
+      <div class="contrat-panel">
+        <div class="header">Contrat en cours</div>
+        <div class="contrat-value">80</div>
+        <div class="contrat-atout">Atout <span class="suit">: ♠</span></div>
+      </div>
+    </div>
+
+    <!-- Vous (bottom) — turn indicator + dealer badge + contextual PASSE -->
+    <div class="player bottom">
+      <div class="avatar">V<span class="dealer-badge">D</span></div>
+      <div class="vous-info">
+        <div class="name-wrap">
+          <span class="name">Vous</span>
+          <span class="status">À VOUS</span>
+        </div>
+        <button class="pass-btn" type="button">PASSE</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================
+       BID ROW + last bid label
+       ============================================ -->
+  <section class="bid-section" aria-label="Enchères">
+    <div class="bid-row">
+      <div class="bid-row__line">
+        <button class="bid-btn selected">80</button>
+        <button class="bid-btn">90</button>
+        <button class="bid-btn">100</button>
+        <button class="bid-btn">110</button>
+        <button class="bid-btn">120</button>
+        <button class="bid-btn coinche">COINCHE</button>
+      </div>
+      <div class="bid-row__line">
+        <button class="bid-btn">130</button>
+        <button class="bid-btn">140</button>
+        <button class="bid-btn">150</button>
+        <button class="bid-btn">160</button>
+        <button class="bid-btn capot">CAPOT</button>
+        <button class="bid-btn surcoinche">SURCOINCHE</button>
+      </div>
+    </div>
+    <div class="last-bid">Dernière enchère : <b>80 par Vous</b></div>
+  </section>
+
+  <!-- ============================================
+       HAND: 9 cards fanned (7♣ 9♣ D♣ 10♦ A♥ R♥ D♥ 10♠ A♠)
+       ============================================ -->
+  <section class="hand" aria-label="Votre main">
+    <div class="card" tabindex="0" role="button" aria-label="7 de trèfle"><img src="cards/final/7-trefle.png"  alt=""   draggable="false" /></div>
+    <div class="card" tabindex="0" role="button" aria-label="9 de trèfle"><img src="cards/final/9-trefle.png"  alt=""   draggable="false" /></div>
+    <div class="card" tabindex="0" role="button" aria-label="Dame de trèfle"><img src="cards/final/D-trefle.png"  alt="" draggable="false" /></div>
+    <div class="card" tabindex="0" role="button" aria-label="10 de carreau"><img src="cards/final/10-carreau.png" alt="" draggable="false" /></div>
+    <div class="card" tabindex="0" role="button" aria-label="As de cœur"><img src="cards/final/A-coeur.png"   alt=""    draggable="false" /></div>
+    <div class="card" tabindex="0" role="button" aria-label="Roi de cœur"><img src="cards/final/R-coeur.png"   alt=""   draggable="false" /></div>
+    <div class="card" tabindex="0" role="button" aria-label="Dame de cœur"><img src="cards/final/D-coeur.png"   alt=""  draggable="false" /></div>
+    <div class="card" tabindex="0" role="button" aria-label="10 de pique"><img src="cards/final/10-pique.png"  alt=""   draggable="false" /></div>
+    <div class="card" tabindex="0" role="button" aria-label="As de pique"><img src="cards/final/A-pique.png"   alt=""   draggable="false" /></div>
+  </section>
+
+  <!-- ============================================
+       BOTTOM NAV: Chat | Offres | Jeu* | Astuces | Réglages
+       ============================================ -->
+  <nav class="bottom-nav" aria-label="Navigation">
+    <div class="nav-item">
+      <div class="nav-icon">💬</div>
+      <div class="nav-label">Chat</div>
+    </div>
+    <div class="nav-item">
+      <div class="nav-icon">🤝</div>
+      <div class="nav-label">Offres</div>
+    </div>
+    <div class="nav-item active">
+      <div class="nav-icon">
+        <div class="mini-cards">
+          <div class="mc"></div>
+          <div class="mc"></div>
+        </div>
+      </div>
+      <div class="nav-label">Jeu</div>
+    </div>
+    <div class="nav-item">
+      <div class="nav-icon">💡</div>
+      <div class="nav-label">Astuces</div>
+    </div>
+    <div class="nav-item">
+      <div class="nav-icon">⚙</div>
+      <div class="nav-label">Réglages</div>
+    </div>
+  </nav>
+
+</div>
+
+<script>
+  // Display font A/B toggle (Cinzel ↔ Cormorant SC)
+  const btnA = document.getElementById('font-a');
+  const btnB = document.getElementById('font-b');
+
+  function setFont(which) {
+    if (which === 'b') {
+      document.body.classList.add('font-b');
+      btnB.classList.add('active');
+      btnA.classList.remove('active');
+    } else {
+      document.body.classList.remove('font-b');
+      btnA.classList.add('active');
+      btnB.classList.remove('active');
+    }
+  }
+
+  btnA.addEventListener('click', () => setFont('a'));
+  btnB.addEventListener('click', () => setFont('b'));
+
+  // Press T to flip display font
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 't' || e.key === 'T') {
+      setFont(document.body.classList.contains('font-b') ? 'a' : 'b');
+    }
+  });
+</script>
+</body>
+</html>

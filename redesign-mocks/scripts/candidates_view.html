@@ -1,0 +1,22 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>candidates</title>
+<style>
+  body { background:#1f3d2e; margin:0; padding:24px; font-family:sans-serif; color:#f4e8d0; }
+  .grid { display:grid; grid-template-columns:repeat(6, 1fr); gap:16px; }
+  .a { text-align:center; font-size:11px; }
+  .a img { width:140px; height:140px; border-radius:50%; border:3px solid #c9a961; object-fit:cover; background:#f4e8d0; }
+</style></head>
+<body>
+<h2>Avatar candidates</h2>
+<div class="grid" id="g"></div>
+<script>
+  const seeds = ["SirHenry1","OldGent2","Maurice4","Edmond7","Bernard9","Gustave3","ColonelP","TheBaron",
+                 "LadyDiane","MadameC1","Ms.Lily9","SophieR3","Aurore22","IsabelleM",
+                 "MarcoDeux","RogueX","BeardJim","Pirate7","SailorM","Frederic9","Ricky2",
+                 "VousMec","OldMeBeard","Capitaine","BernardSenior","LeChef"];
+  const g = document.getElementById('g');
+  for (const s of seeds) {
+    g.insertAdjacentHTML('beforeend',`<div class="a"><img src="candidates/${s}.svg"><div>${s}</div></div>`);
+  }
+</script>
+</body></html>
