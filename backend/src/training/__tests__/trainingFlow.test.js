@@ -383,6 +383,94 @@ describe('training flow — V2.2 Phase 2C divergence canonicalisation', () => {
   });
 });
 
+// ─── Test C2: pass on rule-silent → skip Claude V2.2 chat ─────────────────
+//
+// When the user passes on a scenario the Feuille V2.1 doesn't cover, treat
+// the annotation as agreement (divergenceType=null, agreement=null) so the
+// frontend auto-advances to the next scenario instead of opening the
+// Claude conversation. The annotation is still persisted so the trace of
+// the user passing on this scenario survives.
+
+describe('training flow — pass on rule-silent skips Claude V2.2 chat', () => {
+  // petit-jeu-after-opp-80-spades has expectedAnswer === null
+  // (competitive-bidding-not-formalized), so submitting pass exercises the
+  // new skip path.
+  const RULE_SILENT_SCENARIO = 'petit-jeu-after-opp-80-spades';
+
+  it('pass + rule-silent → caseType:match, divergenceType:null, agreement:null', async () => {
+    const USER_ID = 'test-user-pass-rule-silent';
+    const client = connectClient(USER_ID, 'Pass Skip Tester');
+    const events = collectEvents(client, [
+      'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
+      'trainingCompleted', 'error',
+    ]);
+    await new Promise(resolve => client.on('connect', resolve));
+    client.emit('startTrainingScenario', { scenarioId: RULE_SILENT_SCENARIO });
+
+    await waitFor(() =>
+      events.trainingUpdate.some(u => u.trainingState.runState === 'AWAITING-ACTION'),
+    );
+    const runId = events.trainingStarted[0].trainingState.runId;
+    client.emit('submitTrainingAction', { runId, action: { type: 'pass' } });
+
+    await waitFor(() => events.trainingAwaitingReason.length > 0);
+    client.emit('submitTrainingReason', { runId, note: '' });
+
+    await waitFor(() => events.trainingCompleted.length > 0);
+    expect(events.error).toHaveLength(0);
+
+    const completed = events.trainingCompleted[0];
+    // Skip path: server reports match; App.jsx auto-advances, no Claude chat.
+    expect(completed.caseType).toBe('match');
+    const decision = completed.annotation.decisions[0];
+    expect(decision.divergenceType).toBeNull();
+    expect(decision.divergenceAgreement).toBeNull();
+    expect(decision.action).toEqual({ type: 'pass' });
+
+    // Annotation IS persisted on disk — the trace of "user passed on a
+    // rule-silent scenario" must not be lost just because the chat was
+    // skipped. The "no rule" case can be recovered later by inspecting
+    // scenario.expectedAnswer === null.
+    expect(completed.annotationFilename).toMatch(/\.json$/);
+    const userDir = path.join(SCRATCH_DATA_DIR, USER_ID);
+    const annotationPath = path.join(userDir, completed.annotationFilename);
+    expect(fs.existsSync(annotationPath)).toBe(true);
+    const persisted = JSON.parse(fs.readFileSync(annotationPath, 'utf8'));
+    expect(persisted.status).toBe('complete');
+    expect(persisted.scenarioId).toBe(RULE_SILENT_SCENARIO);
+    expect(persisted.decisions[0].action).toEqual({ type: 'pass' });
+    expect(persisted.decisions[0].divergenceType).toBeNull();
+    client.disconnect();
+  });
+
+  it('bid on rule-silent (NOT pass) still opens chat (caseType:rule-silent)', async () => {
+    // Sanity: the value-different / action-type-different paths remain
+    // unaffected by the skip rule. Only literal pass + rule-silent skips.
+    const client = connectClient('test-user-bid-rule-silent-still-opens', 'Pass Skip Tester');
+    const events = collectEvents(client, [
+      'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
+      'trainingCompleted', 'error',
+    ]);
+    await new Promise(resolve => client.on('connect', resolve));
+    client.emit('startTrainingScenario', { scenarioId: RULE_SILENT_SCENARIO });
+
+    await waitFor(() =>
+      events.trainingUpdate.some(u => u.trainingState.runState === 'AWAITING-ACTION'),
+    );
+    const runId = events.trainingStarted[0].trainingState.runId;
+    client.emit('submitTrainingAction', { runId, action: { type: 'bid', value: 90, suit: 'S' } });
+    await waitFor(() => events.trainingAwaitingReason.length > 0);
+    client.emit('submitTrainingReason', { runId, note: '' });
+    await waitFor(() => events.trainingCompleted.length > 0);
+    expect(events.error).toHaveLength(0);
+
+    expect(events.trainingCompleted[0].caseType).toBe('rule-silent');
+    expect(events.trainingCompleted[0].annotation.decisions[0].divergenceAgreement)
+      .toBe('user-disagrees');
+    client.disconnect();
+  });
+});
+
 // ─── Test D: v3.1 auto-conclude — no review prompt ────────────────────────
 //
 // In v3.1 every annotation auto-concludes as a single-alternative session.

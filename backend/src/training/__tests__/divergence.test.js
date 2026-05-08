@@ -40,12 +40,20 @@ describe('computeDivergenceType', () => {
     expect(computeDivergenceType(passScenario(), { type: 'bid', value: 80, suit: 'D' })).toBe('action-type-different');
   });
 
-  it('returns "rule-silent" when scenario.expectedAnswer is null', () => {
+  it('returns "rule-silent" when scenario.expectedAnswer is null and user bids', () => {
     expect(computeDivergenceType(silentScenario(), { type: 'bid', value: 90, suit: 'C' })).toBe('rule-silent');
   });
 
-  it('returns "rule-silent" when expectedAnswer is missing entirely (v1 scenarios)', () => {
-    expect(computeDivergenceType({}, { type: 'pass' })).toBe('rule-silent');
+  // Pass on a rule-silent scenario = safe default = treated as match. The
+  // Claude V2.2 chat is skipped (the user effectively agreed there's nothing
+  // to bid). Annotation still gets persisted; the "no rule" case is
+  // recoverable from scenario.expectedAnswer at analysis time.
+  it('returns null (match) when user passes on a rule-silent scenario', () => {
+    expect(computeDivergenceType(silentScenario(), { type: 'pass' })).toBeNull();
+  });
+
+  it('returns null (match) when user passes on a v1 scenario without expectedAnswer', () => {
+    expect(computeDivergenceType({}, { type: 'pass' })).toBeNull();
   });
 
   describe('free-color scenarios (expectedAnswer.action.suit === null)', () => {
@@ -111,5 +119,13 @@ describe('validateSubmission — rule-silent path', () => {
   it('returns user-disagrees on a rule-silent submission (server-canonical)', () => {
     const r = validateSubmission({ scenario, action });
     expect(r).toEqual({ ok: true, divergenceType: 'rule-silent', agreement: 'user-disagrees' });
+  });
+
+  // Pass on rule-silent is the safe default → routed through the match
+  // path (divergenceType=null, agreement=null). Skips the Claude V2.2 chat;
+  // App.jsx auto-advances to the next scenario.
+  it('returns match (null/null) when user passes on a rule-silent scenario', () => {
+    const r = validateSubmission({ scenario, action: { type: 'pass' } });
+    expect(r).toEqual({ ok: true, divergenceType: null, agreement: null });
   });
 });

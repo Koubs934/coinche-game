@@ -62,10 +62,18 @@ function computeDivergenceType(scenarioOrExpected, userAction) {
   // No expectedAnswer at all (v1 scenarios, or v2 scenarios without the
   // optional field) → treat as rule-silent. This is what the analysis
   // tooling already does and keeps the schema boundary tidy.
-  if (!expected) return 'rule-silent';
+  //
+  // Exception: a `pass` on a rule-silent scenario is the safe default —
+  // the user agreed there's nothing to bid. Treat as match (divergenceType
+  // = null) so the Claude V2.2 chat is skipped and the flow auto-advances.
+  // The annotation is still persisted; analysis can recover the "no rule"
+  // case by inspecting scenario.expectedAnswer.
+  if (!expected) {
+    return userAction.type === 'pass' ? null : 'rule-silent';
+  }
 
   const e = expected.action;
-  if (!e) return 'rule-silent'; // malformed expected, treat as silent
+  if (!e) return userAction.type === 'pass' ? null : 'rule-silent'; // malformed expected: same exception
 
   if (userAction.type !== e.type) return 'action-type-different';
 
