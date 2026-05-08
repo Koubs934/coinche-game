@@ -196,6 +196,8 @@ export default function App() {
     socket.on('trainingStarted', (payload) => {
       setTrainingRun(payload);
       setTrainingAnnotation(null);
+      setTrainingAnnotationFilename(null);
+      setTrainingCaseType(null);
       setTrainingView('run');
     });
     socket.on('trainingUpdate',         (payload) => setTrainingRun(payload));
@@ -324,6 +326,25 @@ export default function App() {
     setTrainingResumable(list => list); // keep resumable around; user may come back
     setTrainingView(null);
   }
+  function restartScenario() {
+    // V2.2 Phase 2D — invoked by CompletionSummary's BackButton when the
+    // user backs out of the CardSelector phase to re-bid the same
+    // scenario. Server discards the completed annotation, rolls back the
+    // _exhausted entry, and emits trainingStarted on the fresh run; our
+    // existing trainingStarted handler flips the view back to 'run'.
+    //
+    // We pass scenarioId + annotationFilename (not runId) because the
+    // server GCs the run from memory as soon as submitTrainingReason
+    // completes — by the time we get here the runId is stale.
+    const scenarioId = trainingAnnotation?.scenarioId
+      || trainingRun?.trainingState?.scenarioId;
+    if (!scenarioId) { backToPicker(); return; }
+    socketRef.current?.emit('restartTrainingScenario', {
+      scenarioId,
+      annotationFilename: trainingAnnotationFilename,
+    });
+  }
+
   function nextScenario() {
     // Pick the next scenario alphabetically by id that isn't the one we just did
     if (!trainingScenarios?.length) { backToPicker(); return; }
@@ -414,6 +435,7 @@ export default function App() {
             scenarioSnapshot={trainingRun}
             onBackToPicker={backToPicker}
             onNextScenario={nextScenario}
+            onRestartScenario={restartScenario}
             hasNextScenario={hasNextScenario}
           />
         )}

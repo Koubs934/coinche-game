@@ -443,6 +443,63 @@ describe('training flow — pass on rule-silent skips Claude V2.2 chat', () => {
     client.disconnect();
   });
 
+  it('restartTrainingScenario discards the completed annotation and emits a fresh trainingStarted', async () => {
+    // Path: bid on a rule-silent scenario → CompletionSummary opens →
+    // user backs out via the BackButton on the CardSelector → server
+    // discards the annotation, rolls back _exhausted, spins up a new run.
+    const USER_ID = 'test-user-restart-flow';
+    const client = connectClient(USER_ID, 'Restart Tester');
+    const events = collectEvents(client, [
+      'trainingStarted', 'trainingUpdate', 'trainingAwaitingReason',
+      'trainingCompleted', 'trainingScenarioExhausted', 'error',
+    ]);
+    await new Promise(resolve => client.on('connect', resolve));
+    client.emit('startTrainingScenario', { scenarioId: RULE_SILENT_SCENARIO });
+    await waitFor(() =>
+      events.trainingUpdate.some(u => u.trainingState.runState === 'AWAITING-ACTION'),
+    );
+    const runId = events.trainingStarted[0].trainingState.runId;
+    client.emit('submitTrainingAction', { runId, action: { type: 'bid', value: 90, suit: 'S' } });
+    await waitFor(() => events.trainingAwaitingReason.length > 0);
+    client.emit('submitTrainingReason', { runId, note: '' });
+    await waitFor(() => events.trainingCompleted.length > 0);
+
+    const completedFilename = events.trainingCompleted[0].annotationFilename;
+    const userDir = path.join(SCRATCH_DATA_DIR, USER_ID);
+    const annotationPath = path.join(userDir, completedFilename);
+    expect(fs.existsSync(annotationPath)).toBe(true);
+    // Confirm exhaustion sidecar shows the scenario after the initial submit.
+    const exhaustionPath = path.join(userDir, '_exhausted.json');
+    const beforeExhaustion = JSON.parse(fs.readFileSync(exhaustionPath, 'utf8'));
+    expect(beforeExhaustion.exhaustedScenarios.some(e => e.scenarioId === RULE_SILENT_SCENARIO)).toBe(true);
+
+    // ── Restart ──────────────────────────────────────────────────────────
+    // Note: server GCs the in-memory run as soon as submitTrainingReason
+    // completes, so we pass scenarioId + annotationFilename (not the now-
+    // stale runId).
+    const eventsBeforeRestart = events.trainingStarted.length;
+    client.emit('restartTrainingScenario', {
+      scenarioId: RULE_SILENT_SCENARIO,
+      annotationFilename: completedFilename,
+    });
+    await waitFor(() => events.trainingStarted.length > eventsBeforeRestart);
+    expect(events.error).toHaveLength(0);
+
+    // Side effects: completed annotation gone, _exhausted entry gone.
+    expect(fs.existsSync(annotationPath)).toBe(false);
+    const afterExhaustion = JSON.parse(fs.readFileSync(exhaustionPath, 'utf8'));
+    expect(afterExhaustion.exhaustedScenarios.some(e => e.scenarioId === RULE_SILENT_SCENARIO)).toBe(false);
+
+    // The new trainingStarted carries a fresh runId on the SAME scenario.
+    const restarted = events.trainingStarted[events.trainingStarted.length - 1];
+    expect(restarted.trainingState.scenarioId).toBe(RULE_SILENT_SCENARIO);
+    expect(restarted.trainingState.runId).not.toBe(runId);
+    // V2.2 UI affordance — scenario number is propagated on the wire.
+    expect(typeof restarted.trainingState.scenarioNumber).toBe('number');
+    expect(restarted.trainingState.scenarioNumber).toBeGreaterThanOrEqual(1);
+    client.disconnect();
+  });
+
   it('bid on rule-silent (NOT pass) still opens chat (caseType:rule-silent)', async () => {
     // Sanity: the value-different / action-type-different paths remain
     // unaffected by the skip rule. Only literal pass + rule-silent skips.

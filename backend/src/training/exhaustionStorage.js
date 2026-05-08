@@ -129,9 +129,29 @@ function listExhaustedScenarioIds(userId) {
   return new Set(rec.exhaustedScenarios.map(e => e.scenarioId));
 }
 
+/**
+ * Remove a scenario from the user's exhausted list. Used when the user
+ * backs out of an annotation in the completion flow and wants to re-bid:
+ * the just-recorded entry must be retracted so the picker shows the
+ * scenario as available again. No-op (returns false) if the scenario
+ * isn't currently in the list.
+ *
+ * @returns {boolean} true if an entry was removed, false otherwise
+ */
+function removeExhausted(userId, scenarioId) {
+  if (!fs.existsSync(filePathFor(userId))) return false;
+  const rec = readExhausted(userId);
+  const before = rec.exhaustedScenarios.length;
+  rec.exhaustedScenarios = rec.exhaustedScenarios.filter(e => e.scenarioId !== scenarioId);
+  if (rec.exhaustedScenarios.length === before) return false;
+  writeAtomic(filePathFor(userId), JSON.stringify(rec, null, 2));
+  return true;
+}
+
 module.exports = {
   readExhausted,
   addExhausted,
+  removeExhausted,
   listExhaustedScenarioIds,
   // exported for diagnostic tooling and tests
   filePathFor,

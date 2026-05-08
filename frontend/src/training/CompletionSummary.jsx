@@ -23,6 +23,7 @@ import { useLang } from '../context/LanguageContext';
 import { formatActionText, actionIsRed } from './formatAction';
 import ClaudeConversation from './ClaudeConversation';
 import CardSelector from './CardSelector';
+import BackButton from './BackButton';
 import AuctionRecap, { sortHandByTrump } from '../components/shared/AuctionRecap';
 
 // Build a synthetic 4-player array (positions 0..3) for AuctionRecap with
@@ -83,6 +84,7 @@ export default function CompletionSummary({
   scenarioSnapshot,
   onBackToPicker,
   onNextScenario,
+  onRestartScenario,
   hasNextScenario,
 }) {
   const { t } = useLang();
@@ -110,6 +112,25 @@ export default function CompletionSummary({
   const [selectedCards,       setSelectedCards]       = useState(null); // null = not yet decided
   const [conversationClosed,  setConversationClosed]  = useState(false);
 
+  // V2.2 Phase 2D — back navigation handlers.
+  //
+  // From C (Claude chat) → B (CardSelector): just unmount the chat by
+  // setting selectedCards back to null. ClaudeConversation's existing
+  // unmount cleanup auto-fires /api/conversation/end with reason='navigation'
+  // (idempotent on the backend). The CardSelector remounts with a fresh
+  // empty selection — we do NOT preserve the previous selection (per spec).
+  function handleBackFromChat() {
+    setSelectedCards(null);
+  }
+
+  // From B (CardSelector) → bid screen: tell the server to discard the
+  // completed annotation, roll back the _exhausted entry, and spin up a
+  // fresh run on the same scenario. App.jsx flips back to 'run' on the
+  // resulting trainingStarted event.
+  function handleBackFromCardSelector() {
+    onRestartScenario?.();
+  }
+
   // The user's hand sits in trainingRun.game.hands[userSeat] (only the
   // user's seat is populated; other seats are masked). Pull it for the
   // selector — and use the user's submitted bid suit as trump for the
@@ -132,9 +153,17 @@ export default function CompletionSummary({
   const actionText = formatActionText(action, t);
   const actionRed  = actionIsRed(action);
 
+  // Stable 1..N user-facing scenario number (alphabetical filename order).
+  // Pulled from the run's trainingState — server attaches it on every
+  // publicView broadcast. Null for legacy rehydrated runs.
+  const scenarioNumber = scenarioSnapshot?.trainingState?.scenarioNumber ?? null;
+
   return (
     <div className="training-completion">
       <div className="training-completion-card">
+        {scenarioNumber != null && (
+          <div className="training-scenario-badge">#{scenarioNumber}</div>
+        )}
         <div className="tc-title-row">
           <h1>{c.title}</h1>
         </div>
@@ -164,24 +193,32 @@ export default function CompletionSummary({
         )}
 
         {showConversation && selectedCards === null && (
-          <CardSelector
-            hand={userHand}
-            caseType={caseType}
-            trumpSuit={trumpSuit}
-            onSubmit={(cards) => setSelectedCards(cards)}
-            onSkip={() => setSelectedCards([])}
-          />
+          <>
+            {onRestartScenario && (
+              <BackButton onClick={handleBackFromCardSelector} />
+            )}
+            <CardSelector
+              hand={userHand}
+              caseType={caseType}
+              trumpSuit={trumpSuit}
+              onSubmit={(cards) => setSelectedCards(cards)}
+              onSkip={() => setSelectedCards([])}
+            />
+          </>
         )}
 
         {showConversation && selectedCards !== null && !conversationClosed && (
-          <ClaudeConversation
-            userId={userId}
-            annotationFilename={annotationFilename}
-            userName={userName}
-            caseType={caseType}
-            selectedCards={selectedCards}
-            onClose={() => setConversationClosed(true)}
-          />
+          <>
+            <BackButton onClick={handleBackFromChat} />
+            <ClaudeConversation
+              userId={userId}
+              annotationFilename={annotationFilename}
+              userName={userName}
+              caseType={caseType}
+              selectedCards={selectedCards}
+              onClose={() => setConversationClosed(true)}
+            />
+          </>
         )}
 
         <div className="tc-actions">

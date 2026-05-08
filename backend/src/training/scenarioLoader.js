@@ -18,14 +18,24 @@ function scenarioOrderKey(id) {
 
 const SCENARIOS_DIR = path.join(__dirname, 'scenarios');
 
-let cache = null;    // id → full scenario object
+let cache = null;          // id → full scenario object
+let numberById = null;     // id → 1-based stable number (alphabetical filename sort)
 
 function loadAll() {
   const byId = new Map();
-  if (!fs.existsSync(SCENARIOS_DIR)) return byId;
+  const nums = new Map();
+  if (!fs.existsSync(SCENARIOS_DIR)) return { byId, nums };
 
   const entries = fs.readdirSync(SCENARIOS_DIR).filter(f => f.endsWith('.json'));
+  // Sequential 1..N numbering follows the alphabetical filename order — a
+  // user-facing reference ("scénario #47") that's stable across loads and
+  // independent of the picker's hash-shuffled display order. Adding or
+  // removing a scenario shifts numbers from that point forward; that's
+  // fine because the number is a UI affordance, not a stored identifier
+  // (annotations on disk reference scenarioId, never the number).
+  let seq = 0;
   for (const filename of entries.sort()) {
+    seq += 1;
     const full = path.join(SCENARIOS_DIR, filename);
     let scenario;
     try {
@@ -41,15 +51,29 @@ function loadAll() {
       continue;
     }
     byId.set(scenario.id, scenario);
+    nums.set(scenario.id, seq);
   }
-  return byId;
+  return { byId, nums };
 }
 
 function ensureLoaded() {
   if (cache === null) {
-    cache = loadAll();
+    const { byId, nums } = loadAll();
+    cache = byId;
+    numberById = nums;
     console.log(`[training] loaded ${cache.size} scenario(s)`);
   }
+}
+
+/**
+ * Stable 1-based number for a scenario, derived from the alphabetical
+ * filename sort. Used by the FE as a "Scénario #N" badge so users can
+ * refer to scenarios by number in conversation. Returns null for unknown
+ * ids.
+ */
+function getScenarioNumber(id) {
+  ensureLoaded();
+  return numberById.get(id) ?? null;
 }
 
 /**
@@ -69,6 +93,7 @@ function listScenarios() {
   for (const s of cache.values()) {
     out.push({
       id:          s.id,
+      number:      numberById.get(s.id) ?? null,
       title:       s.title,
       description: s.description,
       userSeat:    s.userSeat,
@@ -88,6 +113,7 @@ function getScenario(id) {
 /** Test / diagnostic hook: drop the cache so a fresh read occurs. */
 function reload() {
   cache = null;
+  numberById = null;
   ensureLoaded();
 }
 
@@ -114,8 +140,10 @@ function reload() {
  */
 function pickClientScenarioFields(scenario) {
   if (!scenario) return null;
+  ensureLoaded();
   const out = {
     id:            scenario.id,
+    number:        numberById.get(scenario.id) ?? null,
     title:         scenario.title,
     description:   scenario.description,
     schemaVersion: scenario.schemaVersion,
@@ -152,7 +180,7 @@ function pickClientScenarioFields(scenario) {
 }
 
 module.exports = {
-  listScenarios, getScenario, reload, pickClientScenarioFields,
+  listScenarios, getScenario, getScenarioNumber, reload, pickClientScenarioFields,
   // exported for tests
   scenarioOrderKey,
 };
