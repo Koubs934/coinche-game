@@ -12,6 +12,7 @@ const persistence = require('./persistence');
 const gameRecordStorage = require('./game/gameRecordStorage');
 const { registerTrainingHandlers, runStartupCleanup: trainingStartupCleanup } = require('./training/trainingSocket');
 const claudeService = require('./services/claudeService');
+const personalFeuilleService = require('./services/personalFeuille');
 const { caseTypeFor } = require('./training/divergence');
 const cardFeatures = require('./game/cardFeatures');
 // Event payload contract for every socket.on / socket.emit below:
@@ -149,6 +150,25 @@ function loadPastAnnotations(userId, currentFilename) {
 
 function nowIso() { return new Date().toISOString(); }
 
+// V2.2 Phase 3 — pull every CAPTURE_RULE line out of a Claude message,
+// append each as a [PROPOSED] entry to the user's personal feuille, and
+// return the cleaned message that the FE will see + the raw rules for
+// logging. Best-effort persistence: a filesystem error logs but never
+// breaks the conversation flow (the user would never know).
+function captureAndStrip(rawText, { userId, scenarioId, userName }) {
+  const { rules, cleanText } = personalFeuilleService.extractCaptureRules(rawText);
+  if (rules.length === 0) return { cleanText, rules };
+  for (const ruleText of rules) {
+    try {
+      personalFeuilleService.appendProposedRule(userId, ruleText, scenarioId, userName);
+      console.log(`[feuille] Captured PROPOSED rule for ${userId}: ${ruleText}`);
+    } catch (err) {
+      console.error('[feuille] Failed to append rule:', err.message);
+    }
+  }
+  return { cleanText, rules };
+}
+
 function buildContext(userId, annotation, currentFilename) {
   const scenario = loadScenario(annotation.scenarioId);
   if (!scenario) throw new Error(`scenario not found: ${annotation.scenarioId}`);
@@ -200,6 +220,7 @@ app.post('/api/conversation/start', async (req, res) => {
     result = await claudeService.startConversation({
       scenario: context.scenario,
       annotation,
+      userId,
       userName: context.userName,
       pastAnnotations: context.pastAnnotations,
       feuilleContent: context.feuilleContent,
@@ -210,12 +231,22 @@ app.post('/api/conversation/start', async (req, res) => {
     return res.status(502).json({ error: 'Claude API call failed', detail: err.message });
   }
 
+  // V2.2 Phase 3 — extract CAPTURE_RULE lines, persist each as a
+  // [PROPOSED] entry on the user's personal feuille, and strip them from
+  // both the response sent to the FE and the message persisted on disk
+  // (so re-loading the conversation later doesn't re-leak them).
+  const { cleanText } = captureAndStrip(result.text, {
+    userId,
+    scenarioId: annotation.scenarioId,
+    userName:   context.userName,
+  });
+
   const startedAt = nowIso();
   annotation.schemaVersion = 4;
   annotation.claude_conversation = {
     started_at:      startedAt,
     messages: [
-      { role: 'claude', content: result.text, timestamp: startedAt },
+      { role: 'claude', content: cleanText, timestamp: startedAt },
     ],
     card_selections: [],
     rule_candidates: [],
@@ -223,7 +254,7 @@ app.post('/api/conversation/start', async (req, res) => {
     ended_reason:    null,
   };
   writeAnnotationAtomic(userId, annotationFilename, annotation);
-  return res.json({ message: result.text, usage: result.usage });
+  return res.json({ message: cleanText, usage: result.usage });
 });
 
 // V2.2 Phase 2C — POST /api/conversation/select-cards
@@ -300,6 +331,7 @@ app.post('/api/conversation/select-cards', async (req, res) => {
     result = await claudeService.startConversation({
       scenario:        context.scenario,
       annotation,
+      userId,
       userName:        context.userName,
       pastAnnotations: context.pastAnnotations,
       feuilleContent:  context.feuilleContent,
@@ -311,12 +343,19 @@ app.post('/api/conversation/select-cards', async (req, res) => {
     return res.status(502).json({ error: 'Claude API call failed', detail: err.message });
   }
 
+  // V2.2 Phase 3 — extract + persist CAPTURE_RULE lines (see /start).
+  const { cleanText } = captureAndStrip(result.text, {
+    userId,
+    scenarioId: annotation.scenarioId,
+    userName:   context.userName,
+  });
+
   const startedAt = nowIso();
   annotation.schemaVersion = 4;
   annotation.claude_conversation = {
     started_at:     startedAt,
     messages: [
-      { role: 'claude', content: result.text, timestamp: startedAt },
+      { role: 'claude', content: cleanText, timestamp: startedAt },
     ],
     // Append, don't overwrite — preserves audit trail if the FE ever
     // resubmits the selection (e.g. user backed out and reselected).
@@ -334,7 +373,7 @@ app.post('/api/conversation/select-cards', async (req, res) => {
     ended_reason:    null,
   };
   writeAnnotationAtomic(userId, annotationFilename, annotation);
-  return res.json({ message: result.text, usage: result.usage });
+  return res.json({ message: cleanText, usage: result.usage });
 });
 
 app.post('/api/conversation/turn', async (req, res) => {
@@ -387,6 +426,7 @@ app.post('/api/conversation/turn', async (req, res) => {
       userMessage,
       context: {
         feuilleContent:  context.feuilleContent,
+        userId,
         userName:        context.userName,
         pastAnnotations: context.pastAnnotations,
         caseType:        caseTypeFor(annotation.decisions?.[0]?.divergenceType),
@@ -398,11 +438,21 @@ app.post('/api/conversation/turn', async (req, res) => {
     return res.status(502).json({ error: 'Claude API call failed', detail: err.message });
   }
 
+  // V2.2 Phase 3 — extract + persist CAPTURE_RULE lines (see /start).
+  // Stripping before persistence is critical here: on the next /turn we
+  // rebuild the conversation history from conv.messages and feed it back
+  // to Claude, so any unstripped CAPTURE_RULE would loop forever.
+  const { cleanText } = captureAndStrip(result.text, {
+    userId,
+    scenarioId: annotation.scenarioId,
+    userName:   context.userName,
+  });
+
   const userTs = nowIso();
   conv.messages.push({ role: 'user', content: userMessage, timestamp: userTs });
-  conv.messages.push({ role: 'claude', content: result.text, timestamp: nowIso() });
+  conv.messages.push({ role: 'claude', content: cleanText, timestamp: nowIso() });
   writeAnnotationAtomic(userId, annotationFilename, annotation);
-  return res.json({ message: result.text, usage: result.usage });
+  return res.json({ message: cleanText, usage: result.usage });
 });
 
 // V2.2 calibration follow-up — `reason` accepts:

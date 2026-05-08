@@ -9,6 +9,7 @@
 
 const Anthropic = require('@anthropic-ai/sdk');
 const { describePatterns, describeSelectedCards } = require('../game/cardFeatures');
+const { loadPersonalFeuille, loadCommonFeuille } = require('./personalFeuille');
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -22,7 +23,57 @@ function getClient() {
   return _client;
 }
 
-function buildSystemPrompt({ feuilleContent, userName, userPastAnnotations, caseType, cardSelection }) {
+function buildSystemPrompt({ feuilleContent, userName, userPastAnnotations, caseType, cardSelection, userId }) {
+  // V2.2 Phase 3 — best-effort feuille loading. Both reads are sync I/O
+  // against the per-user training dir; missing files return ''. Read here
+  // (not in the caller) so every entrypoint — startConversation,
+  // continueConversation, and the regression tests — picks up the latest
+  // disk state on every call. No caching: Aaron's manual edits to either
+  // file take effect on the next API turn without a server restart.
+  const commonFeuilleContent   = loadCommonFeuille();
+  const personalFeuilleContent = userId ? loadPersonalFeuille(userId) : '';
+
+  const commonFeuilleBlock = commonFeuilleContent && commonFeuilleContent.trim()
+    ? `\n=== FEUILLE COMMUNE (consolidée par Aaron) ===
+Ces règles ont été validées par Aaron à partir des contributions de tous les utilisateurs. Elles sont autoritatives.
+
+${commonFeuilleContent}
+`
+    : '';
+
+  const personalFeuilleBlock = personalFeuilleContent && personalFeuilleContent.trim()
+    ? `\n=== FEUILLE PERSONNELLE DE ${userName} ===
+Ces règles capturent les principes de ${userName} accumulés au fil des conversations. Les règles [VALIDATED] sont confirmées par Aaron — traite-les comme autoritatives. Les règles [PROPOSED] sont des hypothèses non encore relues — confirme-les ou questionne-les avant de t'appuyer dessus.
+
+${personalFeuilleContent}
+`
+    : '';
+
+  const captureBlock = `\n=== CAPTURE DE PRINCIPES (FEUILLE PERSONNELLE) ===
+
+Pendant la conversation, si l'utilisateur exprime un principe clair, généralisable et nouveau, capture-le pour sa feuille personnelle.
+
+Critères STRICTS pour capturer :
+1. C'est un PRINCIPE (règle générale applicable à plusieurs scénarios), pas une description ad hoc d'un scénario.
+2. C'est CLAIR — l'utilisateur l'énonce explicitement, pas par sous-entendu.
+3. C'est NOUVEAU — pas déjà dans la feuille personnelle ou commune affichée plus haut.
+4. C'est CONCIS — formulable en 1-2 phrases denses.
+
+Pour capturer, écris dans ton message une ligne au format EXACT :
+
+CAPTURE_RULE: <règle en une ligne dense>
+
+Exemples :
+- CAPTURE_RULE: Capot servi (maitre + bicolore + 0 perdantes après le tour 1) → annonce capot direct.
+- CAPTURE_RULE: Réponse à 90 partenaire avec 1 As extérieur + longue 6 cartes → monter à 110, pas 100.
+
+Le système extrait automatiquement ces lignes du message et les ajoute à la feuille personnelle de l'utilisateur (statut PROPOSED). N'ajoute PAS de boutons ou de demandes de confirmation à l'utilisateur — la capture est silencieuse.
+
+Si tu n'as RIEN de nouveau à capturer dans ce tour, n'écris pas de ligne CAPTURE_RULE. Mieux vaut ne rien capturer que de capturer du bruit.
+
+L'utilisateur ne voit pas les lignes CAPTURE_RULE dans son interface — elles sont strippées avant l'affichage.
+`;
+
   // V2.2 Phase 2C: the CONTEXTE paragraph adapts to caseType so Claude
   // doesn't accuse a rule-silent annotator of "diverging from the rule"
   // (there is no rule). Default to the divergent framing for backward
@@ -337,11 +388,12 @@ LIMITES STRICTES
 
 ${formatCardSelectionSection(cardSelection)}LA FEUILLE V2.1 (référence)
 ${feuilleContent}
-
+${commonFeuilleBlock}${personalFeuilleBlock}
 ANNOTATIONS PASSÉES DE ${userName} (référence)
 ${userPastAnnotations}
 
-${formatFirstMessageInstructions(cardSelection)}`;
+${formatFirstMessageInstructions(cardSelection)}
+${captureBlock}`;
 }
 
 // V2.2 Phase 2C — when the user selected cards on the completion screen
@@ -526,13 +578,14 @@ function formatPastAnnotations(pastAnnotations) {
   return lines.join('\n');
 }
 
-async function startConversation({ scenario, annotation, userName, pastAnnotations, feuilleContent, caseType, cardSelection }) {
+async function startConversation({ scenario, annotation, userName, pastAnnotations, feuilleContent, caseType, cardSelection, userId }) {
   const systemPrompt = buildSystemPrompt({
     feuilleContent,
     userName,
     userPastAnnotations: formatPastAnnotations(pastAnnotations),
     caseType,
     cardSelection,
+    userId,
   });
 
   const userMessage = formatScenarioForClaude(scenario, annotation, cardSelection);
@@ -558,6 +611,7 @@ async function continueConversation({ conversationHistory, userMessage, context 
     userPastAnnotations: formatPastAnnotations(context.pastAnnotations),
     caseType: context.caseType,
     cardSelection: context.cardSelection,
+    userId: context.userId,
   });
 
   const messages = [

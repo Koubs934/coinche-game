@@ -2,6 +2,31 @@
 
 Date du design : 2026-05-05
 
+## Statut d'implémentation
+
+- **Phase 1** (backend foundation, endpoints, schema v4) : **livrée** (commit `ad656a1`).
+- **Phase 2** (frontend chat, AuctionRecap, simplified flow, hand-in-felt) : **livrée** (Phases 2A/2B/2C/2D).
+- **Phase 3** (sélection de cartes + feuille personnelle) :
+  - Sélection de cartes : **livrée** (Phase 2C — `CardSelector.jsx` + `/api/conversation/select-cards`).
+  - Feuille personnelle : **livrée — modèle "passive capture" plutôt que "Claude propose, user valide d'un mot"** (cf. note ci-dessous).
+
+### Note sur la divergence Phase 3 — feuille personnelle
+
+Le design d'origine prévoyait que Claude propose une règle dans le chat, l'utilisateur valide d'un mot ("oui" / "ok" / "non"), et l'app persiste la règle validée. Cette boucle a été abandonnée pour deux raisons :
+
+1. **Friction sur le parcours utilisateur** — interrompre la conversation pour demander une validation casse le flux naturel ("détective socratique") et risque de transformer la chat en QCM.
+2. **Surcharge cognitive** — l'utilisateur doit déjà gérer la conversation et le scénario suivant ; ajouter "valide cette règle" est trop pour mobile inline.
+
+Le modèle livré (commit Phase 3) est **passive capture + batch curation** :
+
+- Claude émet des lignes `CAPTURE_RULE: <règle>` dans sa réponse, silencieusement.
+- Le backend (`personalFeuille.appendProposedRule`) extrait ces lignes, les ajoute au fichier `feuille-personnelle.md` de l'utilisateur avec le statut `[PROPOSED]`, et les strippe AVANT de renvoyer le message au frontend (et avant de le persister dans `claude_conversation.messages`).
+- L'utilisateur ne voit jamais le marqueur. Aucun bouton, aucune validation inline.
+- Aaron consulte les fichiers `feuille-personnelle-<userId>.md` périodiquement, transforme `[PROPOSED]` en `[VALIDATED]` pour les règles confirmées, supprime les fausses, et promeut éventuellement les règles consensuelles vers `feuille-commune.md`.
+- Les deux feuilles (personnelle + commune) sont injectées dans le system prompt à chaque appel API — Claude lit les `[VALIDATED]` comme autoritatives, les `[PROPOSED]` comme hypothèses à confirmer avant de s'appuyer dessus.
+
+Procédure de curation détaillée : `docs/feuille-personnelle-curation.md`.
+
 ## Vision
 
 Quand un annotateur fait une annotation "Pas d'accord" avec la Feuille V2.1, 

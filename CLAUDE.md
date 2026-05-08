@@ -75,12 +75,10 @@ Full rule + scoring tables in [CONTEXT.md §4](CONTEXT.md#4-game-rules-as-curren
    (chiquer rename, pièce trump-only, no rule fabrication).
 
 ## Roadmap
-1. V2.2 Phase 3 — personal feuille (per-user `feuille-personelle.md`, Claude proposes,
-   user validates one-word, periodic consolidation by Aaron).
-2. Bot V2.2 broader strategy — defense / bloquage / exploration are still pass-only.
-3. Smarter card-play bots — currently no suit management, no void awareness, no card memory.
-4. GAME_OVER → new round — no `restartGame` socket event yet; FE forces re-create-room.
-5. Spectator mode — not modeled; 5th seat is impossible today.
+1. Bot V2.2 broader strategy — defense / bloquage / exploration are still pass-only.
+2. Smarter card-play bots — currently no suit management, no void awareness, no card memory.
+3. GAME_OVER → new round — no `restartGame` socket event yet; FE forces re-create-room.
+4. Spectator mode — not modeled; 5th seat is impossible today.
 
 ## Decisions log
 - **In-memory room state** in a `Map` — accepted that Railway restarts wipe games.
@@ -103,6 +101,17 @@ Full rule + scoring tables in [CONTEXT.md §4](CONTEXT.md#4-game-rules-as-curren
 - **Petit jeu suit tie-break**: when 2+ suits qualify for petit jeu (80 with 2 Aces),
   pick the strongest — most trumps, with J preferred. Used in `fourth-position-02`.
   Worth promoting into V2.2 as an explicit rule.
+- **V2.2 Phase 3 — passive capture, batch curation** (`personalFeuille.js`). Diverged
+  from the original "Claude proposes inline, user validates one-word" design: friction
+  on the user's path was rejected. New model — Claude emits silent `CAPTURE_RULE: …`
+  lines in its response; server extracts them, appends to
+  `<TRAINING_DATA_DIR>/<userId>/feuille-personnelle.md` as `[PROPOSED]`, strips them
+  from both the FE response and the persisted message history. Aaron curates the file
+  manually in batch — flips `[PROPOSED]` to `[VALIDATED]` (or deletes). Both the
+  per-user personal feuille and the shared `feuille-commune.md` are injected into the
+  system prompt fresh on every call (no caching), so manual edits take effect on the
+  next turn without a server restart. Curation guide:
+  `docs/feuille-personnelle-curation.md`.
 
 ## Pending decisions
 - Whether to formalize the petit-jeu tie-break in `docs/la-feuille-v2.md` as a V2.2
