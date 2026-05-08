@@ -28,3 +28,5 @@ frontend/tests/shots/
 # ── OS / editor noise ─────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+
+.claude/settings.local.json
