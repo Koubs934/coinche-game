@@ -19,10 +19,9 @@ import HandSizeToggle from '../components/HandSizeToggle';
 export default function TrainingTable({
   socket, runId, room, game, myPosition, trainingState, onCycleHandSize,
 }) {
-  const runState       = trainingState?.runState;
-  const pendingAction  = trainingState?.pendingAction;
-  const partialId      = trainingState?.partialId ?? null;
-  const scenarioNumber = trainingState?.scenarioNumber ?? null;
+  const runState      = trainingState?.runState;
+  const pendingAction = trainingState?.pendingAction;
+  const partialId     = trainingState?.partialId ?? null;
 
   // Auto-fire submitTrainingReason as soon as the run enters AWAITING-REASON.
   // Track which (runId, partialId) we've fired for so React Strict Mode
@@ -43,9 +42,6 @@ export default function TrainingTable({
         <div className="training-topbar">
           <HandSizeToggle onCycle={onCycleHandSize} />
         </div>
-      )}
-      {scenarioNumber != null && (
-        <div className="training-scenario-badge">#{scenarioNumber}</div>
       )}
       <GameBoard
         socket={socket}

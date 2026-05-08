@@ -37,6 +37,15 @@ export default function TrainingPicker({
     const s = scenariosById[scenarioId];
     return s?.title?.[lang] || s?.title?.en || scenarioId;
   }
+  function scenarioNumber(scenarioId) {
+    return scenariosById[scenarioId]?.number ?? null;
+  }
+  // V2.2 Phase 2D — every scenario reference in the UI gets a stable
+  // "#N — " prefix so the user can refer to scenarios by number. Number
+  // falls back to nothing for legacy paths or if it hasn't loaded yet.
+  function formatScenarioTitle(number, title) {
+    return number ? `#${number} — ${title}` : title;
+  }
 
   // Partition scenarios into active vs exhausted while preserving server order.
   const exhaustedMap = useMemo(() => {
@@ -64,7 +73,7 @@ export default function TrainingPicker({
       <div key={s.id} className={cardClass}>
         <div className="training-scenario-main">
           <div className="training-scenario-title">
-            {s.title?.[lang] || s.title?.en || s.id}
+            {formatScenarioTitle(s.number, s.title?.[lang] || s.title?.en || s.id)}
             {completed && (
               <span className="training-scenario-badge">{tp.completedBadge}</span>
             )}
@@ -106,7 +115,7 @@ export default function TrainingPicker({
             <h2 className="training-resumable-heading">{tp.resumableHeading}</h2>
             {resumablePartials.map(p => {
               const ageMin     = Math.max(1, Math.round(p.ageMs / 60000));
-              const title      = scenarioTitle(p.scenarioId);
+              const title      = formatScenarioTitle(scenarioNumber(p.scenarioId), scenarioTitle(p.scenarioId));
               const actionText = formatActionText(p.action, t);
               const red        = actionIsRed(p.action);
               return (

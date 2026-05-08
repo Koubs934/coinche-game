@@ -327,7 +327,7 @@ export default function App() {
     setTrainingView(null);
   }
   function restartScenario() {
-    // V2.2 Phase 2D — invoked by CompletionSummary's BackButton when the
+    // V2.2 Phase 2D — invoked by CompletionSummary's Back button when the
     // user backs out of the CardSelector phase to re-bid the same
     // scenario. Server discards the completed annotation, rolls back the
     // _exhausted entry, and emits trainingStarted on the fresh run; our

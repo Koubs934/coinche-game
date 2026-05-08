@@ -1984,64 +1984,12 @@ a      { color: var(--accent); }
   overflow-y: auto;
 }
 .training-completion-card {
-  /* relative so the absolute-positioned BackButton + scenario badge
-     anchor to this card, not to the page. */
-  position: relative;
   width: 100%;
   max-width: 520px;
   padding: 22px 22px 20px;
   background: var(--ui-card);
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-}
-
-/* V2.2 Phase 2D — discreet back arrow used during the CardSelector and
-   ClaudeConversation phases of the completion flow. ~32px tap target,
-   muted styling so it doesn't compete with the primary content. */
-.training-back-button {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 10;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
-  color: inherit;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.training-back-button:hover,
-.training-back-button:focus-visible {
-  background: rgba(255, 255, 255, 0.10);
-}
-.training-back-button:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-/* V2.2 Phase 2D — stable 1..N "Scénario #N" badge so the user can refer
-   to scenarios by number. Top-right of the training surfaces. */
-.training-scenario-badge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 10;
-  padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  font-size: 0.85em;
-  font-weight: 600;
-  color: inherit;
-  font-variant-numeric: tabular-nums;
-  pointer-events: none;
 }
 .tc-title-row h1 {
   font-size: 1.2em;

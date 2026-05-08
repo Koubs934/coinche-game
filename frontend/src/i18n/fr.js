@@ -223,7 +223,7 @@ export default {
       actionLabel:  'Votre action',
       noteLabel:    'Votre note',
       noNote:       '(aucune note)',
-      backToPicker: 'Retour aux scénarios',
+      back:         'Back',
       nextScenario: 'Scénario suivant',
     },
 

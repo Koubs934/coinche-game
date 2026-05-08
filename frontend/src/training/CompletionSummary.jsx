@@ -23,7 +23,6 @@ import { useLang } from '../context/LanguageContext';
 import { formatActionText, actionIsRed } from './formatAction';
 import ClaudeConversation from './ClaudeConversation';
 import CardSelector from './CardSelector';
-import BackButton from './BackButton';
 import AuctionRecap, { sortHandByTrump } from '../components/shared/AuctionRecap';
 
 // Build a synthetic 4-player array (positions 0..3) for AuctionRecap with
@@ -112,23 +111,38 @@ export default function CompletionSummary({
   const [selectedCards,       setSelectedCards]       = useState(null); // null = not yet decided
   const [conversationClosed,  setConversationClosed]  = useState(false);
 
-  // V2.2 Phase 2D — back navigation handlers.
+  // V2.2 Phase 2D — single phase-aware Back button (bottom of the card,
+  // replaces the prior "Retour aux scénarios" + small ← arrow combo).
+  // Dispatches based on what's currently mounted:
   //
-  // From C (Claude chat) → B (CardSelector): just unmount the chat by
-  // setting selectedCards back to null. ClaudeConversation's existing
-  // unmount cleanup auto-fires /api/conversation/end with reason='navigation'
-  // (idempotent on the backend). The CardSelector remounts with a fresh
-  // empty selection — we do NOT preserve the previous selection (per spec).
-  function handleBackFromChat() {
-    setSelectedCards(null);
-  }
-
-  // From B (CardSelector) → bid screen: tell the server to discard the
-  // completed annotation, roll back the _exhausted entry, and spin up a
-  // fresh run on the same scenario. App.jsx flips back to 'run' on the
-  // resulting trainingStarted event.
-  function handleBackFromCardSelector() {
-    onRestartScenario?.();
+  //   Phase C (chat visible)  → unmount the chat by clearing selectedCards.
+  //                              ClaudeConversation's existing unmount
+  //                              cleanup fires /api/conversation/end with
+  //                              reason='navigation' (idempotent backend).
+  //                              The CardSelector remounts with a fresh
+  //                              empty selection — we do NOT preserve the
+  //                              previous selection (per spec).
+  //
+  //   Phase B (cards visible) → ask App.jsx to restart the scenario:
+  //                              server discards the completed annotation,
+  //                              rolls back the _exhausted entry, spins up
+  //                              a fresh run on the same scenario. App.jsx
+  //                              flips back to 'run' on trainingStarted.
+  //
+  //   Else (chat closed, no chat path) → fall back to the picker. This
+  //                              preserves the original button's behavior
+  //                              for the "I'm done with this scenario,
+  //                              take me out" case.
+  function handleBack() {
+    if (showConversation && selectedCards !== null && !conversationClosed) {
+      setSelectedCards(null);
+      return;
+    }
+    if (showConversation && selectedCards === null && onRestartScenario) {
+      onRestartScenario();
+      return;
+    }
+    onBackToPicker?.();
   }
 
   // The user's hand sits in trainingRun.game.hands[userSeat] (only the
@@ -153,17 +167,9 @@ export default function CompletionSummary({
   const actionText = formatActionText(action, t);
   const actionRed  = actionIsRed(action);
 
-  // Stable 1..N user-facing scenario number (alphabetical filename order).
-  // Pulled from the run's trainingState — server attaches it on every
-  // publicView broadcast. Null for legacy rehydrated runs.
-  const scenarioNumber = scenarioSnapshot?.trainingState?.scenarioNumber ?? null;
-
   return (
     <div className="training-completion">
       <div className="training-completion-card">
-        {scenarioNumber != null && (
-          <div className="training-scenario-badge">#{scenarioNumber}</div>
-        )}
         <div className="tc-title-row">
           <h1>{c.title}</h1>
         </div>
@@ -193,37 +199,29 @@ export default function CompletionSummary({
         )}
 
         {showConversation && selectedCards === null && (
-          <>
-            {onRestartScenario && (
-              <BackButton onClick={handleBackFromCardSelector} />
-            )}
-            <CardSelector
-              hand={userHand}
-              caseType={caseType}
-              trumpSuit={trumpSuit}
-              onSubmit={(cards) => setSelectedCards(cards)}
-              onSkip={() => setSelectedCards([])}
-            />
-          </>
+          <CardSelector
+            hand={userHand}
+            caseType={caseType}
+            trumpSuit={trumpSuit}
+            onSubmit={(cards) => setSelectedCards(cards)}
+            onSkip={() => setSelectedCards([])}
+          />
         )}
 
         {showConversation && selectedCards !== null && !conversationClosed && (
-          <>
-            <BackButton onClick={handleBackFromChat} />
-            <ClaudeConversation
-              userId={userId}
-              annotationFilename={annotationFilename}
-              userName={userName}
-              caseType={caseType}
-              selectedCards={selectedCards}
-              onClose={() => setConversationClosed(true)}
-            />
-          </>
+          <ClaudeConversation
+            userId={userId}
+            annotationFilename={annotationFilename}
+            userName={userName}
+            caseType={caseType}
+            selectedCards={selectedCards}
+            onClose={() => setConversationClosed(true)}
+          />
         )}
 
         <div className="tc-actions">
-          <button className="btn-secondary" onClick={onBackToPicker}>
-            {c.backToPicker}
+          <button className="btn-secondary" onClick={handleBack}>
+            {c.back}
           </button>
           {hasNextScenario && (
             <button className="btn-primary" onClick={onNextScenario}>
