@@ -8,16 +8,25 @@ import { SUIT_SYM, displayName } from './gameBoardHelpers';
 
 // ─── Card primitives ───────────────────────────────────────────────────────
 
-export function CardFace({ card, onClick, highlight, disabled, isDragging }) {
+export function CardFace({ card, onClick, highlight, disabled, isDragging, lifted, style, onMouseEnter, onMouseLeave }) {
   const isRed = card.suit === 'H' || card.suit === 'D';
   return (
     <button
-      className={`card card-face${isRed ? ' red' : ''}${highlight ? ' valid' : ''}${disabled ? ' card-disabled' : ''}${isDragging ? ' card-dragging' : ''}`}
+      className={`card card-face${isRed ? ' red' : ''}${highlight ? ' valid' : ''}${disabled ? ' card-disabled' : ''}${isDragging ? ' card-dragging' : ''}${lifted ? ' card-lifted' : ''}`}
       onClick={onClick}
       disabled={disabled}
+      style={style}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
-      <span className="card-value">{card.value}</span>
-      <span className="card-suit">{SUIT_SYM[card.suit]}</span>
+      <span className="card-index">
+        <span className="ci-rank">{card.value}</span>
+        <span className="ci-suit">{SUIT_SYM[card.suit]}</span>
+      </span>
+      <div className="card-center">
+        <span className="card-value">{card.value}</span>
+        <span className="card-suit">{SUIT_SYM[card.suit]}</span>
+      </div>
     </button>
   );
 }

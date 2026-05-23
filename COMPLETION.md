@@ -135,3 +135,140 @@ passes (127 modules, no errors). No browser console errors during the run.
 - True device-browser `100dvh` behaviour (mobile address-bar collapse) can only
   be fully validated on a real device; verified here in desktop Chromium where
   `dvh` resolves to the viewport height.
+
+---
+
+# COMPLETION.md — Fanned arc hand + corner index (follow-up task)
+
+Branch: `fix/bidding-layout-mobile`
+Date: 2026-05-23
+
+## Goal
+
+Replace the flat scrolling hand with an overlapping fanned **arc** (cards held
+like real cards). Rank+suit move to each card's TOP-LEFT corner so they stay
+readable under overlap. All 8 cards always fit the width at any size — bigger
+Mode Delfino cards just overlap more (never scroll, never clip). Tap-to-play and
+long-press drag-reorder must keep working. The previous task's Delfino height
+caps are removed (the arc makes them unnecessary).
+
+## What changed, per file
+
+### `frontend/src/components/gameBoardParts.jsx`
+- **`CardFace`**: added a top-left `.card-index` (`.ci-rank` + `.ci-suit`) in
+  addition to the centred glyph (now wrapped in `.card-center`). Added `style`,
+  `lifted`, `onMouseEnter`, `onMouseLeave` props (used by the arc layout in
+  GameBoard). Existing red/black suit logic reused. `CardFace` is only used in
+  the player's hand, so the corner index never appears on trick cards.
+
+### `frontend/src/components/GameBoard.jsx`
+- Module-level arc tuning + geometry: `HAND_ARCH = 2.2`, `HAND_ROT = 5°`,
+  `HAND_LIFT = 24px`, and `arcXStep(box, n)` — derives the per-card horizontal
+  step from the measured container width, **reserving the rotation overhang**
+  (an edge card's rotated bounding box is wider than the card:
+  `halfExtent = cardW/2·cos φ + cardH·sin φ`, `φ = mid·HAND_ROT`). Without that
+  reservation the fan spilled ~16px past each viewport edge.
+- New state: `dragX` (live pointer X so the dragged card follows the finger),
+  `handBox` `{ w, cardW, cardH }` (measured arc metrics), `liftIdx` (hover/press
+  lifted card). New refs: `rulerRef`, `handBoxRef` (mirror for handlers),
+  `dragRectRef` (container rect captured at drag start).
+- `useLayoutEffect` measures the container inner width + the hidden `.hand-ruler`
+  (whose CSS width/height = scaled card size) via a `ResizeObserver` on both —
+  so the arc recomputes on viewport resize AND on Mode Delfino change, without
+  GameBoard needing to know about Delfino.
+- Render: `.my-hand` maps each card to an absolutely-positioned `CardFace` with
+  an inline `transform: translate(calc(-50% + x), y) rotate(rot)` (x = off·xStep,
+  y = off²·HAND_ARCH parabola = arch, rot = off·HAND_ROT), `z-index = i` (right
+  overlaps on top → each card's left strip + index stays visible). The
+  hovered/pressed card straightens (`rotate(0)`), rises (`-HAND_LIFT`), scales
+  1.06, z-index 999. The dragged card floats at the pointer (straight, lifted,
+  scale 1.08, z 1000) while the rest re-arc around the opening slot.
+- `getDropIdx` rewritten to pure slot math using the same `arcXStep` geometry
+  (stable under overlap, no DOM midpoint scan). `handleHandPointerDown` now also
+  sets a press-lift, captures the container rect, and `setPointerCapture` is
+  wrapped in try/catch (synthetic/edge pointers). Move/up/cancel updated to
+  track `dragX` and clear `liftIdx`. Tap-to-play and the long-press (250ms) →
+  drag-reorder data flow (`manualOrderKeys`, `reorderArr`, `applyManualOrder`,
+  localStorage) are otherwise unchanged.
+
+### `frontend/src/App.css`
+- `.card-center` (centred glyph) + `.card-index` / `.ci-rank` / `.ci-suit`
+  (absolute top-left, em-sized so it scales with `--hand-card-scale`).
+- `.my-hand` is now `position: relative; display: block; overflow: visible`
+  with `height: calc(var(--card-h) * var(--hand-card-scale) + 40px)` (arch
+  headroom; a lifted/dragged card overflows upward over the toolbar transiently).
+  Removed the `overflow-x:auto` horizontal-scroll behaviour. Added `.hand-ruler`
+  (hidden, width/height = scaled card size — the measurement probe).
+- `.my-hand .card-face` is now `position: absolute; left: 50%; top: 6px;
+  transform-origin: center bottom` with a `transform` transition (resize/lift/
+  drop animate). The old `:hover`/`:active` `translateY` rules were removed
+  (an inline transform always wins; lift is JS-driven); kept the highlight ring
+  and added `.card-lifted` (stronger shadow). `.card-dragging` now only sets
+  `transition:none` + lift shadow (its transform is inline).
+- Removed the two Delfino height-cap media blocks (`@media (max-height: 720px)`
+  and `@media (max-height: 640px)`).
+- Landscape (`max-height:500px`) `.my-hand` override updated off the old
+  flex/scroll model to a compact arc height.
+
+## Constraints honoured
+- No game-logic changes: bid/play/socket emits, `trainingMode` routing, and
+  backend are untouched. The drag/tap reorder reuses the existing
+  `reorderArr`/`manualOrderKeys`/`saveManualOrder` path.
+- No i18n keys added/changed (card glyphs aren't translated).
+- Existing CSS variables/colours reused; no re-skin. No new dependencies.
+
+## Verification
+
+Temporary `?mock=hand-fixture` harness (added to `App.jsx`, then **removed** —
+`App.jsx` is absent from the final diff). `&phase=playing` = my card turn
+(tappable, trump ♠); default `&phase=bidding` = bidding panel + hand below. The
+harness socket recorded emits to `window.__emits` so a click's played card could
+be asserted. Production `npm run build` passes (127 modules). No console errors.
+
+### Acceptance criteria (all held at 360×650, 390×700, 430×780 × Delfino S/M/L)
+
+1. **All 8 cards form a readable arc; every top-left index legible at all sizes
+   incl. L** — PASS (screenshots). Corner index is em-sized so it scales with
+   the card.
+2. **No horizontal scroll; all 8 fit the width at every size** — PASS.
+   Programmatic bounds check: e.g. 360×650/S `minLeft=12, maxRight=348` (vw 360);
+   `cardsFitWidth: true` at 360×650/L and 430×780/L. The x-step reserves the
+   rotation overhang so edge cards never spill.
+3. **Tapping lifts/straightens and plays the CORRECT card (leftmost/middle/
+   rightmost)** — PASS. Hit-tested + clicked via real `elementFromPoint`:
+   leftmost A♠ → emitted `AS`, middle Q♥ → `QH`, rightmost 8♦ → `8D`. Lift/
+   straighten captured in `arc-430x780-L-lifted.png` (Q♥ rises vertical above
+   the fan).
+4. **Manual-mode long-press drag reorders correctly** — PASS. Switched to manual
+   (Trier), long-pressed (>250ms) A♠ and dragged to the right end: DOM order and
+   persisted `localStorage["coinche-hand-TEST01-3"]` both became
+   `[SK,S10,HQ,H9,DJ,D8,C7,SA]` (A♠ moved to the end).
+5. **Delfino S/M/L are three visibly distinct sizes at ALL heights** — PASS.
+   Measured scaled card width at vh=650 (where the old caps had collapsed
+   L→M): S=42, M=55, L=67 px — three distinct sizes again.
+6. **Controls (bidding panel / toolbar) remain fully visible — nothing clipped**
+   — PASS at every combo. Tightest cases checked programmatically:
+   360×650/L and 430×780/L → `valuesAllVisible / actionsAllVisible /
+   toolbarAllVisible / handWithinViewport` all true.
+
+### Screenshots (`verification-screenshots/`)
+- Bidding (panel + arc): `arc-360x650-{S,M,L}.png`, `arc-390x700-{S,M,L}.png`,
+  `arc-430x780-{S,M,L}.png`
+- Playing (tappable hand): `arc-360x650-S-playing.png`
+- Lift/straighten: `arc-430x780-L-lifted.png`
+
+## Caveats
+- Verified via the synthetic fixture (mounts the real `GameBoard`), not a full
+  live bots game; socket round-trips weren't exercised (the harness socket is a
+  recorder). Tap/drag were driven through the real DOM event path.
+- Drag was simulated with synthetic `PointerEvent`s + real long-press timing;
+  `setPointerCapture` is now try/caught to tolerate synthetic/edge pointers.
+- Hover-lift uses mouse enter/leave (desktop). On touch there's no hover, so the
+  lift shows briefly on press (`pointerdown`) before the tap plays — the play
+  itself targets the correct card regardless.
+- Arc height adds ~arch headroom over the old flat strip; at the tightest case
+  (360×650/L during BIDDING) the felt/`board-middle` is squeezed (opponent seats
+  clip under its `overflow:hidden`) but all controls and the full hand stay
+  visible, which is the acceptance bar.
+- True on-device `100dvh` (carried over from the previous task) still only fully
+  validates on a real mobile browser.

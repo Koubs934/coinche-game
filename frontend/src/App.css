@@ -511,23 +511,45 @@ a      { color: var(--accent); }
   transition: transform 0.1s, box-shadow 0.1s;
 }
 .card-face.red { color: var(--red); }
+/* Lift/straighten is driven by GameBoard via an inline transform (the arc would
+   override any CSS transform here), so these rules only carry the highlight ring
+   and shadow. */
 .card-face.valid {
   cursor: pointer;
   box-shadow: 0 0 0 2px var(--accent);
 }
-@media (hover: hover) {
-  .card-face.valid:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 0 0 2px var(--accent);
-  }
-}
-.card-face.valid:active {
-  transform: translateY(-4px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 2px var(--accent);
+.card-face.card-lifted {
+  box-shadow: 0 8px 18px rgba(0,0,0,0.45), 0 0 0 2px var(--accent);
 }
 .card-face.card-disabled { opacity: 0.7; cursor: default; }
 .card-value { font-weight: bold; font-size: 1em; }
 .card-suit  { font-size: 0.95em; }
+
+/* Centered big glyph (kept as the card's flex-centered content) */
+.card-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+  gap: 1px;
+}
+/* Top-left corner index — stays readable when cards overlap in the arc.
+   Sized in em so it scales with the card-face font-size (and thus with
+   --hand-card-scale). */
+.card-index {
+  position: absolute;
+  top: 5%;
+  left: 7%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 0.95;
+  font-weight: bold;
+  pointer-events: none;
+}
+.ci-rank { font-size: 0.72em; }
+.ci-suit { font-size: 0.68em; }
 
 .card-back {
   background: #1a4080;
@@ -543,20 +565,28 @@ a      { color: var(--accent); }
   border-radius: 3px;
 }
 
-/* ─── My hand ────────────────────────────────────────────────────────────── */
-/* Bounded to one card row so .board-hand height stays predictable; wide or
-   Delfino-scaled hands scroll horizontally instead of growing taller and
-   evicting the bidding controls above. */
+/* ─── My hand (fanned arc) ───────────────────────────────────────────────── */
+/* Cards are absolutely positioned in an overlapping fan whose horizontal step
+   is derived in JS from this container's measured width — so all cards always
+   fit at any size; bigger Delfino cards just overlap more (never scroll). The
+   height tracks the scaled card height plus a little arch headroom; a lifted /
+   dragged card overflows upward (overflow:visible) and paints over the toolbar
+   transiently. */
 .my-hand {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 4px;
-  justify-content: center;
+  position: relative;
+  display: block;
+  overflow: visible;
   padding: 4px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  min-height: 0;
-  -webkit-overflow-scrolling: touch;
+  height: calc(var(--card-h) * var(--hand-card-scale) + 40px);
+}
+.hand-ruler {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--card-w) * var(--hand-card-scale));
+  height: calc(var(--card-h) * var(--hand-card-scale));
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* Mode Delfino — user-toggled scale of the user's own hand cards.
@@ -568,19 +598,18 @@ a      { color: var(--accent); }
 [data-hand-size="M"] { --hand-card-scale: 1.3; }
 [data-hand-size="L"] { --hand-card-scale: 1.6; }
 
-/* Defense-in-depth: cap Delfino scaling on short viewports so the larger card
-   sizes can't push the bidding controls out of the visible area. The toggle
-   itself (HandSizeToggle) keeps its tri-state; only the CSS *result* is capped. */
-@media (max-height: 720px) { [data-hand-size="L"] { --hand-card-scale: 1.3; } }
-@media (max-height: 640px) {
-  [data-hand-size="L"], [data-hand-size="M"] { --hand-card-scale: 1.1; }
-}
-
+/* Arc cards: absolutely positioned, each transformed (translate + rotate) from
+   a shared centre anchor (left:50%) by GameBoard. transform-origin bottom-centre
+   so the fan pivots naturally; transitions make resize / lift / drop animate. */
 .my-hand .card-face {
+  position: absolute;
+  left: 50%;
+  top: 6px;
   width: calc(var(--card-w) * var(--hand-card-scale));
   height: calc(var(--card-h) * var(--hand-card-scale));
   font-size: calc(0.85em * var(--hand-card-scale));
-  transition: width 0.15s ease-out, height 0.15s ease-out, font-size 0.15s ease-out;
+  transform-origin: center bottom;
+  transition: transform 0.13s ease-out, width 0.15s ease-out, height 0.15s ease-out, font-size 0.15s ease-out, box-shadow 0.13s ease-out;
 }
 
 /* Toggle button itself (Mode Delfino) */
@@ -1435,7 +1464,10 @@ a      { color: var(--accent); }
 
 /* Manual drag mode */
 .my-hand-manual { touch-action: none; user-select: none; }
-.card-dragging  { opacity: 0.55; transform: scale(1.1) translateY(-8px); transition: none; position: relative; z-index: 10; }
+/* The dragged card's transform (follow-the-pointer) is inline from GameBoard;
+   here we just kill the transition so it tracks the finger 1:1 and add a lift
+   shadow. */
+.card-dragging  { transition: none; box-shadow: 0 12px 26px rgba(0,0,0,0.5), 0 0 0 2px var(--accent); }
 
 /* ─── Bid action chips (per-player bidding status) ──────────────────────── */
 .bid-action-chip {
@@ -1760,12 +1792,8 @@ a      { color: var(--accent); }
   .player-avatar     { display: none; }
   .self-player-bar   { display: none; }
   .my-hand {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    justify-content: center;
-    gap: 2px;
-    padding: 0;
+    padding: 2px 0 0;
+    height: calc(var(--card-h) * var(--hand-card-scale) + 30px);
   }
   .hand-toolbar   { padding: 1px 2px; gap: 4px; }
   .btn-sort            { padding: 2px 8px; min-height: 24px; }

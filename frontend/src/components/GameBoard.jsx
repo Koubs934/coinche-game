@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useLang } from '../context/LanguageContext';
 import BiddingPanel from './BiddingPanel';
 import RoundSummary from './RoundSummary';
@@ -16,6 +16,24 @@ import {
   BelotePrompt, PauseBanner,
 } from './gameBoardParts';
 import GameErrorTagOverlay from '../game/GameErrorTagOverlay';
+
+// ─── Fanned-arc hand tuning ────────────────────────────────────────────────
+const HAND_ARCH = 2.2;   // px per off² — vertical arch depth (middle highest)
+const HAND_ROT  = 5;     // deg per step — fan tilt
+const HAND_LIFT = 24;    // px a hovered/pressed card rises
+
+// Horizontal step between card centres, derived from the measured container so
+// every card always fits. Edge cards are the most rotated, and rotation swings
+// their corners outward (their axis-aligned box is wider than the card), so the
+// budget reserves that overhang — otherwise the fan spills past the viewport.
+function arcXStep(box, n) {
+  if (n <= 1 || !box.w) return 0;
+  const mid = (n - 1) / 2;
+  const phi = (mid * HAND_ROT) * Math.PI / 180;
+  const halfExtent = (box.cardW / 2) * Math.cos(phi) + box.cardH * Math.sin(phi);
+  const span = Math.max(0, box.w - 2 * halfExtent);
+  return span / (n - 1);
+}
 
 // ─── Main GameBoard ────────────────────────────────────────────────────────
 
@@ -49,6 +67,12 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   });
   // dragVisual: { fromIdx, toIdx } live during a drag gesture
   const [dragVisual, setDragVisual] = useState(null);
+  // dragX: live pointer clientX while dragging, so the dragged card follows the finger
+  const [dragX, setDragX] = useState(null);
+  // handBox: measured arc metrics — w = inner width, cardW/cardH = scaled card size
+  const [handBox, setHandBox] = useState({ w: 0, cardW: 0, cardH: 0 });
+  // liftIdx: index of the card currently lifted (hover/press) — straightens + rises
+  const [liftIdx, setLiftIdx] = useState(null);
   // dealAnimCounts: [c0,c1,c2,c3] while the 3-2-3 deal plays out; null = show all
   const [dealAnimCounts, setDealAnimCounts] = useState(null);
   // beloteDecisionCard: card waiting for belote/non choice; null when not prompting
@@ -77,6 +101,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   const startXYRef       = useRef(null);   // pointer position at pointerdown
   const wasDragRef       = useRef(false);  // suppress click after drag completes
   const handElRef        = useRef(null);   // ref on .my-hand div
+  const rulerRef         = useRef(null);   // hidden element whose width = scaled card width
+  const handBoxRef       = useRef({ w: 0, cardW: 0, cardH: 0 }); // mirror of handBox for pointer handlers
+  const dragRectRef      = useRef(null);   // .my-hand client rect captured at drag start
   const prevDealerMRef      = useRef(game.dealer); // for detecting new round
   const prevRoomPhaseRef    = useRef(room.phase);  // for CUT→PLAYING deal animation
   const prevBeloteRef       = useRef({ declared: game.beloteInfo?.declared ?? null, rebeloteDone: game.beloteInfo?.rebeloteDone ?? false });
@@ -296,6 +323,35 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     prevSCActionRef.current = lastShuffleCutAction ?? null;
   }, [lastShuffleCutAction]);
 
+  // ── Effect: measure the hand container + scaled card width for the arc ─────
+  // The arc derives its per-card x-step from the live container width, so all
+  // cards always fit regardless of viewport or Mode Delfino scale. A hidden
+  // ruler element carries the scaled card width (calc(--card-w * scale)); a
+  // ResizeObserver on both the container and the ruler recomputes on viewport
+  // resize AND on Delfino size change without GameBoard knowing about Delfino.
+  useLayoutEffect(() => {
+    const el = handElRef.current;
+    if (!el) return;
+    const measure = () => {
+      const cs = getComputedStyle(el);
+      const padL = parseFloat(cs.paddingLeft) || 0;
+      const padR = parseFloat(cs.paddingRight) || 0;
+      const w = el.clientWidth - padL - padR;
+      const rr = rulerRef.current ? rulerRef.current.getBoundingClientRect() : null;
+      const cardW = rr ? rr.width : 0;
+      const cardH = rr ? rr.height : 0;
+      const next = { w, cardW, cardH };
+      handBoxRef.current = next;
+      setHandBox(prev => (prev.w === next.w && prev.cardW === next.cardW && prev.cardH === next.cardH ? prev : next));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    if (rulerRef.current) ro.observe(rulerRef.current);
+    window.addEventListener('resize', measure);
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
+  }, [animatedHand.length]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   function playCard(card, declareBelote = false) {
     if (trainingMode) {
@@ -340,31 +396,55 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     try { localStorage.setItem(lsKey, JSON.stringify(keys)); } catch {}
   }
 
+  // Map a pointer X to a slot index in the arc, derived from the same geometry
+  // the cards are laid out with (centre ± off*xStep). Pure math, so it stays
+  // correct even while the rest of the hand re-arcs around the dragged card.
   function getDropIdx(clientX) {
-    if (!handElRef.current) return 0;
-    const els = handElRef.current.querySelectorAll('.card-face');
-    for (let i = 0; i < els.length; i++) {
-      const r = els[i].getBoundingClientRect();
-      if (clientX < r.left + r.width / 2) return i;
-    }
-    return Math.max(0, els.length - 1);
+    const el = handElRef.current;
+    if (!el) return 0;
+    const n = animatedHand.length;
+    if (n <= 1) return 0;
+    const box = handBoxRef.current;
+    const xStep = arcXStep(box, n);
+    if (!xStep) return 0;
+    const rect = dragRectRef.current || el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    const padL = parseFloat(cs.paddingLeft) || 0;
+    const centerX = rect.left + padL + box.w / 2;
+    const mid = (n - 1) / 2;
+    const slot = Math.round((clientX - centerX) / xStep + mid);
+    return Math.max(0, Math.min(n - 1, slot));
+  }
+
+  // Which card index does this pointer event sit on? With overlap, the topmost
+  // (right-most, highest z) card is the natural hit — .contains(target) resolves
+  // it correctly because the browser already hit-tested by paint order.
+  function cardIdxFromEvent(e) {
+    const els = Array.from(handElRef.current.querySelectorAll('.card-face'));
+    return els.findIndex(el => el === e.target || el.contains(e.target));
   }
 
   function handleHandPointerDown(e) {
+    const idx = cardIdxFromEvent(e);
+    // Press feedback: lift the touched playable card (also covers touch, which
+    // has no hover).
+    if (idx !== -1 && isMyCardTurn) setLiftIdx(idx);
     if (sortMode !== 'manual') return;
-    const els = Array.from(handElRef.current.querySelectorAll('.card-face'));
-    const idx = els.findIndex(el => el.contains(e.target));
     if (idx === -1) return;
-    handElRef.current.setPointerCapture(e.pointerId);
+    dragRectRef.current = handElRef.current.getBoundingClientRect();
+    try { handElRef.current.setPointerCapture(e.pointerId); } catch {}
     startXYRef.current = { x: e.clientX, y: e.clientY };
     longPressRef.current = setTimeout(() => {
       dragRef.current = { fromIdx: idx, toIdx: idx };
+      setLiftIdx(null);
       setDragVisual({ fromIdx: idx, toIdx: idx });
+      setDragX(e.clientX);
     }, 250);
   }
 
   function handleHandPointerMove(e) {
     if (dragRef.current) {
+      setDragX(e.clientX);
       const to = getDropIdx(e.clientX);
       if (to !== dragRef.current.toIdx) {
         dragRef.current.toIdx = to;
@@ -378,16 +458,19 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
           Math.abs(e.clientY - startXYRef.current.y) > 8) {
         clearTimeout(longPressRef.current);
         longPressRef.current = null;
+        setLiftIdx(null);
       }
     }
   }
 
-  function handleHandPointerUp(e) {
+  function handleHandPointerUp() {
     clearTimeout(longPressRef.current);
     longPressRef.current = null;
+    setLiftIdx(null);
     const dr = dragRef.current;
     dragRef.current = null;
     setDragVisual(null);
+    setDragX(null);
     if (!dr) return;
     wasDragRef.current = true;
     if (dr.fromIdx !== dr.toIdx) {
@@ -398,8 +481,10 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   function handleHandPointerCancel() {
     clearTimeout(longPressRef.current);
     longPressRef.current = null;
+    setLiftIdx(null);
     dragRef.current = null;
     setDragVisual(null);
+    setDragX(null);
   }
 
   // ── Round summary (early exit) ─────────────────────────────────────────────
@@ -448,6 +533,42 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   const trickWinName  = trickOverlay
     ? players.find(p => p.position === trickOverlay.winnerPos)?.username
     : null;
+
+  // ── Fanned-arc hand geometry ───────────────────────────────────────────────
+  // x is derived from the measured width so all cards always fit (bigger cards
+  // just overlap more). y is a parabola (middle highest = arch); rotation fans
+  // the cards. The lifted/dragged card straightens, rises and sits on top.
+  const handN   = animatedHand.length;
+  const handMid = (handN - 1) / 2;
+  const handXStep = arcXStep(handBox, handN);
+
+  function arcStyle(i) {
+    const off = i - handMid;
+    const x = off * handXStep;
+    if ((liftIdx === i && isMyCardTurn)) {
+      return {
+        transform: `translate(calc(-50% + ${x}px), ${-HAND_LIFT}px) rotate(0deg) scale(1.06)`,
+        zIndex: 999,
+      };
+    }
+    const y = off * off * HAND_ARCH;
+    return {
+      transform: `translate(calc(-50% + ${x}px), ${y.toFixed(2)}px) rotate(${(off * HAND_ROT).toFixed(2)}deg)`,
+      zIndex: i,
+    };
+  }
+
+  // The dragged card detaches and follows the pointer (straight, lifted, on top)
+  // while the rest of the hand re-arcs around the opening slot.
+  function draggedStyle() {
+    const rect = dragRectRef.current;
+    if (!rect || dragX == null) return null;
+    const x = dragX - (rect.left + rect.width / 2);
+    return {
+      transform: `translate(calc(-50% + ${x}px), ${-HAND_LIFT - 8}px) rotate(0deg) scale(1.08)`,
+      zIndex: 1000,
+    };
+  }
 
   return (
     <div className="game-board">
@@ -786,24 +907,36 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
           onPointerUp={handleHandPointerUp}
           onPointerCancel={handleHandPointerCancel}
         >
-          {animatedHand.map(card => (
-            <CardFace
-              key={cardKey(card)}
-              card={card}
-              onClick={() => {
-                if (wasDragRef.current) { wasDragRef.current = false; return; }
-                if (!isMyCardTurn) return;
-                if (needsBelotePrompt(card)) {
-                  setBeloteDecisionCard(card);
-                } else {
-                  playCard(card);
-                }
-              }}
-              highlight={isMyCardTurn}
-              disabled={!isMyCardTurn}
-              isDragging={dragVisual != null && cardKey(card) === cardKey(manualHand[dragVisual.fromIdx])}
-            />
-          ))}
+          {/* Hidden ruler: width tracks the scaled card width so the measure
+              effect can read it (and react to Mode Delfino changes). */}
+          <span className="hand-ruler" ref={rulerRef} aria-hidden="true" />
+          {animatedHand.map((card, i) => {
+            const isDraggedCard = dragVisual != null && cardKey(card) === cardKey(manualHand[dragVisual.fromIdx]);
+            const isLifted = liftIdx === i && isMyCardTurn;
+            const style = isDraggedCard ? (draggedStyle() || arcStyle(i)) : arcStyle(i);
+            return (
+              <CardFace
+                key={cardKey(card)}
+                card={card}
+                style={style}
+                onMouseEnter={() => { if (isMyCardTurn && !dragRef.current) setLiftIdx(i); }}
+                onMouseLeave={() => { if (!dragRef.current) setLiftIdx(prev => (prev === i ? null : prev)); }}
+                onClick={() => {
+                  if (wasDragRef.current) { wasDragRef.current = false; return; }
+                  if (!isMyCardTurn) return;
+                  if (needsBelotePrompt(card)) {
+                    setBeloteDecisionCard(card);
+                  } else {
+                    playCard(card);
+                  }
+                }}
+                highlight={isMyCardTurn}
+                disabled={!isMyCardTurn}
+                isDragging={isDraggedCard}
+                lifted={isLifted}
+              />
+            );
+          })}
           {myHand.length === 0 && phase === 'PLAYING' && !dealAnimCounts && (
             <span className="muted">—</span>
           )}
