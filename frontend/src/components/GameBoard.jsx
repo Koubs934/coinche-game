@@ -530,7 +530,13 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
         )}
         {surcoincheBy === (myPosition + 2) % 4 && <CoincheBadge type="surcoinche" t={t} />}
         {coincheBy    === (myPosition + 2) % 4 && surcoincheBy !== (myPosition + 2) % 4 && <CoincheBadge type="coinche" t={t} />}
-        <PlayerSeat {...seatData(2)} direction="top" isCreator={isCreator} onRemove={removePlayer} />
+        <PlayerSeat
+          {...seatData(2)}
+          direction="top"
+          isCreator={isCreator}
+          onRemove={removePlayer}
+          bidHistory={isBidding ? perPlayerHistory[(myPosition + 2) % 4] : null}
+        />
       </div>
 
       {/* ── Middle row ─────────────────────────────────────────────────────── */}
@@ -542,27 +548,16 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
           )}
           {surcoincheBy === (myPosition + 3) % 4 && <CoincheBadge type="surcoinche" t={t} />}
           {coincheBy    === (myPosition + 3) % 4 && surcoincheBy !== (myPosition + 3) % 4 && <CoincheBadge type="coinche" t={t} />}
-          <PlayerSeat {...seatData(3)} direction="left" isCreator={isCreator} onRemove={removePlayer} />
+          <PlayerSeat
+            {...seatData(3)}
+            direction="left"
+            isCreator={isCreator}
+            onRemove={removePlayer}
+            bidHistory={isBidding ? perPlayerHistory[(myPosition + 3) % 4] : null}
+          />
         </div>
 
         <div className="board-center">
-          {/* ── Table-positioned bid chips — float on table in front of each opponent ── */}
-          {isBidding && perPlayerHistory[(myPosition + 2) % 4]?.length > 0 && (
-            <div className="table-bid tbid-top">
-              <BidStack history={perPlayerHistory[(myPosition + 2) % 4]} t={t} />
-            </div>
-          )}
-          {isBidding && perPlayerHistory[(myPosition + 3) % 4]?.length > 0 && (
-            <div className="table-bid tbid-left">
-              <BidStack history={perPlayerHistory[(myPosition + 3) % 4]} t={t} />
-            </div>
-          )}
-          {isBidding && perPlayerHistory[(myPosition + 1) % 4]?.length > 0 && (
-            <div className="table-bid tbid-right">
-              <BidStack history={perPlayerHistory[(myPosition + 1) % 4]} t={t} />
-            </div>
-          )}
-
           {/* Bidding center — focal bid + turn + history */}
           {phase === 'BIDDING' && (
             <div className="bid-center">
@@ -671,7 +666,13 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
           )}
           {surcoincheBy === (myPosition + 1) % 4 && <CoincheBadge type="surcoinche" t={t} />}
           {coincheBy    === (myPosition + 1) % 4 && surcoincheBy !== (myPosition + 1) % 4 && <CoincheBadge type="coinche" t={t} />}
-          <PlayerSeat {...seatData(1)} direction="right" isCreator={isCreator} onRemove={removePlayer} />
+          <PlayerSeat
+            {...seatData(1)}
+            direction="right"
+            isCreator={isCreator}
+            onRemove={removePlayer}
+            bidHistory={isBidding ? perPlayerHistory[(myPosition + 1) % 4] : null}
+          />
         </div>
       </div>
 

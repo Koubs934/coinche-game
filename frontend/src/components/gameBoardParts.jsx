@@ -115,10 +115,11 @@ export function CoincheBadge({ type, t }) {
 
 // ─── Player seat (opponent, face-down) ────────────────────────────────────
 
-export function PlayerSeat({ player, handCount, isActive, isDimmed, direction, isCreator, onRemove }) {
+export function PlayerSeat({ player, handCount, isActive, isDimmed, direction, isCreator, onRemove, bidHistory }) {
   const { t } = useLang();
   const name = displayName(player, t);
   const initial = player?.isBot ? '🤖' : (name[0]?.toUpperCase() || '?');
+  const stackSize = Math.min(3, handCount || 0);
   return (
     <div className={[
       'player-seat',
@@ -134,6 +135,7 @@ export function PlayerSeat({ player, handCount, isActive, isDimmed, direction, i
         {player && player.connected === false && !player.isScripted && <span className="dc-indicator"> ⚠</span>}
         {isActive && <span className="turn-dot"> ●</span>}
       </div>
+      {bidHistory?.length > 0 && <BidStack history={bidHistory} t={t} />}
       {isCreator && player && !player.connected && !player.isBot && !player.isScripted && (
         <button
           className="btn-remove-player"
@@ -143,10 +145,13 @@ export function PlayerSeat({ player, handCount, isActive, isDimmed, direction, i
           title={t.removePlayer}
         >✕</button>
       )}
-      <div className="face-down-cards">
-        {Array.from({ length: handCount || 0 }).map((_, i) => (
-          <CardBack key={i} small />
-        ))}
+      <div className="hand-chip" aria-label={`${handCount || 0} cartes`}>
+        <span className="hand-chip-stack">
+          {Array.from({ length: stackSize }).map((_, i) => (
+            <span className="mini-back" key={i} />
+          ))}
+        </span>
+        {handCount > 0 && <span className="hand-chip-count">{handCount}</span>}
       </div>
     </div>
   );
