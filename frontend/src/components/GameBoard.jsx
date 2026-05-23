@@ -35,6 +35,31 @@ function arcXStep(box, n) {
   return span / (n - 1);
 }
 
+// ─── Collapsible bid sheet ──────────────────────────────────────────────────
+// On short viewports the bid controls live in a bottom sheet that can collapse
+// so the full table + arc hand show. Tall viewports keep it permanently open
+// (handled in CSS) and these gestures are no-ops there.
+// NOTE: keep this threshold in sync with the `@media (max-height: …)` block that
+// styles .bid-sheet / .bid-bar in App.css.
+const SHORT_VIEWPORT_QUERY = '(max-height: 820px)';
+const DEFAULT_BID_SHEET_OPEN = true;   // flip to false to default-collapse on your turn
+const SHEET_SWIPE_CLOSE_PX = 45;       // downward swipe distance that collapses the sheet
+
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(
+    () => (typeof window !== 'undefined' && window.matchMedia) ? window.matchMedia(query).matches : false
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mql = window.matchMedia(query);
+    const onChange = () => setMatches(mql.matches);
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, [query]);
+  return matches;
+}
+
 // ─── Main GameBoard ────────────────────────────────────────────────────────
 
 export default function GameBoard({ socket, roomCode, room, game, myPosition, trainingMode }) {
@@ -73,6 +98,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   const [handBox, setHandBox] = useState({ w: 0, cardW: 0, cardH: 0 });
   // liftIdx: index of the card currently lifted (hover/press) — straightens + rises
   const [liftIdx, setLiftIdx] = useState(null);
+  // sheetOpen: bid bottom-sheet state (only meaningful on short viewports; tall
+  // screens keep the sheet open via CSS regardless of this value)
+  const [sheetOpen, setSheetOpen] = useState(DEFAULT_BID_SHEET_OPEN);
   // dealAnimCounts: [c0,c1,c2,c3] while the 3-2-3 deal plays out; null = show all
   const [dealAnimCounts, setDealAnimCounts] = useState(null);
   // beloteDecisionCard: card waiting for belote/non choice; null when not prompting
@@ -104,6 +132,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   const rulerRef         = useRef(null);   // hidden element whose width = scaled card width
   const handBoxRef       = useRef({ w: 0, cardW: 0, cardH: 0 }); // mirror of handBox for pointer handlers
   const dragRectRef      = useRef(null);   // .my-hand client rect captured at drag start
+  const sheetSwipeYRef   = useRef(null);   // pointer Y at sheet pointerdown (swipe-to-collapse)
   const prevDealerMRef      = useRef(game.dealer); // for detecting new round
   const prevRoomPhaseRef    = useRef(room.phase);  // for CUT→PLAYING deal animation
   const prevBeloteRef       = useRef({ declared: game.beloteInfo?.declared ?? null, rebeloteDone: game.beloteInfo?.rebeloteDone ?? false });
@@ -122,6 +151,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   const isMyCardTurn = phase === 'PLAYING' && currentPlayer === myPosition;
   const isMyBidTurn  = phase === 'BIDDING' && biddingTurn  === myPosition;
   const isMyTurn     = isMyCardTurn || isMyBidTurn;
+
+  const isShortViewport = useMediaQuery(SHORT_VIEWPORT_QUERY);
 
   const manualHand   = applyManualOrder(myHand, manualOrderKeys);
   const displayHand  = sortMode !== 'manual'
@@ -352,6 +383,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
   }, [animatedHand.length]);
 
+  // ── Effect: default the bid sheet open each time it becomes my bid turn ────
+  useEffect(() => {
+    if (isMyBidTurn) setSheetOpen(DEFAULT_BID_SHEET_OPEN);
+  }, [isMyBidTurn]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   function playCard(card, declareBelote = false) {
     if (trainingMode) {
@@ -487,6 +523,19 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     setDragX(null);
   }
 
+  // ── Bid sheet open/collapse ────────────────────────────────────────────────
+  // Only act on short viewports; on tall screens the handle/bar are hidden and
+  // the sheet is permanently open via CSS.
+  function openBidSheet()     { if (isShortViewport) setSheetOpen(true); }
+  function collapseBidSheet() { if (isShortViewport) setSheetOpen(false); }
+  function handleSheetPointerDown(e) { sheetSwipeYRef.current = e.clientY; }
+  function handleSheetPointerUp(e) {
+    const startY = sheetSwipeYRef.current;
+    sheetSwipeYRef.current = null;
+    if (startY == null) return;
+    if (e.clientY - startY > SHEET_SWIPE_CLOSE_PX) collapseBidSheet();
+  }
+
   // ── Round summary (early exit) ─────────────────────────────────────────────
   if (room.phase === 'ROUND_OVER' || room.phase === 'GAME_OVER') {
     return (
@@ -569,6 +618,58 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
       zIndex: 1000,
     };
   }
+
+  // ── Bid sheet derived values ───────────────────────────────────────────────
+  const bidSheetActive = phase === 'BIDDING' && isMyBidTurn;
+  const highBidder = currentBid != null
+    ? players.find(p => p.position === currentBid.playerIndex)
+    : null;
+
+  // Toolbar (sort / undo / manage / leave). Lives inside the bid sheet during
+  // my bid turn, and in normal hand flow otherwise — so it is declared once.
+  const handToolbar = (
+    <div className="hand-toolbar">
+      {!isShuffleCut && (
+        <button
+          className={`btn-sort${sortMode !== 'manual' ? ' sort-on' : ''}${sortMode === 'H' || sortMode === 'D' ? ' sort-red' : ''}`}
+          onClick={cycleSortMode}
+          title={t.sortHand}
+        >
+          {sortMode === 'manual'
+            ? `⇅ ${t.sortManual}`
+            : `${SUIT_SYM[sortMode]} ${t.sortHand}`}
+        </button>
+      )}
+      {!trainingMode && isCreator && (phase === 'BIDDING' || phase === 'PLAYING') && (
+        <button
+          className="btn-undo"
+          onClick={() => socket.emit('undoLastAction', { code: roomCode })}
+          disabled={!room.canUndo}
+          title={t.undoAction}
+        >
+          ↩ {t.undoAction}
+        </button>
+      )}
+      {!trainingMode && isCreator && (
+        <button className="btn-manage" onClick={() => setShowAdminPanel(true)} title={t.managePlayersTitle}>
+          ⚙ {t.managePlayers}
+        </button>
+      )}
+      {/* Game Review: only rendered for the room creator in live games. */}
+      {!trainingMode && isCreator && phase === 'PLAYING' && (
+        <button
+          className="btn-tag-play-error"
+          onClick={() => setTagErrorOpen(true)}
+          title={t.button.tagPlayError}
+        >
+          ⚠ {t.button.tagPlayError}
+        </button>
+      )}
+      <button className="btn-leave" onClick={leaveTable}>
+        {trainingMode ? t.training.abandonLabel : t.leaveTable}
+      </button>
+    </div>
+  );
 
   return (
     <div className="game-board">
@@ -798,7 +899,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
       </div>
 
       {/* ── My hand ────────────────────────────────────────────────────────── */}
-      <div className={`board-hand${isMyTurn ? ' hand-my-turn' : ''}`}>
+      <div className={`board-hand${isMyTurn ? ' hand-my-turn' : ''}${bidSheetActive ? ' has-bid-sheet' : ''}${bidSheetActive && !sheetOpen ? ' sheet-collapsed' : ''}`}>
 
         {/* "Your turn" pulse banner */}
         {isMyTurn && (
@@ -823,81 +924,85 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
           )}
         </div>
 
-        {/* Bidding controls — shown at the bottom during my bid turn */}
-        {phase === 'BIDDING' && isMyBidTurn && (
-          <BiddingPanel
-            socket={socket} roomCode={roomCode}
-            game={game} myPosition={myPosition} myTeam={myTeam}
-            sortMode={sortMode}
-            trainingMode={trainingMode}
-          />
+        {/* Bid sheet (my bid turn): collapsible bottom sheet on short viewports,
+            permanently open on tall (CSS-gated). Holds the bid controls + the
+            toolbar; opaque so taps can't fall through to the felt. */}
+        {bidSheetActive && (
+          <>
+            {/* Light scrim behind the open sheet (short screens; CSS-gated) */}
+            {sheetOpen && <div className="bid-scrim" aria-hidden="true" />}
+            {/* Collapsed-state affordance — slim highest-bid bar (short screens) */}
+            <button
+              type="button"
+              className={`bid-bar${sheetOpen ? ' bid-bar-hidden' : ''}`}
+              onClick={openBidSheet}
+            >
+              <span className="bid-bar-label">{t.highestBid}</span>
+              <span className="bid-bar-value">
+                {currentBid ? (
+                  <>
+                    {currentBid.value === 'capot' ? t.capot : currentBid.value}
+                    {currentBid.suit && (
+                      <span className={`bid-bar-suit${currentBid.suit === 'H' || currentBid.suit === 'D' ? ' red' : ''}`}>
+                        {t.suitSymbol[currentBid.suit]}
+                      </span>
+                    )}
+                    {highBidder && <span className="bid-bar-bidder"> · {displayName(highBidder, t)}</span>}
+                  </>
+                ) : (
+                  <span className="bid-bar-empty">{t.biddingPhase}</span>
+                )}
+              </span>
+              <span className="bid-bar-cta">{t.bidSheetCta} ▲</span>
+            </button>
+
+            <div
+              className={`bid-sheet${sheetOpen ? ' open' : ' collapsed'}`}
+              onPointerDown={handleSheetPointerDown}
+              onPointerUp={handleSheetPointerUp}
+            >
+              <button
+                type="button"
+                className="bid-sheet-handle"
+                onClick={collapseBidSheet}
+                aria-label={t.biddingPhase}
+              />
+              <BiddingPanel
+                socket={socket} roomCode={roomCode}
+                game={game} myPosition={myPosition} myTeam={myTeam}
+                sortMode={sortMode}
+                trainingMode={trainingMode}
+              />
+              {handToolbar}
+            </div>
+          </>
         )}
 
-        {/* Shuffle controls */}
-        {room.phase === 'SHUFFLE' && isMyShuffleTurn && (
-          <div className="deal-controls">
-            <button className="scp-btn scp-btn-pri" onClick={() => socket.emit('shuffleDeck', { code: roomCode })}>
-              {t.shuffle}
-            </button>
-            <button className="scp-btn scp-btn-sec" onClick={() => socket.emit('skipShuffle', { code: roomCode })}>
-              {t.noShuffle}
-            </button>
-          </div>
+        {/* Shuffle / cut controls + toolbar — normal flow when not bidding */}
+        {!bidSheetActive && (
+          <>
+            {room.phase === 'SHUFFLE' && isMyShuffleTurn && (
+              <div className="deal-controls">
+                <button className="scp-btn scp-btn-pri" onClick={() => socket.emit('shuffleDeck', { code: roomCode })}>
+                  {t.shuffle}
+                </button>
+                <button className="scp-btn scp-btn-sec" onClick={() => socket.emit('skipShuffle', { code: roomCode })}>
+                  {t.noShuffle}
+                </button>
+              </div>
+            )}
+            {room.phase === 'CUT' && isMyCutTurn && (
+              <div className="deal-controls">
+                <CutPicker
+                  onCut={n => socket.emit('cutDeck', { code: roomCode, n })}
+                  onSkip={() => socket.emit('skipCut', { code: roomCode })}
+                  t={t}
+                />
+              </div>
+            )}
+            {handToolbar}
+          </>
         )}
-
-        {/* Cut controls */}
-        {room.phase === 'CUT' && isMyCutTurn && (
-          <div className="deal-controls">
-            <CutPicker
-              onCut={n => socket.emit('cutDeck', { code: roomCode, n })}
-              onSkip={() => socket.emit('skipCut', { code: roomCode })}
-              t={t}
-            />
-          </div>
-        )}
-
-        {/* Toolbar row: sort toggle + undo + admin manage + leave */}
-        <div className="hand-toolbar">
-          {!isShuffleCut && (
-            <button
-              className={`btn-sort${sortMode !== 'manual' ? ' sort-on' : ''}${sortMode === 'H' || sortMode === 'D' ? ' sort-red' : ''}`}
-              onClick={cycleSortMode}
-              title={t.sortHand}
-            >
-              {sortMode === 'manual'
-                ? `⇅ ${t.sortManual}`
-                : `${SUIT_SYM[sortMode]} ${t.sortHand}`}
-            </button>
-          )}
-          {!trainingMode && isCreator && (phase === 'BIDDING' || phase === 'PLAYING') && (
-            <button
-              className="btn-undo"
-              onClick={() => socket.emit('undoLastAction', { code: roomCode })}
-              disabled={!room.canUndo}
-              title={t.undoAction}
-            >
-              ↩ {t.undoAction}
-            </button>
-          )}
-          {!trainingMode && isCreator && (
-            <button className="btn-manage" onClick={() => setShowAdminPanel(true)} title={t.managePlayersTitle}>
-              ⚙ {t.managePlayers}
-            </button>
-          )}
-          {/* Game Review: only rendered for the room creator in live games. */}
-          {!trainingMode && isCreator && phase === 'PLAYING' && (
-            <button
-              className="btn-tag-play-error"
-              onClick={() => setTagErrorOpen(true)}
-              title={t.button.tagPlayError}
-            >
-              ⚠ {t.button.tagPlayError}
-            </button>
-          )}
-          <button className="btn-leave" onClick={leaveTable}>
-            {trainingMode ? t.training.abandonLabel : t.leaveTable}
-          </button>
-        </div>
 
         <div
           className={`my-hand${sortMode === 'manual' ? ' my-hand-manual' : ''}`}

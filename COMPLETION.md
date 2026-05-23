@@ -272,3 +272,137 @@ be asserted. Production `npm run build` passes (127 modules). No console errors.
   visible, which is the acceptance bar.
 - True on-device `100dvh` (carried over from the previous task) still only fully
   validates on a real mobile browser.
+
+---
+
+# COMPLETION.md — Collapsible bid bottom-sheet + highest-bid bar (follow-up task)
+
+Branch: `fix/bidding-layout-mobile`
+Date: 2026-05-23
+
+## Goal
+
+On short viewports, move the bid controls into a collapsible bottom **sheet** so
+the full felt (all 3 opponents + their bid bubbles) and the full arc hand are
+visible while bidding. OPEN = today's panel (value grid, suit picker,
+Annoncer/Coinche/Passer, toolbar) in an opaque sheet that owns its layer (taps
+can't fall through — preserves the 120/Capot fix). COLLAPSED = sheet slides out,
+replaced by a slim highest-bid bar (top bid + bidder + an "Enchérir" affordance).
+Tall viewports keep the sheet permanently open with no handle/bar (behaves like
+before).
+
+## What changed, per file
+
+### `frontend/src/i18n/en.js` / `fr.js`
+- Added `highestBid` (en `Highest bid` / fr `Enchère la plus haute`) and
+  `bidSheetCta` (en `Bid` / fr `Enchérir`). `t.bid` stays `Annoncer` (fr), so the
+  bar CTA needed its own key. No other strings hardcoded.
+
+### `frontend/src/components/GameBoard.jsx`
+- Module scope: `SHORT_VIEWPORT_QUERY = '(max-height: 820px)'`,
+  `DEFAULT_BID_SHEET_OPEN = true` (one-line flip), `SHEET_SWIPE_CLOSE_PX = 45`,
+  and a small `useMediaQuery(query)` hook.
+- State `sheetOpen` (default from the const) + a `sheetSwipeYRef`. An effect
+  re-opens the sheet each time `isMyBidTurn` becomes true. `isShortViewport`
+  from the hook gates the gesture handlers (no-ops on tall).
+- Handlers: `openBidSheet` (bar tap), `collapseBidSheet` (handle tap),
+  `handleSheetPointerDown/Up` (swipe-down > 45px collapses). All guarded to
+  short viewports.
+- Extracted the toolbar into a single `handToolbar` element so it can live
+  inside the sheet during my bid turn and in normal flow otherwise (declared
+  once, no duplication).
+- Restructured `.board-hand`: when `bidSheetActive` (`BIDDING && isMyBidTurn`)
+  it renders a scrim (when open) + `.bid-bar` (collapsed affordance: highest
+  value/suit/bidder + `bidSheetCta ▲`, derived from the same `currentBid` that
+  feeds the central bid-focal) + a `.bid-sheet` (handle + `BiddingPanel` +
+  `handToolbar`). Otherwise it renders shuffle/cut controls + `handToolbar` as
+  before. The sheet sits before `.my-hand` in the DOM so tall in-flow ordering
+  matches today (panel, toolbar, hand). Board-hand gets `has-bid-sheet` /
+  `sheet-collapsed` classes for CSS to raise the hand.
+- No bid/play/socket/logic changes — the sheet only shows/hides the same
+  `BiddingPanel`.
+
+### `frontend/src/App.css`
+- Added `--sheet: #1e2a38` (opaque navy = existing `--ui-bg`). `.app` got
+  `position: relative` so the absolute sheet/bar anchor to the (max-600px,
+  centred) app box.
+- Base (tall) rules: `.bid-sheet` is a plain in-flow flex container;
+  `.bid-sheet-handle`, `.bid-bar`, `.bid-scrim` are `display:none` → identical
+  to today.
+- `@media (max-height: 820px)` (kept in sync with `SHORT_VIEWPORT_QUERY`): the
+  sheet becomes `position:absolute; bottom:0; z-index:80`, opaque `var(--sheet)`,
+  rounded top corners, sliding `transform: translateY(0 ↔ 110%)` over 0.32s
+  (`pointer-events:none` when collapsed); the handle (44×5 pill), the slim
+  `.bid-bar` (`z-index:70`, value=accent, red suit, muted bidder, success CTA),
+  and a light `.bid-scrim` (`z-index:72`, `rgba(0,0,0,.22)`, pointer-events none)
+  appear. `.board-hand.sheet-collapsed .my-hand { margin-bottom: 50px }` raises
+  the arc hand clear of the collapsed bar.
+
+## Threshold note (deviation from the suggested 760px)
+The task suggested `max-height: 760px` but the acceptance asks for BOTH sheet
+states at 430×**780**. 780 > 760 would make 430×780 a "tall" (permanently open)
+screen with no collapsed state to screenshot. I set the threshold to **820px**
+so all three listed short sizes (650/700/780) are collapsible while the tall
+check (390×900) stays permanently open. The JS const and the CSS media query
+both use 820 (a comment links them).
+
+## Verification
+
+Temporary `?mock=hand-fixture` harness (added to `App.jsx`, then **removed** —
+`App.jsx` is unmodified in the final diff). Default `&` = mid-bidding on my turn
+(sheet/bar); `&phase=playing` = my card turn (tap-to-play, no sheet). The harness
+socket recorded emits to `window.__emits`. `npm run build` passes (127 modules).
+No console errors.
+
+### Acceptance criteria
+1. **COLLAPSED: 3 opponents + bid bubbles + full arc hand visible; bar shows
+   correct value/suit/bidder** — PASS. At 360×650/S measured: all of top
+   (`Pass`), left (`90♥`), right (`80♣`) seats within viewport; bar text
+   "Highest bid 90♥ · Bot3" (currentBid 90♥ by Bot3). Screens:
+   `sheet-360x650-S-collapsed.png`, `sheet-360x650-L-collapsed.png`,
+   `sheet-390x700-L-collapsed.png`, `sheet-430x780-L-collapsed.png`.
+2. **OPEN: full value grid (120 + Capot), suit picker, action row, toolbar all
+   visible, not clipped; sheet opaque** — PASS. 360×650/S: all 10 value buttons
+   + 4 suits + action row + toolbar within viewport; sheet bg
+   `rgb(30,42,56)` (opaque); bar hidden while open. Same true at 390×700/L and
+   430×780/L. Screens: `sheet-360x650-S-open.png`, `sheet-390x700-L-open.png`,
+   `sheet-430x780-L-open.png`.
+3. **Tap bar → opens; tap handle / swipe down → collapses; animation smooth**
+   — PASS. Bar tap set `bid-sheet open`; handle tap set `collapsed`; a synthetic
+   swipe-down (Δy 70 > 45) collapsed it. 0.32s `translateY` transition.
+4. **Arc hand cards NOT clipped under the bar at any size (esp. 360×650/L)** —
+   PASS. 360×650/L collapsed: bar top 604, hand max-bottom 593 (clears), hand
+   min-top 456 (not clipped at top), cards fit width. Also clears at 430×780/L.
+5. **Tall (390×900): permanently open, no bar/handle, like today** — PASS.
+   handle `display:none`, bar `display:none`, sheet `position:static`,
+   `transform:none`. Screen: `sheet-390x900-tall-open.png`.
+6. **Drag-reorder + tap-to-play still work; swipe-collapse doesn't trigger
+   them** — PASS. Bidding + manual + collapsed: long-press drag moved A♠ to the
+   end (DOM + localStorage updated) and the sheet stayed `collapsed` (no
+   accidental toggle). Playing (`&phase=playing`): tapping leftmost/middle/
+   rightmost played the correct cards (KS / 9H / AS) — and there is no sheet/bar
+   during PLAYING (`hasSheet:false, hasBar:false`), so the gestures are mutually
+   exclusive and cannot conflict.
+
+### Screenshots (`verification-screenshots/`)
+- `sheet-360x650-S-open.png`, `sheet-360x650-S-collapsed.png`,
+  `sheet-360x650-L-collapsed.png`
+- `sheet-390x700-L-open.png`, `sheet-390x700-L-collapsed.png`
+- `sheet-430x780-L-open.png`, `sheet-430x780-L-collapsed.png`
+- `sheet-390x900-tall-open.png` (tall, permanently open)
+
+## Caveats
+- Verified via the synthetic fixture (mounts the real `GameBoard`), not a live
+  bots game; socket round-trips weren't exercised (recorder socket). Gestures
+  were driven through the real DOM event path; the swipe-collapse used synthetic
+  `PointerEvent`s with the real 45px threshold.
+- Screenshot matrix focused on Delfino **L** (tightest) at the three short sizes
+  plus S at 360×650; S/M are strictly easier (smaller cards) and the invariants
+  (controls within viewport, hand clears bar, cards fit width) were checked
+  programmatically at L.
+- `coinche`/`surcoinche` action-row variants weren't separately exercised (the
+  fixture bid wasn't coinchable by my team); the action row markup is unchanged
+  and simply lives inside the sheet now.
+- Threshold is 820px, not the suggested 760 — see "Threshold note" above.
+- True on-device behaviour (dvh, real touch swipe momentum) only fully validates
+  on a physical phone.

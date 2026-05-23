@@ -46,6 +46,8 @@ export default {
   waitingFor: (name) => `Waiting for ${name}...`,
   biddingPhase: 'Bidding',
   playingPhase: 'Playing',
+  highestBid: 'Highest bid',
+  bidSheetCta: 'Bid',
   capot: 'Capot',
   belote: 'Belote',
   rebelote: 'Rebelote',
