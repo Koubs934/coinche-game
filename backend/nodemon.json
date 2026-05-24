@@ -1,0 +1,5 @@
+{
+  "//": "Watch only source. Without this, nodemon's default watch (backend/**/*.json) restarts the dev server every time a round-end GameRecord is written to data/games/*.json — wiping the in-memory rooms Map and ejecting players to the lobby (rejoin finds no room → 'leftRoom'). Game data lives in data/, never watch it.",
+  "watch": ["src"],
+  "ext": "js,mjs,cjs,json"
+}
