@@ -804,24 +804,26 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
         )}
       </div>
 
-      {/* ── Top seat (partner) ─────────────────────────────────────────────── */}
-      <div className="board-top">
-        {contractData && contractBy === (myPosition + 2) % 4 && (
-          <ContractBadge contract={contractData} t={t} />
-        )}
-        {surcoincheBy === (myPosition + 2) % 4 && <CoincheBadge type="surcoinche" t={t} />}
-        {coincheBy    === (myPosition + 2) % 4 && surcoincheBy !== (myPosition + 2) % 4 && <CoincheBadge type="coinche" t={t} />}
-        <PlayerSeat
-          {...seatData(2)}
-          direction="top"
-          isCreator={isCreator}
-          onRemove={removePlayer}
-          bidHistory={isBidding ? perPlayerHistory[(myPosition + 2) % 4] : null}
-        />
-      </div>
-
-      {/* ── Middle row ─────────────────────────────────────────────────────── */}
+      {/* ── Middle row (felt) ─────────────────────────────────────────────── */}
       <div className="board-middle">
+
+        {/* Top seat (partner) — compact cluster anchored at the felt's top edge
+            (was a full-width band above the felt that clipped the top trick card).
+            Mirrors the left/right seats which sit at the felt's side edges. */}
+        <div className="board-top">
+          {contractData && contractBy === (myPosition + 2) % 4 && (
+            <ContractBadge contract={contractData} t={t} />
+          )}
+          {surcoincheBy === (myPosition + 2) % 4 && <CoincheBadge type="surcoinche" t={t} />}
+          {coincheBy    === (myPosition + 2) % 4 && surcoincheBy !== (myPosition + 2) % 4 && <CoincheBadge type="coinche" t={t} />}
+          <PlayerSeat
+            {...seatData(2)}
+            direction="top"
+            isCreator={isCreator}
+            onRemove={removePlayer}
+            bidHistory={isBidding ? perPlayerHistory[(myPosition + 2) % 4] : null}
+          />
+        </div>
 
         <div className="board-left">
           {contractData && contractBy === (myPosition + 3) % 4 && (

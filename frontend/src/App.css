@@ -364,8 +364,24 @@ a      { color: var(--accent); }
 /* (replaced by .score-bars / .total-score-bar / .live-score-bar below) */
 .score-target-small { color: var(--muted); font-size: 0.85em; }
 
-.board-top    { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+/* Top seat (partner): a compact cluster anchored at the felt's TOP EDGE, inside
+   .board-middle (overlapping the felt like the left/right seats overlap the side
+   edges) — no longer a full-width band above the felt. .board-center reserves top
+   room (below) so the trick / bid focal clear it. */
+.board-top {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  flex-direction: row;       /* contract badge BESIDE the seat → short cluster */
+  align-items: center;
+  gap: 6px;
+  max-width: 96%;
+}
 .board-middle {
+  position: relative;
   display: flex;
   flex: 1;
   gap: 4px;
@@ -374,7 +390,10 @@ a      { color: var(--accent); }
 }
 .board-left   { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 86px; flex-shrink: 0; }
 .board-right  { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 86px; flex-shrink: 0; }
-.board-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 6px; position: relative; }
+/* padding-top reserves room for the top seat (absolutely anchored at the felt's
+   top edge) so the centered trick / bid focal clear it. Reset in landscape, where
+   the top seat is hidden (see the max-height:500px block). */
+.board-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 6px; position: relative; padding-top: 40px; }
 .board-middle { border-radius: 14px; background: radial-gradient(ellipse at center, #1e6b30 0%, #164f22 70%, #0f3a18 100%); }
 
 .board-hand   { flex-shrink: 0; background: rgba(0,0,0,0.28); border-top: 2px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding: 6px 4px max(6px, env(safe-area-inset-bottom)); }
@@ -392,6 +411,15 @@ a      { color: var(--accent); }
 }
 .player-seat.player-left, .player-seat.player-right {
   flex-direction: column;
+}
+/* Top seat: compact horizontal cluster (avatar · name/bid · count) so it occupies
+   a short strip at the felt's top edge rather than a tall stacked band. */
+.player-seat.player-top {
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  background: rgba(0,0,0,0.32);
 }
 .player-name {
   font-size: 0.7em;
@@ -720,20 +748,6 @@ a      { color: var(--accent); }
   height: var(--card-h);
   border: 1px dashed rgba(255,255,255,0.1);
   border-radius: 5px;
-}
-
-/* Short viewports: the felt (.board-middle, overflow:hidden) is short, so the
-   3-row trick cluster + the last-trick widget below it would otherwise overflow
-   and clip the TOP played card. Shrink the in-felt trick cards (override the card
-   vars only on the in-felt grid — the last-trick modal keeps full size) so the
-   centered cluster fits and the top card clears the felt's top edge. */
-@media (max-height: 820px) {
-  .play-center .trick-display {
-    --card-w: 34px;
-    --card-h: 48px;
-    gap: 2px;
-  }
-  .play-center .trick-player-name { bottom: -13px; font-size: 0.6em; }
 }
 
 /* ─── Contract badge (PLAYING phase only) ───────────────────────────────── */
@@ -1951,7 +1965,7 @@ a      { color: var(--accent); }
   .board-top    { display: none; }        /* partner seat hidden — no value in landscape */
   .board-middle { display: contents; }    /* dissolve: children become direct grid items */
   .board-left   { grid-area: left;   display: flex; flex-direction: column; align-items: center; justify-content: center; width: auto; }
-  .board-center { grid-area: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 4px; }
+  .board-center { grid-area: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 4px; padding-top: 0; }
   .board-right  { grid-area: right;  display: flex; flex-direction: column; align-items: center; justify-content: center; width: auto; }
   .board-middle { border-radius: 0; background: none; }
   .board-hand   { grid-area: hand; }
