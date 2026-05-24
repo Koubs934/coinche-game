@@ -30,3 +30,7 @@ frontend/tests/shots/
 Thumbs.db
 
 .claude/settings.local.json
+
+# ── QA / scratch artifacts (kept on disk, not tracked) ───────────────────────
+verification-screenshots/
+COMPLETION.md
