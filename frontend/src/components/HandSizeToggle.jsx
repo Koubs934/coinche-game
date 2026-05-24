@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
 
-const SIZES = ['S', 'M', 'L'];
+// Two sizes only. SMALL ('L') is the former largest scale (1.6); BIG ('XL') is one
+// step up. SMALL is the default. Any previously-stored value that isn't one of
+// these two (old 'S'/'M', or 'L' which is now reused as SMALL) clamps to SMALL.
+const SIZES = ['L', 'XL'];
+const DEFAULT_SIZE = 'L';
 const STORAGE_KEY = 'coinche-hand-card-size';
 
 export function useHandCardSize() {
   const [size, setSize] = useState(() => {
-    if (typeof window === 'undefined') return 'S';
+    if (typeof window === 'undefined') return DEFAULT_SIZE;
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY);
-      return SIZES.includes(saved) ? saved : 'S';
+      return SIZES.includes(saved) ? saved : DEFAULT_SIZE;
     } catch {
-      return 'S';
+      return DEFAULT_SIZE;
     }
   });
 

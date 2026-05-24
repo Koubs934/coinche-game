@@ -21,6 +21,12 @@ import GameErrorTagOverlay from '../game/GameErrorTagOverlay';
 const HAND_ARCH = 2.2;   // px per off² — vertical arch depth (middle highest)
 const HAND_ROT  = 5;     // deg per step — fan tilt
 const HAND_LIFT = 24;    // px a hovered/pressed card rises
+// Coinche deals 8 cards. The arc's horizontal step is derived for a FULL hand so
+// a full hand fills the width (unchanged), and as cards are played the remaining
+// cards keep that same tight overlap — a smaller fan CENTERED in the middle rather
+// than stretching to refill the width. (The fan is symmetric around left:50%, so
+// any card count is naturally centered; only the step is held fixed.)
+const FULL_HAND = 8;
 // Gap left between the floated arc hand and the top edge of whatever sits
 // beneath it during bidding (collapsed bar / open sheet) so full card bodies
 // always clear it. The hand is lifted by (measured bar|sheet height + this gap).
@@ -479,7 +485,10 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     const n = animatedHand.length;
     if (n <= 1) return 0;
     const box = handBoxRef.current;
-    const xStep = arcXStep(box, n);
+    // Same FIXED full-hand step the cards are laid out with (arcStyle uses it too).
+    // The fan stays centered on the container midpoint for any n, so mapping is
+    // centre ± (i - mid)*step — no extra centering offset to subtract.
+    const xStep = arcXStep(box, Math.max(n, FULL_HAND));
     if (!xStep) return 0;
     const rect = dragRectRef.current || el.getBoundingClientRect();
     const cs = getComputedStyle(el);
@@ -627,7 +636,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   // the cards. The lifted/dragged card straightens, rises and sits on top.
   const handN   = animatedHand.length;
   const handMid = (handN - 1) / 2;
-  const handXStep = arcXStep(handBox, handN);
+  // Fixed step from a full hand (not handN) → fewer cards bunch centered, same
+  // overlap, instead of spreading to refill the width.
+  const handXStep = arcXStep(handBox, Math.max(handN, FULL_HAND));
 
   function arcStyle(i) {
     const off = i - handMid;

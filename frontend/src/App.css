@@ -631,10 +631,11 @@ a      { color: var(--accent); }
    Only `.my-hand .card-face` (the playable hand at the bottom) is targeted;
    opponent backs (.card-small), trick cards (.trick-card) and AuctionRecap
    minis (.hand-strip-card / .ar-table-felt-card) are unaffected. */
-:root { --hand-card-scale: 1; }
-[data-hand-size="S"] { --hand-card-scale: 1; }
-[data-hand-size="M"] { --hand-card-scale: 1.3; }
-[data-hand-size="L"] { --hand-card-scale: 1.6; }
+/* Two Delfino sizes (see HandSizeToggle.jsx). SMALL ('L') = the former largest
+   scale; BIG ('XL') = one step up. Default = SMALL. */
+:root { --hand-card-scale: 1.6; }
+[data-hand-size="L"]  { --hand-card-scale: 1.6; }  /* SMALL */
+[data-hand-size="XL"] { --hand-card-scale: 1.9; }  /* BIG */
 
 /* Arc cards: absolutely positioned, each transformed (translate + rotate) from
    a shared centre anchor (left:50%) by GameBoard. transform-origin bottom-centre
