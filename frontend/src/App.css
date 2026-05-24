@@ -890,15 +890,30 @@ a      { color: var(--accent); }
   font-weight: bold;
 }
 
-/* Suits + actions share one row. Suits are fixed compact outlined chips; the
-   action buttons flex to fill the rest. */
+/* Inline suit echo on each value chip (display mirror of the strip selection).
+   Light/dark per suit colour AND chip state so it stays legible on both the dark
+   (unselected) chip and the amber (selected) chip. */
+.bid-val-suit { margin-left: 3px; }
+.bid-val-suit.red   { color: #ff7a7a; }            /* red suit on dark chip */
+.bid-val-suit.black { color: #cfd6dd; }            /* black suit on dark chip */
+.bid-val-btn.selected .bid-val-suit.red   { color: #c0392b; }  /* on amber chip */
+.bid-val-btn.selected .bid-val-suit.black { color: #1a1a1a; }  /* on amber chip */
+
+/* Suit strip — its own centered row between the value grid and the action row.
+   Fixed compact outlined chips; selected = gold ring (outline). */
+.suit-chips {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+}
+
+/* Action row: clean full-width controls (no suit glyph). */
 .bid-action-row {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 .bid-action-row > button { flex: 1; min-width: 0; }
-.suit-chips { display: flex; gap: 5px; flex: none; }
 .suit-btn {
   width: 33px;
   height: 33px;

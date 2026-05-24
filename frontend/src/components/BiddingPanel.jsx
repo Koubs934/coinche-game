@@ -81,9 +81,21 @@ export default function BiddingPanel({ socket, roomCode, game, myPosition, myTea
   const valueRows = [legalValues.slice(0, splitAt), legalValues.slice(splitAt)]
     .filter(row => row.length > 0);
 
-  // Suits live on the action row; hidden when Capot is picked (no suit) or when
-  // a surcoinche is the only move.
-  const showSuits = selectedValue !== 'capot' && !canSurcoinche;
+  // Suit strip (option B): its own centered row between the value grid and the
+  // action row. Shown whenever there are legal values to bid (a suit attaches to
+  // every value, Capot included); hidden only when a surcoinche is the sole move.
+  const showSuits = valueRows.length > 0 && !canSurcoinche;
+
+  // Each value chip echoes the currently-selected trump inline (e.g. "130♦",
+  // "Capot♦"). This is a pure DISPLAY mirror of `selectedSuit` — it never changes
+  // the bid payload (submitBid already emits selectedSuit for every value, Capot
+  // included). selectedSuit always has a default, so the glyph is normally shown;
+  // the guard keeps it absent if a suit is ever cleared.
+  const suitEcho = selectedSuit && (
+    <span className={`bid-val-suit ${selectedSuit === 'H' || selectedSuit === 'D' ? 'red' : 'black'}`}>
+      {t.suitSymbol[selectedSuit]}
+    </span>
+  );
 
   const renderVal = v => (
     <button
@@ -91,7 +103,7 @@ export default function BiddingPanel({ socket, roomCode, game, myPosition, myTea
       className={`bid-val-btn${selectedValue === v ? ' selected' : ''}`}
       onClick={() => setSelectedValue(v)}
     >
-      {v === 'capot' ? t.capot : v}
+      {v === 'capot' ? t.capot : v}{suitEcho}
     </button>
   );
 
@@ -106,23 +118,26 @@ export default function BiddingPanel({ socket, roomCode, game, myPosition, myTea
         </div>
       )}
 
-      {/* Suits + actions on one row. Annoncer is the single solid (amber)
-          control; Passer is quiet; Coinche!/Surcoinche! are red outlines shown
-          only when eligible. */}
+      {/* Suit strip — centered row of 4 chips between the values and the action
+          row. The selected suit keeps the existing gold ring. */}
+      {showSuits && (
+        <div className="suit-chips">
+          {SUITS.map(s => (
+            <button
+              key={s}
+              className={`suit-btn ${s === 'H' || s === 'D' ? 'red' : 'black'}${selectedSuit === s ? ' selected' : ''}`}
+              onClick={() => setSelectedSuit(s)}
+            >
+              {t.suitSymbol[s]}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Action row — clean, full-width controls, NO suit glyph. Annoncer is the
+          single solid (amber) control; Passer is quiet; Coinche!/Surcoinche! are
+          red outlines shown only when eligible. */}
       <div className="bid-action-row">
-        {showSuits && (
-          <div className="suit-chips">
-            {SUITS.map(s => (
-              <button
-                key={s}
-                className={`suit-btn ${s === 'H' || s === 'D' ? 'red' : 'black'}${selectedSuit === s ? ' selected' : ''}`}
-                onClick={() => setSelectedSuit(s)}
-              >
-                {t.suitSymbol[s]}
-              </button>
-            ))}
-          </div>
-        )}
         {canSurcoinche ? (
           <button className="btn-surcoinche-outline" onClick={doSurcoinche}>{t.surcoinche}</button>
         ) : (

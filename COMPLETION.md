@@ -669,3 +669,123 @@ so S/M/L produce an identical sheet; the hand clearance grows for smaller cards.
   collapsed clearance at ~18.9 px.
 - True on-device behaviour (dvh, real touch) only fully validates on a physical
   phone.
+
+---
+
+# COMPLETION.md — Suit picker as centered strip + suit echoed on value chips
+
+Branch: `fix/bidding-layout-mobile`
+Date: 2026-05-24
+
+## Goal
+Move the SUIT picker out of the action row (which last commit had merged onto it,
+crowding/clipping "Annoncer") into its own centered strip between the value grid
+and the action row (option B), and echo the currently-selected trump suit inline
+on every value chip including Capot ("130♦", "Capot♦"). Display/CSS + render
+placement only — **no** bidding logic, validation, socket, or backend changes, and
+**no** change to what `placeBid` emits.
+
+## What changed, per file
+
+### `frontend/src/components/BiddingPanel.jsx`
+- **Suit strip extracted to its own row.** The `.suit-chips` group was lifted out
+  of `.bid-action-row` and now renders as a standalone block between `.bid-values`
+  and `.bid-action-row`. Markup of the chips themselves (4 `.suit-btn` with the
+  existing `red`/`black` + `selected` classes and `t.suitSymbol`) is byte-for-byte
+  the same — only its DOM position changed.
+- **`showSuits` condition relaxed** from `selectedValue !== 'capot' && !canSurcoinche`
+  to `valueRows.length > 0 && !canSurcoinche`. The capot exclusion was dropped so the
+  picker stays available when Capot is selected (a suit now echoes onto Capot too);
+  gated on `valueRows.length > 0` so the strip never dangles with no biddable value.
+  This is display-only — it does not affect what is emitted (see Capot finding).
+- **Inline suit echo on value chips.** A `suitEcho` `<span className="bid-val-suit …">`
+  (red/black per `selectedSuit`) is appended inside each chip in `renderVal`, after
+  the number / "Capot". It is a pure DISPLAY mirror of `selectedSuit` — it reads the
+  same state the strip sets and the same value `submitBid` already emits; it adds no
+  per-chip property and changes no payload. Guarded by `selectedSuit && …` so it is
+  absent if a suit is ever cleared.
+- **Action row left clean.** `.bid-action-row` now contains only the action buttons
+  (Annoncer / Coinche! when `canCoinche` / Passer, or Surcoinche! when
+  `canSurcoinche`) — no suit glyph. All four handlers and emits are unchanged.
+
+### `frontend/src/App.css`
+- Added `.bid-val-suit` echo styles: `margin-left: 3px`; on the dark (unselected)
+  chip `red → #ff7a7a`, `black → #cfd6dd` (light so it doesn't vanish); on the amber
+  (selected) chip `.bid-val-btn.selected .bid-val-suit` `red → #c0392b` (darker),
+  `black → #1a1a1a` (matches the chip's own selected text colour).
+- `.suit-chips` is now a centered standalone strip (`justify-content: center`); the
+  obsolete `flex: none` (it was a flex *item* in the action row) was removed. The
+  `.suit-btn` chip styling and the gold `outline` `.selected` ring are unchanged.
+- `.bid-action-row` block kept (flex row, `> button { flex: 1 }`) — now lays out only
+  action buttons, so each flexes full-width. The landscape / compact `max-height`
+  overrides (`.suit-chips`, `.suit-btn`, `.bid-action-row`) still apply by class name.
+
+## Capot payload finding (important)
+**Capot bids already carry a suit today — this is purely visual, "Capot♦" is
+accurate, not cosmetic-only.** `submitBid` calls `emitBid(selectedValue, selectedSuit)`
+for every value; `selectedSuit` is initialised to the sort candidate (or `'H'`) and
+is *never null*, so a Capot bid emits e.g. `{value:"capot", suit:"D"}`. The previous
+layout merely *hid* the suit chips when Capot was picked — it never stopped sending
+the (last-selected/default) suit. Verified live: selecting Capot + ♦ → Annoncer
+emitted `placeBid {code:"TEST01", value:"capot", suit:"D"}`. No logic was changed to
+make this true; the echo just surfaces the suit that was always being sent.
+
+### "No suit selected → no glyph" note
+Because `selectedSuit` always has a default (`'H'` or the sort candidate), there is
+no real "no suit selected" state in normal play — a glyph is therefore always shown
+(matching today's always-suited payload). The `selectedSuit && …` guard keeps the
+echo absent *if* a suit were ever cleared, but the existing default precludes that
+state; deliberately not changed, since defaulting to null would change the payload.
+
+## Verification
+Temporary `?mock=bid-sheet-fixture` harness (real `.board-hand > .bid-bar +
+.bid-sheet` structure wrapping the live `<BiddingPanel>`, the real GameBoard
+hand-lift measuring effect + `handLift = sheetH + 12`, and a mock socket recording
+emits) added to `App.jsx`, then **removed** — `git diff` shows App.jsx unchanged vs
+HEAD and only `App.css` + `BiddingPanel.jsx` modified. `npm run build` passes (127
+modules), zero console errors. Playwright at 360×650 / 390×700 / 430×780 × Delfino
+S/M/L (the sheet uses fixed fonts, so S/M/L render an identical sheet; only the hand
+clearance grows for smaller cards).
+
+### Acceptance criteria
+1. **No suit selected → no glyph; action row clean** — N/A in practice (default suit
+   always set, see note); the conditional guard is in place. Action row carries no
+   glyph in every state (`/[♠♥♦♣]/.test(actionRow.textContent)` = false). PASS.
+2. **♦ selected → red ♦ on every legal value chip + Capot; darker red on the amber
+   selected chip; actions still glyph-free** — PASS. Unselected chip glyph computed
+   `rgb(255,122,122)` = `#ff7a7a`; selected (amber `rgb(240,165,0)`) chip glyph
+   `rgb(192,57,43)` = `#c0392b`. `Capot♦` present. Action row glyph-free.
+3. **♠ selected → light on dark chips, dark on amber chip; readable (same class
+   covers ♣)** — PASS. Unselected glyph `rgb(207,214,221)` = `#cfd6dd`; selected
+   (amber) glyph `rgb(26,26,26)` = `#1a1a1a`. Both legible (screenshot).
+4. **Suit strip centered between values and actions; gold ring on selected** — PASS.
+   Row tops values=493 / strip=564 / actions=603 (strip strictly between); selected
+   `.suit-btn` keeps `outline: 2px solid var(--accent)`.
+5. **Action row (Annoncer / Coinche! when legal / Passer) full-width, nothing clipped
+   at 360px** — PASS. bid=110/opp @360: Bid 8–118, Coinche! 124–235, Pass 241–352 —
+   all within 360, no overflow. bid=150/mine: Coinche! absent (not coinchable),
+   Bid/Pass only.
+6. **Emits UNCHANGED vs today** — PASS. `placeBid {value:120, suit:"S"}`,
+   `placeBid {value:"capot", suit:"D"}`, `passBid {code}`, `coinche {code}` — all
+   byte-identical to the prior task's recorded payloads. Capot finding above.
+7. **Sheet still fits at 360×650/L, felt full-bleed, hand clears** — PASS. Open sheet
+   height 180px occupying the bottom 180px of 650 (470px of felt above);
+   `handTransform = translateY(-192)` = `sheetH(180) + HAND_SHEET_GAP(12)`; the
+   `.my-hand` container clears the sheet top by **18px** (the real arc cards sit
+   inside the 139px container, ≈ prior task's 19px). The hand-lift formula is
+   unchanged, so the taller sheet auto-lifts the hand and the 12px structural gap
+   holds. (The fixture's flat placeholder cards overflow the container — a
+   fixture-only artifact, not the real arc geometry.) Felt CSS untouched.
+
+### Screenshots (`verification-screenshots/`)
+- `eval-360x650-L-open-default.png` — opening, default ♥ echo on all chips (5+5)
+- `eval-360x650-L-bid110-diamond-130sel-coinche.png` — ♦ strip, 130♦ amber, Coinche! row
+- `eval-360x650-L-bid110-spades-130sel.png` — ♠ readability (light on dark, dark on amber)
+- `eval-390x700-M-open.png`, `eval-430x780-S-bid150-mine.png` (1+1, Bid/Pass only)
+
+## Caveats
+- The fixture reproduces the sheet + measuring effect faithfully, but its hand uses
+  flat placeholder cards (not the real arc geometry), so absolute card-to-sheet pixel
+  clearance is not meaningful from it — the *structural* gap (`handLift = sheetH+12`,
+  18px container clearance) is what was validated and is geometry-independent.
+- True on-device behaviour (dvh, real touch) only fully validates on a physical phone.
