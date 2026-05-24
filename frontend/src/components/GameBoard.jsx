@@ -21,6 +21,10 @@ import GameErrorTagOverlay from '../game/GameErrorTagOverlay';
 const HAND_ARCH = 2.2;   // px per off² — vertical arch depth (middle highest)
 const HAND_ROT  = 5;     // deg per step — fan tilt
 const HAND_LIFT = 24;    // px a hovered/pressed card rises
+// Gap left between the floated arc hand and the top edge of whatever sits
+// beneath it during bidding (collapsed bar / open sheet) so full card bodies
+// always clear it. The hand is lifted by (measured bar|sheet height + this gap).
+const HAND_SHEET_GAP = 12;
 
 // Horizontal step between card centres, derived from the measured container so
 // every card always fits. Edge cards are the most rotated, and rotation swings
@@ -101,6 +105,10 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   // sheetOpen: bid bottom-sheet state (only meaningful on short viewports; tall
   // screens keep the sheet open via CSS regardless of this value)
   const [sheetOpen, setSheetOpen] = useState(DEFAULT_BID_SHEET_OPEN);
+  // sheetMetrics: measured heights of the collapsed bar / open sheet, used to
+  // float the arc hand just above whichever is showing (pure offset — the felt
+  // never resizes). Each kept whenever its element is rendered with height.
+  const [sheetMetrics, setSheetMetrics] = useState({ barH: 0, sheetH: 0 });
   // dealAnimCounts: [c0,c1,c2,c3] while the 3-2-3 deal plays out; null = show all
   const [dealAnimCounts, setDealAnimCounts] = useState(null);
   // beloteDecisionCard: card waiting for belote/non choice; null when not prompting
@@ -133,6 +141,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   const handBoxRef       = useRef({ w: 0, cardW: 0, cardH: 0 }); // mirror of handBox for pointer handlers
   const dragRectRef      = useRef(null);   // .my-hand client rect captured at drag start
   const sheetSwipeYRef   = useRef(null);   // pointer Y at sheet pointerdown (swipe-to-collapse)
+  const bidBarRef        = useRef(null);   // collapsed highest-bid bar (its height = collapsed hand lift)
+  const bidSheetRef      = useRef(null);   // open bid sheet (its height = open hand lift)
   const prevDealerMRef      = useRef(game.dealer); // for detecting new round
   const prevRoomPhaseRef    = useRef(room.phase);  // for CUT→PLAYING deal animation
   const prevBeloteRef       = useRef({ declared: game.beloteInfo?.declared ?? null, rebeloteDone: game.beloteInfo?.rebeloteDone ?? false });
@@ -625,6 +635,35 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     ? players.find(p => p.position === currentBid.playerIndex)
     : null;
 
+  // Measure the collapsed bar / open sheet so the hand can float just above the
+  // one that's showing. offsetHeight ignores the slide transform, so the sheet
+  // is measurable even while translated off-screen; the bar is display:none when
+  // the sheet is open, so we keep the last non-zero reading for each.
+  useLayoutEffect(() => {
+    if (!(bidSheetActive && isShortViewport)) return;
+    const measure = () => {
+      const barH   = bidBarRef.current   ? bidBarRef.current.offsetHeight   : 0;
+      const sheetH = bidSheetRef.current ? bidSheetRef.current.offsetHeight : 0;
+      setSheetMetrics(prev => {
+        const next = { barH: barH || prev.barH, sheetH: sheetH || prev.sheetH };
+        return (next.barH === prev.barH && next.sheetH === prev.sheetH) ? prev : next;
+      });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (bidBarRef.current)   ro.observe(bidBarRef.current);
+    if (bidSheetRef.current) ro.observe(bidSheetRef.current);
+    window.addEventListener('resize', measure);
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
+  }, [bidSheetActive, isShortViewport, sheetOpen]);
+
+  // Resting offset for the arc hand during bidding on short viewports: float
+  // above the open sheet's top edge, or above the collapsed bar's top edge.
+  // Tall viewports + the playing phase keep the hand at its baseline (0).
+  const handLift = (bidSheetActive && isShortViewport)
+    ? (sheetOpen ? sheetMetrics.sheetH : sheetMetrics.barH) + HAND_SHEET_GAP
+    : 0;
+
   // Toolbar (sort / undo / manage / leave). Lives inside the bid sheet during
   // my bid turn, and in normal hand flow otherwise — so it is declared once.
   const handToolbar = (
@@ -934,6 +973,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
             {/* Collapsed-state affordance — slim highest-bid bar (short screens) */}
             <button
               type="button"
+              ref={bidBarRef}
               className={`bid-bar${sheetOpen ? ' bid-bar-hidden' : ''}`}
               onClick={openBidSheet}
             >
@@ -957,6 +997,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
             </button>
 
             <div
+              ref={bidSheetRef}
               className={`bid-sheet${sheetOpen ? ' open' : ' collapsed'}`}
               onPointerDown={handleSheetPointerDown}
               onPointerUp={handleSheetPointerUp}
@@ -1007,6 +1048,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
         <div
           className={`my-hand${sortMode === 'manual' ? ' my-hand-manual' : ''}`}
           ref={handElRef}
+          style={handLift ? { transform: `translateY(${-handLift}px)` } : undefined}
           onPointerDown={handleHandPointerDown}
           onPointerMove={handleHandPointerMove}
           onPointerUp={handleHandPointerUp}

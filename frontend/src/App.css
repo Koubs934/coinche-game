@@ -996,8 +996,15 @@ a      { color: var(--accent); }
     pointer-events: none;
   }
 
-  /* Raise the arc hand clear of the collapsed bar so card bodies aren't hidden */
-  .board-hand.sheet-collapsed .my-hand { margin-bottom: 50px; }
+  /* Float the arc hand above the bar (collapsed) / sheet (open) so full card
+     bodies always clear it. GameBoard sets the translateY offset inline off the
+     measured bar/sheet height; the felt never resizes — only this layer moves.
+     z-index keeps the cards above the bar (70), scrim (72) and sheet (80); the
+     0.32s ease matches the sheet slide so hand + sheet move in sync. */
+  .board-hand.has-bid-sheet .my-hand {
+    z-index: 90;
+    transition: transform 0.32s ease;
+  }
 }
 
 .bidding-turn-info, .play-turn-info {

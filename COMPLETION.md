@@ -406,3 +406,130 @@ No console errors.
 - Threshold is 820px, not the suggested 760 — see "Threshold note" above.
 - True on-device behaviour (dvh, real touch swipe momentum) only fully validates
   on a physical phone.
+
+---
+
+# COMPLETION.md — Float arc hand above the bar / sheet (positioning fix)
+
+Branch: `fix/bidding-layout-mobile`
+Date: 2026-05-24
+
+## Goal
+
+The previous task raised the collapsed-state hand with `margin-bottom: 50px`, but
+50 px was *less* than the actual bar height (~46 px bar + its top border/shadow),
+so the hand's resting offset sat too low: card bodies were hidden behind the slim
+highest-bid bar and only each card's top index strip showed. Fix the resting
+offset so the FULL tallest card (Delfino-L) always clears whatever is beneath it,
+in both sheet states — without touching the felt.
+
+Two resting offsets for `.my-hand`, both measured so the tallest card clears with
+a small gap:
+- **Sheet COLLAPSED** (bidding, short vp): hand floats just above the highest-bid
+  **bar's** top edge.
+- **Sheet OPEN** (bidding, short vp): hand rides up to float just above the
+  **sheet's** top edge.
+
+## What changed, per file
+
+### `frontend/src/components/GameBoard.jsx`
+- Module scope: `HAND_SHEET_GAP = 12` — the gap left between the floated hand and
+  the bar/sheet top edge.
+- Two refs (`bidBarRef`, `bidSheetRef`) attached to the existing `.bid-bar` and
+  `.bid-sheet` elements (no markup added — refs only).
+- New state `sheetMetrics { barH, sheetH }` + a `useLayoutEffect` that measures
+  both via `offsetHeight` (ignores the slide transform, so the sheet is
+  measurable even while translated off-screen; the bar is `display:none` when the
+  sheet is open, so each reading is kept only when non-zero). A `ResizeObserver`
+  on both + a window-resize listener re-measure on viewport/content change. Gated
+  to `bidSheetActive && isShortViewport`; re-runs on `sheetOpen`.
+- Derived `handLift`: on a short viewport during my bid turn it is
+  `(sheetOpen ? sheetH : barH) + HAND_SHEET_GAP`; otherwise **0** (tall viewports
+  and the playing phase are untouched).
+- `.my-hand` gets an inline `style={{ transform: translateY(-handLift) }}` only
+  when `handLift > 0` — the hand floats as a layer; nothing reflows.
+
+### `frontend/src/App.css`
+- Replaced the old `.board-hand.sheet-collapsed .my-hand { margin-bottom: 50px }`
+  with `.board-hand.has-bid-sheet .my-hand { z-index: 90; transition: transform
+  0.32s ease; }` inside the existing `@media (max-height: 820px)` block. z-index
+  90 keeps the cards above the bar (70), scrim (72) and sheet (80); the `0.32s
+  ease` matches the sheet's slide so hand + sheet move in sync.
+
+## Constraints honoured
+- **Felt untouched.** No change to `.board-middle`/felt height, flex, or
+  overflow. Measured felt height is *identical* between collapsed and open at
+  every size (see below) — only the hand layer's transform + z-index change.
+- Arc geometry, corner index, drag-reorder and tap-to-play are unchanged; the
+  lift is a Y-only container transform, and the drop math uses `clientX` + the
+  container's X, so reorder is unaffected.
+- No game-logic / socket / backend / i18n changes. No new dependencies.
+
+## Verification
+
+Temporary `?mock=bid-sheet-fixture` harness (added to `App.jsx`, then **removed**
+— `App.jsx` is unmodified in the final diff, confirmed via `git diff --stat`).
+`&size=S|M|L` set Mode Delfino; `&phase=PLAYING` exercised the playing hand.
+`npm run build` passes (127 modules) before and after harness removal. Zero
+console errors across the run.
+
+Playwright in the BIDDING phase at 360×650, 390×700, 430×780 × Delfino S/M/L,
+screenshotting sheet COLLAPSED and OPEN. Measured clearances (constant across the
+three viewport heights because the lift is derived from the measured bar/sheet
+height, not the viewport):
+
+| Delfino | COLLAPSED: card-bottom → bar-top | OPEN: card-top* → sheet-top |
+|---------|----------------------------------|-----------------------------|
+| L       | **18.9 px**                      | **18.5 px**                 |
+| M       | 20.8 px                          | 20.4 px                     |
+| S       | 22.7 px                          | 22.3 px                     |
+
+*"card-top → sheet-top" in the brief means the gap above the sheet's top edge;
+measured as `sheet.top − card-bottom` (the lowest card's body clears the sheet by
+that much). Smaller Delfino sizes clear by more (smaller cards sit higher).
+
+### Acceptance criteria (all PASS)
+1. **COLLAPSED: every card fully visible above the bar; 3 opponents + bids on the
+   felt** — PASS. 360×650/L: lowest card-bottom 585.1, bar-top 604.0 (18.9 px
+   clear); all 3 opponent seats within viewport; central bid focal "90♥ ▶ Your
+   turn" + the three per-seat bids visible.
+2. **OPEN: full arc above the sheet controls; value grid (incl. 120/Capot), suits,
+   actions, toolbar all visible** — PASS. 360×650/L: all 10 value buttons
+   (Capot bottom 504), suit row, action row (bottom 599) and toolbar (bottom 642)
+   within viewport 650; hand floats above sheet-top 404.6 (cards' bottom 386.1).
+3. **Felt same size in both states (full-bleed)** — PASS. `.board-middle` height
+   was identical between collapsed and open at every size: L 295.1 px (360×650),
+   M 313.8, S 332.4; 345.1 at 390×700, 425.1 at 430×780.
+4. **360×650 / Delfino L specifically** — PASS. Collapsed clearance 18.9 px above
+   the bar; open clearance 18.5 px above the sheet; nothing clipped top or bottom
+   (collapsed card-min-top 448, open card-min-top 249 — both well inside the
+   viewport).
+5. **Hand animates in sync with the sheet** — PASS. Computed transition on
+   `.my-hand` is `transform 0.32s ease`, identical to `.bid-sheet`'s — they
+   translate together, no jump.
+6. **Drag-reorder works at both offsets; PLAYING + tall unchanged** — PASS. In
+   manual mode, a long-press (>250 ms) drag of A♠ to the right end reordered the
+   hand (DOM + `localStorage["coinche-hand-TEST01-0"]` →
+   `[SK,SQ,HJ,H9,DA,C10,C7,SA]`) in **both** the collapsed (translateY −58) and
+   open (translateY −257) states, and the sheet did not toggle. PLAYING phase:
+   `.my-hand` transform `none`, no sheet/bar. Tall (390×900): hand transform
+   `none`, z-index `auto`, sheet `position:static`, bar/handle `display:none`.
+
+### Screenshots (`verification-screenshots/`)
+- `bidfix-360x650-{S,M,L}-{open,collapsed}.png`
+- `bidfix-390x700-L-{open,collapsed}.png`
+- `bidfix-430x780-L-{open,collapsed}.png`
+- `bidfix-390x900-tall-open.png` (tall, permanently open, hand at baseline)
+
+## Caveats
+- Verified via the synthetic fixture (mounts the real `GameBoard`), not a live
+  bots game; gestures were driven through the real DOM event path (synthetic
+  `PointerEvent`s with the real 250 ms long-press timing).
+- Screenshot matrix covers Delfino L (tightest) at all three short sizes plus
+  S/M at 360×650; the clearance invariant was checked programmatically for every
+  S/M/L combination.
+- The fixture's `highBidder` name renders as "?" in the bar (the recorder
+  fixture omits the field `displayName` reads); the bid value/suit ("90♥") is
+  correct and the rendering path is unchanged — purely a fixture artifact.
+- True on-device behaviour (dvh, real touch momentum) only fully validates on a
+  physical phone.
