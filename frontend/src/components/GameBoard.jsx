@@ -723,7 +723,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
       </div>
     );
   };
-  const handToolbar = buildToolbar(false);
+  // Compact icon-over-caption toolbar in BIDDING and PLAYING (the two phases that
+  // share the in-felt presentation); the full-label variant stays for SHUFFLE/CUT
+  // and other-players'-turn bidding. buildToolbar already includes the 5th
+  // (PLAYING-only, creator-only) "Erreur de jeu" button when phase === 'PLAYING'.
+  const handToolbar = buildToolbar(phase === 'PLAYING');
   const bidToolbar  = buildToolbar(true);
 
   return (

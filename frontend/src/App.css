@@ -722,6 +722,20 @@ a      { color: var(--accent); }
   border-radius: 5px;
 }
 
+/* Short viewports: the felt (.board-middle, overflow:hidden) is short, so the
+   3-row trick cluster + the last-trick widget below it would otherwise overflow
+   and clip the TOP played card. Shrink the in-felt trick cards (override the card
+   vars only on the in-felt grid — the last-trick modal keeps full size) so the
+   centered cluster fits and the top card clears the felt's top edge. */
+@media (max-height: 820px) {
+  .play-center .trick-display {
+    --card-w: 34px;
+    --card-h: 48px;
+    gap: 2px;
+  }
+  .play-center .trick-player-name { bottom: -13px; font-size: 0.6em; }
+}
+
 /* ─── Contract badge (PLAYING phase only) ───────────────────────────────── */
 .contract-badge {
   background: rgba(0,0,0,0.35);
