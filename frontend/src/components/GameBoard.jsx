@@ -161,6 +161,10 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   const isMyCardTurn = phase === 'PLAYING' && currentPlayer === myPosition;
   const isMyBidTurn  = phase === 'BIDDING' && biddingTurn  === myPosition;
   const isMyTurn     = isMyCardTurn || isMyBidTurn;
+  // Computed here (above every early return) because the sheet-measuring
+  // useLayoutEffect below depends on it; the hook must run on every render to
+  // keep the hook count stable across phases (Rules of Hooks).
+  const bidSheetActive = phase === 'BIDDING' && isMyBidTurn;
 
   const isShortViewport = useMediaQuery(SHORT_VIEWPORT_QUERY);
 
@@ -398,6 +402,30 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     if (isMyBidTurn) setSheetOpen(DEFAULT_BID_SHEET_OPEN);
   }, [isMyBidTurn]);
 
+  // Measure the collapsed bar / open sheet so the hand can float just above the
+  // one that's showing. offsetHeight ignores the slide transform, so the sheet
+  // is measurable even while translated off-screen; the bar is display:none when
+  // the sheet is open, so we keep the last non-zero reading for each.
+  // NOTE: must sit ABOVE the ROUND_OVER/GAME_OVER early return so the hook count
+  // stays stable across phases — the no-op guard lives inside the effect body.
+  useLayoutEffect(() => {
+    if (!(bidSheetActive && isShortViewport)) return;
+    const measure = () => {
+      const barH   = bidBarRef.current   ? bidBarRef.current.offsetHeight   : 0;
+      const sheetH = bidSheetRef.current ? bidSheetRef.current.offsetHeight : 0;
+      setSheetMetrics(prev => {
+        const next = { barH: barH || prev.barH, sheetH: sheetH || prev.sheetH };
+        return (next.barH === prev.barH && next.sheetH === prev.sheetH) ? prev : next;
+      });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (bidBarRef.current)   ro.observe(bidBarRef.current);
+    if (bidSheetRef.current) ro.observe(bidSheetRef.current);
+    window.addEventListener('resize', measure);
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
+  }, [bidSheetActive, isShortViewport, sheetOpen]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   function playCard(card, declareBelote = false) {
     if (trainingMode) {
@@ -630,32 +658,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   }
 
   // ── Bid sheet derived values ───────────────────────────────────────────────
-  const bidSheetActive = phase === 'BIDDING' && isMyBidTurn;
+  // bidSheetActive is computed above (before the early return); the measuring
+  // useLayoutEffect was moved up there too (Rules of Hooks).
   const highBidder = currentBid != null
     ? players.find(p => p.position === currentBid.playerIndex)
     : null;
-
-  // Measure the collapsed bar / open sheet so the hand can float just above the
-  // one that's showing. offsetHeight ignores the slide transform, so the sheet
-  // is measurable even while translated off-screen; the bar is display:none when
-  // the sheet is open, so we keep the last non-zero reading for each.
-  useLayoutEffect(() => {
-    if (!(bidSheetActive && isShortViewport)) return;
-    const measure = () => {
-      const barH   = bidBarRef.current   ? bidBarRef.current.offsetHeight   : 0;
-      const sheetH = bidSheetRef.current ? bidSheetRef.current.offsetHeight : 0;
-      setSheetMetrics(prev => {
-        const next = { barH: barH || prev.barH, sheetH: sheetH || prev.sheetH };
-        return (next.barH === prev.barH && next.sheetH === prev.sheetH) ? prev : next;
-      });
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    if (bidBarRef.current)   ro.observe(bidBarRef.current);
-    if (bidSheetRef.current) ro.observe(bidSheetRef.current);
-    window.addEventListener('resize', measure);
-    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
-  }, [bidSheetActive, isShortViewport, sheetOpen]);
 
   // Resting offset for the arc hand during bidding on short viewports: float
   // above the open sheet's top edge, or above the collapsed bar's top edge.
