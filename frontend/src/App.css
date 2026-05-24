@@ -520,10 +520,13 @@ a      { color: var(--accent); }
   cursor: pointer;
   box-shadow: 0 0 0 2px var(--accent);
 }
-.card-face.card-lifted {
-  box-shadow: 0 8px 18px rgba(0,0,0,0.45), 0 0 0 2px var(--accent);
-}
-.card-face.card-disabled { opacity: 0.7; cursor: default; }
+/* Hand cards stay flat & uniform: no enlarge/rise/pop-shadow on hover or press
+   (the lift was removed). The actively-dragged card still gets its own transform
+   from draggedStyle() during manual reorder. */
+.card-face.card-lifted { /* intentionally flat — no lift styling */ }
+/* No dim during bidding / not-your-turn — hand cards are always solid white,
+   matching the playing phase. (cursor only; opacity removed.) */
+.card-face.card-disabled { cursor: default; }
 .card-value { font-weight: bold; font-size: 1em; }
 .card-suit  { font-size: 0.95em; }
 
@@ -1080,6 +1083,22 @@ a      { color: var(--accent); }
     z-index: 90;
     transition: transform 0.32s ease;
   }
+}
+
+/* Tall / normal viewports: the collapsible sheet + hand-lift are gated to
+   max-height:820px and do NOT apply here, so the bid sheet sits in normal flow
+   and the arc hand would otherwise fall BELOW the bid controls (player can't see
+   their cards while bidding). Reorder the bidding column so the hand sits ABOVE
+   the controls. Scoped to .has-bid-sheet (bid turn only) — playing / non-bidding
+   layouts and the short-viewport sheet behaviour are untouched. */
+@media (min-height: 821px) {
+  .board-hand.has-bid-sheet {
+    display: flex;
+    flex-direction: column;
+  }
+  .board-hand.has-bid-sheet .self-player-bar { order: 1; }
+  .board-hand.has-bid-sheet .my-hand         { order: 2; }
+  .board-hand.has-bid-sheet .bid-sheet       { order: 3; }
 }
 
 .bidding-turn-info, .play-turn-info {

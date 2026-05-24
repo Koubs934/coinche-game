@@ -632,12 +632,10 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   function arcStyle(i) {
     const off = i - handMid;
     const x = off * handXStep;
-    if ((liftIdx === i && isMyCardTurn)) {
-      return {
-        transform: `translate(calc(-50% + ${x}px), ${-HAND_LIFT}px) rotate(0deg) scale(1.06)`,
-        zIndex: 999,
-      };
-    }
+    // Hand cards stay flat and uniform in the arc — no hover/press enlarge or
+    // rise (removed). The actively-dragged card still detaches via draggedStyle()
+    // for manual reorder; liftIdx is retained for that handler path but no longer
+    // changes the resting card's transform.
     const y = off * off * HAND_ARCH;
     return {
       transform: `translate(calc(-50% + ${x}px), ${y.toFixed(2)}px) rotate(${(off * HAND_ROT).toFixed(2)}deg)`,
