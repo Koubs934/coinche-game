@@ -76,6 +76,7 @@ export default {
 
   // Leave / remove
   leaveTable: 'Quitter la table',
+  leaveShort: 'Quitter',   // libellé court pour la barre compacte (le title complet reste « Quitter la table »)
   leaveConfirmLobby: 'Quitter cette salle ?',
   leaveConfirmGame: 'Quitter la table ? La partie sera mise en pause jusqu\'à ce qu\'un joueur prenne votre place.',
   removePlayer: 'Retirer',

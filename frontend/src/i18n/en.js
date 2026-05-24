@@ -76,6 +76,7 @@ export default {
 
   // Leave / remove
   leaveTable: 'Leave table',
+  leaveShort: 'Leave',   // single-word caption for the compact toolbar (full title stays "Leave table")
   leaveConfirmLobby: 'Leave this room?',
   leaveConfirmGame: 'Leave the table? The game will be paused until someone takes your seat.',
   removePlayer: 'Remove',

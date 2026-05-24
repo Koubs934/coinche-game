@@ -393,10 +393,15 @@ a      { color: var(--accent); }
 /* padding-top reserves room for the top seat (absolutely anchored at the felt's
    top edge) so the centered trick / bid focal clear it. Reset in landscape, where
    the top seat is hidden (see the max-height:500px block). */
-.board-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 6px; position: relative; padding-top: 40px; }
+/* min-width: 0 so the fixed-width (180px) trick-display can't force this flex
+   column past its share and shove the right seat (.board-right) off the felt's
+   right edge (clipped by overflow:hidden) — keeps left/right seats symmetric. */
+.board-center { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 6px; position: relative; padding-top: 40px; }
 .board-middle { border-radius: 14px; background: radial-gradient(ellipse at center, #1e6b30 0%, #164f22 70%, #0f3a18 100%); }
 
-.board-hand   { flex-shrink: 0; background: rgba(0,0,0,0.28); border-top: 2px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding: 6px 4px max(6px, env(safe-area-inset-bottom)); }
+/* Bottom safe-area is owned by the bottom-most child (the relocated toolbar in
+   playing, the bid-sheet in bidding) so it isn't applied twice. */
+.board-hand   { flex-shrink: 0; background: rgba(0,0,0,0.28); border-top: 2px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding: 6px 4px; }
 
 /* ─── Player seats ──────────────────────────────────────────────────────── */
 .player-seat {
@@ -1000,12 +1005,14 @@ a      { color: var(--accent); }
    dividers between actions. (Normal-flow .hand-toolbar is unchanged.) */
 .hand-toolbar-icons { gap: 0; flex-wrap: nowrap; }
 .hand-toolbar-icons > button {
+  flex: 1 1 0;          /* equal share of the row so all 5 fit on one line */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1px;
   min-height: auto;
-  padding: 3px 14px;
+  padding: 3px 2px;     /* tight horizontal padding — flex distributes width */
   background: transparent;
   border: none;
   border-left: 1px solid rgba(255,255,255,0.12);
@@ -1013,7 +1020,16 @@ a      { color: var(--accent); }
 }
 .hand-toolbar-icons > button:first-child { border-left: none; }
 .hand-toolbar-icons .ti-icon { font-size: 1.05em; line-height: 1.1; }
-.hand-toolbar-icons .ti-cap  { font-size: 0.6em; line-height: 1; }
+.hand-toolbar-icons .ti-cap  { font-size: 0.6em; line-height: 1; white-space: nowrap; }
+
+/* The playing/non-bidding toolbar relocated to the very bottom row of board-hand
+   (direct child; the bidding toolbar lives inside .bid-sheet). Thin divider from
+   the cards; safe-area bottom padding so it clears the phone's home indicator. */
+.board-hand > .hand-toolbar {
+  margin-top: 2px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-bottom: env(safe-area-inset-bottom);
+}
 
 /* ─── Collapsible bid sheet + highest-bid bar ────────────────────────────────
    Base (tall viewports): the sheet is a plain in-flow flex container — the bid
@@ -1023,6 +1039,7 @@ a      { color: var(--accent); }
   width: 100%;
   display: flex;
   flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);  /* bottom-most element in tall bidding */
 }
 .bid-sheet-handle { display: none; }
 .bid-bar          { display: none; }

@@ -717,7 +717,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
         )}
         <button className="btn-leave" onClick={leaveTable} title={trainingMode ? t.training.abandonLabel : t.leaveTable}>
           {compact
-            ? lbl('⎋', trainingMode ? t.training.abandonLabel : t.leaveTable)
+            ? lbl('⎋', trainingMode ? t.training.abandonLabel : t.leaveShort)
             : (trainingMode ? t.training.abandonLabel : t.leaveTable)}
         </button>
       </div>
@@ -1063,7 +1063,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
                 />
               </div>
             )}
-            {handToolbar}
           </>
         )}
 
@@ -1110,6 +1109,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
             <span className="muted">—</span>
           )}
         </div>
+
+        {/* Toolbar — single bottom row below the hand (not bidding; bidding's
+            toolbar lives inside the sheet). Frees the band that used to sit
+            between the header and the cards. */}
+        {!bidSheetActive && handToolbar}
       </div>
 
       {/* ── Belote decision prompt ───────────────────────────────────────────── */}
