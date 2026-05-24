@@ -863,51 +863,111 @@ a      { color: var(--accent); }
   flex-direction: column;
   gap: 6px;
   padding: 6px 0 4px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  margin-bottom: 2px;
 }
 
-.bid-values {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
-}
+/* Legal-bids-only value grid: two rows, each row flexes its chips full-width
+   (fill-then-stretch — no lonely left-aligned chip). Chips are compact and
+   outlined; only the selected value is the lit amber fill. */
+.bid-values     { display: flex; flex-direction: column; gap: 5px; }
+.bid-values-row { display: flex; gap: 5px; }
 .bid-val-btn {
-  background: #2c3e50;
+  flex: 1;
+  min-width: 0;
+  min-height: 30px;
+  padding: 4px 6px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,0.18);
+  background: transparent;
   color: var(--text);
-  padding: 7px 4px;
-  border-radius: 4px;
   font-size: 0.9em;
   text-align: center;
-  min-height: 36px;
 }
-.bid-val-btn.selected { background: var(--accent); color: #1a1a1a; font-weight: bold; }
-.bid-val-btn.disabled { opacity: 0.3; cursor: not-allowed; }
-.bid-val-btn:not(.disabled):hover { background: #3a4f65; }
-.bid-val-btn.selected:hover { background: var(--accent); }
+.bid-val-btn:not(.selected):hover { background: rgba(255,255,255,0.08); }
+.bid-val-btn.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1a1a;
+  font-weight: bold;
+}
 
-.suit-selector {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-}
-.suit-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  font-size: 1.4em;
-  background: #2c3e50;
-}
-.suit-btn.red  { color: var(--red); }
-.suit-btn.black { color: #e0e0e0; }
-.suit-btn.selected { outline: 2px solid var(--accent); }
-.suit-btn:hover:not(.selected) { background: #3a4f65; }
-
+/* Suits + actions share one row. Suits are fixed compact outlined chips; the
+   action buttons flex to fill the rest. */
 .bid-action-row {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
 }
-.bid-action-row > button { flex: 1; }
+.bid-action-row > button { flex: 1; min-width: 0; }
+.suit-chips { display: flex; gap: 5px; flex: none; }
+.suit-btn {
+  width: 33px;
+  height: 33px;
+  flex: none;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,0.18);
+  background: transparent;
+  font-size: 1.05em;
+}
+.suit-btn.red   { color: var(--red); }
+.suit-btn.black { color: #e0e0e0; }
+.suit-btn.selected { outline: 2px solid var(--accent); outline-offset: -1px; }
+.suit-btn:hover:not(.selected) { background: rgba(255,255,255,0.08); }
+
+/* The single solid (lit) control. */
+.btn-annoncer {
+  background: var(--accent);
+  color: #1a1a1a;
+  font-weight: bold;
+  padding: 7px 8px;
+  border-radius: var(--radius);
+  min-height: 33px;
+  transition: opacity 0.15s;
+}
+.btn-annoncer:hover:not(:disabled) { opacity: 0.85; }
+.btn-annoncer:disabled { opacity: 0.45; cursor: not-allowed; }
+/* Quiet navy — distinct from the (navy) sheet behind it. */
+.btn-passer {
+  background: #2c3e50;
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.18);
+  font-weight: bold;
+  padding: 7px 8px;
+  border-radius: var(--radius);
+  min-height: 33px;
+}
+.btn-passer:hover { background: #3a4f65; }
+/* Red outline (not solid) so it doesn't fight Annoncer for attention. */
+.btn-coinche-outline,
+.btn-surcoinche-outline {
+  background: transparent;
+  color: #e86b6b;
+  border: 1px solid var(--red);
+  font-weight: bold;
+  padding: 7px 8px;
+  border-radius: var(--radius);
+  min-height: 33px;
+}
+.btn-coinche-outline:hover,
+.btn-surcoinche-outline:hover { background: rgba(204,17,17,0.14); }
+
+/* Bidding-phase toolbar: compact icon over a tiny caption, centered, thin
+   dividers between actions. (Normal-flow .hand-toolbar is unchanged.) */
+.hand-toolbar-icons { gap: 0; flex-wrap: nowrap; }
+.hand-toolbar-icons > button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-height: auto;
+  padding: 3px 14px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid rgba(255,255,255,0.12);
+  border-radius: 0;
+}
+.hand-toolbar-icons > button:first-child { border-left: none; }
+.hand-toolbar-icons .ti-icon { font-size: 1.05em; line-height: 1.1; }
+.hand-toolbar-icons .ti-cap  { font-size: 0.6em; line-height: 1; }
 
 /* ─── Collapsible bid sheet + highest-bid bar ────────────────────────────────
    Base (tall viewports): the sheet is a plain in-flow flex container — the bid
@@ -1792,7 +1852,6 @@ a      { color: var(--accent); }
 @media (min-width: 480px) {
   :root { --card-w: 48px; --card-h: 70px; }
   .card { font-size: 0.95em; }
-  .bid-values { grid-template-columns: repeat(5, 1fr); }
 }
 
 /* ─── Landscape phone ────────────────────────────────────────────────────── */
@@ -1873,16 +1932,18 @@ a      { color: var(--accent); }
   .bsi.bsi-current { font-size: 0.88em; padding: 2px 5px; }
   .bsi.bsi-older   { font-size: 0.5em; }
 
-  /* ── Bidding: 10 values in one row in the hand strip ── */
-  .bidding-panel  { padding: 2px 0; gap: 3px; border-bottom: none; margin-bottom: 0; }
-  .bid-values     { grid-template-columns: repeat(10, 1fr); gap: 2px; }
+  /* ── Bidding: tighten the two-row grid + merged action row ── */
+  .bidding-panel  { padding: 2px 0; gap: 3px; }
+  .bid-values     { gap: 3px; }
+  .bid-values-row { gap: 3px; }
   .bid-val-btn    { min-height: 22px; padding: 2px 1px; font-size: 0.75em; }
-  .suit-selector  { gap: 4px; }
-  .suit-btn       { width: 28px; height: 28px; font-size: 1em; }
-  .btn-coinche,
-  .btn-surcoinche { padding: 3px 8px; font-size: 0.8em; }
+  .suit-chips     { gap: 3px; }
+  .suit-btn       { width: 26px; height: 26px; font-size: 0.95em; }
   .bid-action-row { gap: 4px; }
-  .bid-action-row > button { padding: 4px 8px; }
+  .btn-annoncer,
+  .btn-passer,
+  .btn-coinche-outline,
+  .btn-surcoinche-outline { padding: 3px 6px; font-size: 0.8em; min-height: 26px; }
 
   /* ── Hand: thin strip, single unwrapped row ── */
   .board-hand {

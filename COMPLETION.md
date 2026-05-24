@@ -533,3 +533,139 @@ that much). Smaller Delfino sizes clear by more (smaller cards sit higher).
   correct and the rendering path is unchanged — purely a fixture artifact.
 - True on-device behaviour (dvh, real touch momentum) only fully validates on a
   physical phone.
+
+---
+
+# COMPLETION.md — Tighter bid sheet: legal-bids grid, merged row, icon toolbar
+
+Branch: `fix/bidding-layout-mobile`
+Date: 2026-05-24
+
+## Goal
+
+Collapse the bid sheet from ~4 chunky rows to ~2: render only *legal* bid values
+(no greyed chips) in a two-row fill-then-stretch grid, merge the suit picker onto
+the action row, turn the bidding-phase toolbar into a compact icon row, and
+restrain colour to a single solid control (Annoncer). Render-filter + CSS only —
+no bid/coinche/pass logic, validation, socket, or backend changes.
+
+## What changed, per file
+
+### `frontend/src/components/BiddingPanel.jsx`
+- **Legal-bids-only grid.** `const legalValues = BID_VALUES.filter(isValidBid)`
+  — reuses the *existing* `isValidBid` predicate (the same one `submitBid` guards
+  on), so the grid can never offer a value the emit path would reject. Illegal
+  values are not rendered at all (no `.disabled` chips in the DOM). The `disabled`
+  attribute and the per-button `isValidBid` click-guard were removed (every
+  rendered chip is legal).
+- **Two-row fill-then-stretch.** `splitAt = ceil(N/2)`; rows =
+  `[legalValues.slice(0, splitAt), legalValues.slice(splitAt)].filter(r => r.length)`.
+  Each row is a flex container whose chips are `flex: 1`, so the bottom row
+  stretches full-width (no lonely left-aligned chip). N=10→5+5, 6→3+3, 2→1+1, etc.
+  Capot is just the last value in the sequence (no special-casing).
+- **Merged suit + action row.** Suits moved into `.bid-action-row` as a
+  `.suit-chips` group (shown only when not Capot and not surcoinche — same
+  condition as before). Buttons renamed for the new styling: `btn-annoncer`
+  (solid amber, the one primary), `btn-passer` (quiet navy),
+  `btn-coinche-outline` / `btn-surcoinche-outline` (red outline). **Coinche!** is
+  rendered only when the existing `canCoinche` is true (freeing space otherwise);
+  **Surcoinche!** still replaces Annoncer/Coinche when `canSurcoinche`. All four
+  handlers (`submitBid`/`pass`/`doCoinche`/`doSurcoinche`) and the emits are
+  byte-for-byte unchanged.
+
+### `frontend/src/components/GameBoard.jsx`
+- The `handToolbar` const became `buildToolbar(compact)`, built from one source:
+  same buttons, conditions (`isCreator`, `phase`, `trainingMode`) and i18n labels.
+  `compact` renders each button as `.ti-icon` (glyph) over a `.ti-cap` (tiny
+  caption = the existing label) and adds `.hand-toolbar-icons`; the full variant
+  keeps the old inline "icon label". `handToolbar = buildToolbar(false)` (normal
+  flow, unchanged), `bidToolbar = buildToolbar(true)` is rendered inside the
+  sheet during the bid turn. The full-variant Leave button keeps its no-icon
+  presentation (only the compact one gains the `⎋` glyph).
+
+### `frontend/src/App.css`
+- Rewrote the bidding-panel block: `.bid-values` is now a flex column of
+  `.bid-values-row` flex rows; `.bid-val-btn` is a compact outlined chip
+  (`min-height: 30px`, `var(--radius)`, transparent + thin light border) whose
+  `.selected` state is the amber fill. `.bid-action-row` lays out `.suit-chips`
+  (fixed 33 px outlined chips, selected = gold `outline`) + flexing action
+  buttons. Added `.btn-annoncer` (solid amber — the only filled control),
+  `.btn-passer` (quiet `#2c3e50` navy, distinct from the sheet behind it), and
+  `.btn-coinche-outline` / `.btn-surcoinche-outline` (red outline). Added
+  `.hand-toolbar-icons` (icon-over-caption, thin `border-left` dividers,
+  transparent). Radius is unified to `var(--radius)` (6 px) across all chips for
+  consistency. Removed the now-dead `.bid-values { grid-template-columns }` rule
+  from the `min-width: 480px` block and rewired the landscape
+  (`max-height: 500px`) overrides to the new class names.
+
+## Legal-filter approach
+The grid is derived purely from `isValidBid(v)`, which already encodes the rule:
+opening (`!currentBid`) → all of 80…160 + Capot; otherwise only `v > currentBid.value`
+plus Capot; nothing after a coinche; nothing above Capot. Because the **same
+predicate** gates both the rendered set and `submitBid`, the UI cannot show a
+value the server would reject. No validation or emit code was touched.
+
+## Wrap math note
+The brief's parenthetical "bid=110 → 4+2" doesn't match N: values `> 110` are
+120,130,140,150,160 + Capot = **6**, and the brief's own ceil/floor list says
+`6→3+3`. The implementation follows the stated `ceil(N/2)/floor(N/2)` rule, so
+bid=110 renders **3+3** (120,130,140 / 150,160,Capot) — confirmed below.
+
+## Verification
+
+Temporary `?mock=bid-sheet-fixture` harness (`?size`, `?bid=open|110|150`,
+`?team=opp|mine`), added to `App.jsx` then **removed** (App.jsx matches HEAD;
+confirmed via `git diff --stat`). `npm run build` passes (127 modules); zero
+console errors. Playwright at 360×650, 390×700, 430×780 × Delfino S/M/L. The
+sheet content is size-independent (it uses fixed fonts, not `--hand-card-scale`),
+so S/M/L produce an identical sheet; the hand clearance grows for smaller cards.
+
+### Acceptance criteria (all PASS)
+1. **Only legal values; no greyed/struck buttons in the DOM** — PASS. Querying
+   `.bid-val-btn.disabled, [disabled]` returned **0** in every state (opening,
+   110, 150, capot-selected).
+2. **Two-row fill-then-stretch; bottom stretches full-width; no lonely chips** —
+   PASS. Opening → `[80,90,100,110,120]/[130,140,150,160,Capot]` (5+5); bid=110 →
+   `[120,130,140]/[150,160,Capot]` (3+3); bid=150 → `[160]/[Capot]` (1+1), each
+   chip measured at **344 px** = full row width.
+3. **Suits + Annoncer + Passer (+Coinche! only when legal) in ONE row, nothing
+   clipped at 360 px** — PASS. bid=110 @ 360 with Coinche! eligible: suits (×4) +
+   Bid (161–220) + Coinche! (226–286) + Pass (292–352) all within 360. With
+   `team=mine` (not coinchable) Coinche! is absent; opening has no Coinche!.
+4. **Compact icon toolbar, all four actions** — PASS. `.hand-toolbar-icons`
+   present inside the sheet; captions `Sort / Undo / Manage / Leave table`
+   (icons ⇅/♥, ↩, ⚙, ⎋).
+5. **Only Annoncer solid; selected value amber; selected suit gold ring** — PASS.
+   Bid is the lone `var(--accent)` fill; selecting a value adds `.selected`
+   (amber); the selected suit shows the gold `outline`; Capot select lit amber.
+6. **Sheet visibly shorter; opening (tallest) fits at 360×650/L; felt full-bleed;
+   hand clears** — PASS. Sheet height **169.9 px** (was 245.4 px in the prior
+   task — ~75 px shorter). Opening @ 360×650/L: card→sheet clearance **19.0 px**
+   (open) / **18.9 px** above the bar (collapsed); `.board-middle` height
+   identical between states (**316.8 px**), felt CSS untouched. Clearances at L
+   are 19.0 px at all three viewports; M 20.9 px, S 22.8 px (smaller cards clear
+   more). Toolbar within viewport at every size.
+7. **Bidding works end-to-end (no logic regression)** — PASS. In the fixture:
+   select 160 + suit ♠ → Annoncer emitted `placeBid {code:TEST01, value:160,
+   suit:"S"}`; Passer → `passBid {code:TEST01}`; Coinche! → `coinche
+   {code:TEST01}`. Selecting Capot hid the suit chips (4→0).
+
+### Screenshots (`verification-screenshots/`)
+- `tighten-360x650-{S,M,L}-open.png` (opening, 5+5)
+- `tighten-360x650-L-bid110-coinche.png` (3+3 + Coinche! row at 360)
+- `tighten-360x650-L-bid150-neartop.png` (1+1 stretched)
+- `tighten-390x700-L-open.png`, `tighten-430x780-L-open.png`
+
+## Caveats
+- Verified via the synthetic fixture (mounts the real `GameBoard`), not a live
+  bots game; clicks/selection driven through the real DOM event path and asserted
+  against the recorded socket emits.
+- Screenshot matrix focuses on the three auction states at 360×650/L (tightest
+  width) plus S/M at 360 and L at 390/430; the legal-filter, wrap math, action-row
+  fit and clearance invariants were checked programmatically for the other combos
+  (the sheet is size-independent).
+- The hand-offset measurement (prior task) re-measures the new shorter,
+  variable-height sheet correctly — the open clearance held at ~19 px and the
+  collapsed clearance at ~18.9 px.
+- True on-device behaviour (dvh, real touch) only fully validates on a physical
+  phone.

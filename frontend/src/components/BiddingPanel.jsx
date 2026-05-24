@@ -68,50 +68,70 @@ export default function BiddingPanel({ socket, roomCode, game, myPosition, myTea
 
   if (!isMyTurn) return null;
 
+  // Legal-bids-only: render only values the server would accept — every value
+  // strictly greater than the current highest bid, plus Capot (opening = all of
+  // 80…160 + Capot). Illegal values are never put in the DOM (no greyed chips).
+  // isValidBid is the same predicate submitBid guards on, so the grid can never
+  // offer a value the emit path would reject.
+  const legalValues = BID_VALUES.filter(isValidBid);
+  // Two rows, fill-then-stretch: top = ceil(N/2), bottom = floor(N/2); each row
+  // flexes its chips full-width (no lonely left-aligned chip). Capot is just the
+  // last value in the sequence — no special-casing.
+  const splitAt = Math.ceil(legalValues.length / 2);
+  const valueRows = [legalValues.slice(0, splitAt), legalValues.slice(splitAt)]
+    .filter(row => row.length > 0);
+
+  // Suits live on the action row; hidden when Capot is picked (no suit) or when
+  // a surcoinche is the only move.
+  const showSuits = selectedValue !== 'capot' && !canSurcoinche;
+
+  const renderVal = v => (
+    <button
+      key={v}
+      className={`bid-val-btn${selectedValue === v ? ' selected' : ''}`}
+      onClick={() => setSelectedValue(v)}
+    >
+      {v === 'capot' ? t.capot : v}
+    </button>
+  );
+
   return (
     <div className="bidding-panel">
-      {/* Value selector */}
-      <div className="bid-values">
-        {BID_VALUES.map(v => (
-          <button
-            key={v}
-            className={`bid-val-btn${selectedValue === v ? ' selected' : ''}${!isValidBid(v) ? ' disabled' : ''}`}
-            onClick={() => isValidBid(v) && setSelectedValue(v)}
-            disabled={!isValidBid(v)}
-          >
-            {v === 'capot' ? t.capot : v}
-          </button>
-        ))}
-      </div>
-
-      {/* Suit selector — hidden when capot or surcoinche */}
-      {selectedValue !== 'capot' && !canSurcoinche && (
-        <div className="suit-selector">
-          {SUITS.map(s => (
-            <button
-              key={s}
-              className={`suit-btn ${s === 'H' || s === 'D' ? 'red' : 'black'}${selectedSuit === s ? ' selected' : ''}`}
-              onClick={() => setSelectedSuit(s)}
-            >
-              {t.suitSymbol[s]}
-            </button>
+      {/* Value selector — legal bids only, two-row fill-then-stretch */}
+      {valueRows.length > 0 && (
+        <div className="bid-values">
+          {valueRows.map((row, i) => (
+            <div key={i} className="bid-values-row">{row.map(renderVal)}</div>
           ))}
         </div>
       )}
 
-      {/* Action row: Announce / [Coinche] / Pass */}
+      {/* Suits + actions on one row. Annoncer is the single solid (amber)
+          control; Passer is quiet; Coinche!/Surcoinche! are red outlines shown
+          only when eligible. */}
       <div className="bid-action-row">
-        {canSurcoinche ? (
-          <button className="btn-surcoinche btn-action" onClick={doSurcoinche}>{t.surcoinche}</button>
-        ) : canCoinche ? (
-          <>
-            <button className="btn-primary" onClick={submitBid} disabled={!selectedValue}>{t.bid}</button>
-            <button className="btn-coinche btn-action" onClick={doCoinche}>{t.coinche}</button>
-          </>
-        ) : (
-          <button className="btn-primary" onClick={submitBid} disabled={!selectedValue}>{t.bid}</button>
+        {showSuits && (
+          <div className="suit-chips">
+            {SUITS.map(s => (
+              <button
+                key={s}
+                className={`suit-btn ${s === 'H' || s === 'D' ? 'red' : 'black'}${selectedSuit === s ? ' selected' : ''}`}
+                onClick={() => setSelectedSuit(s)}
+              >
+                {t.suitSymbol[s]}
+              </button>
+            ))}
+          </div>
         )}
-        <button className="btn-secondary" onClick={pass}>{t.pass}</button>
+        {canSurcoinche ? (
+          <button className="btn-surcoinche-outline" onClick={doSurcoinche}>{t.surcoinche}</button>
+        ) : (
+          <>
+            <button className="btn-annoncer" onClick={submitBid} disabled={!selectedValue}>{t.bid}</button>
+            {canCoinche && <button className="btn-coinche-outline" onClick={doCoinche}>{t.coinche}</button>}
+          </>
+        )}
+        <button className="btn-passer" onClick={pass}>{t.pass}</button>
       </div>
     </div>
   );

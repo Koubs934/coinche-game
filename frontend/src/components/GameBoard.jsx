@@ -665,50 +665,61 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     : 0;
 
   // Toolbar (sort / undo / manage / leave). Lives inside the bid sheet during
-  // my bid turn, and in normal hand flow otherwise — so it is declared once.
-  const handToolbar = (
-    <div className="hand-toolbar">
-      {!isShuffleCut && (
-        <button
-          className={`btn-sort${sortMode !== 'manual' ? ' sort-on' : ''}${sortMode === 'H' || sortMode === 'D' ? ' sort-red' : ''}`}
-          onClick={cycleSortMode}
-          title={t.sortHand}
-        >
-          {sortMode === 'manual'
-            ? `⇅ ${t.sortManual}`
-            : `${SUIT_SYM[sortMode]} ${t.sortHand}`}
+  // my bid turn, and in normal hand flow otherwise. `compact` renders each button
+  // as an icon over a tiny caption (bidding-phase presentation, inside the sheet);
+  // the full variant keeps the inline "icon label" used in normal flow. Same
+  // handlers, conditions and i18n labels either way — built from one source.
+  const buildToolbar = (compact) => {
+    const lbl = (icon, caption) => compact
+      ? (<><span className="ti-icon">{icon}</span><span className="ti-cap">{caption}</span></>)
+      : (<>{icon} {caption}</>);
+    return (
+      <div className={`hand-toolbar${compact ? ' hand-toolbar-icons' : ''}`}>
+        {!isShuffleCut && (
+          <button
+            className={`btn-sort${sortMode !== 'manual' ? ' sort-on' : ''}${sortMode === 'H' || sortMode === 'D' ? ' sort-red' : ''}`}
+            onClick={cycleSortMode}
+            title={t.sortHand}
+          >
+            {lbl(sortMode === 'manual' ? '⇅' : SUIT_SYM[sortMode],
+                 sortMode === 'manual' ? t.sortManual : t.sortHand)}
+          </button>
+        )}
+        {!trainingMode && isCreator && (phase === 'BIDDING' || phase === 'PLAYING') && (
+          <button
+            className="btn-undo"
+            onClick={() => socket.emit('undoLastAction', { code: roomCode })}
+            disabled={!room.canUndo}
+            title={t.undoAction}
+          >
+            {lbl('↩', t.undoAction)}
+          </button>
+        )}
+        {!trainingMode && isCreator && (
+          <button className="btn-manage" onClick={() => setShowAdminPanel(true)} title={t.managePlayersTitle}>
+            {lbl('⚙', t.managePlayers)}
+          </button>
+        )}
+        {/* Game Review: only rendered for the room creator in live games. */}
+        {!trainingMode && isCreator && phase === 'PLAYING' && (
+          <button
+            className="btn-tag-play-error"
+            onClick={() => setTagErrorOpen(true)}
+            title={t.button.tagPlayError}
+          >
+            {lbl('⚠', t.button.tagPlayError)}
+          </button>
+        )}
+        <button className="btn-leave" onClick={leaveTable} title={trainingMode ? t.training.abandonLabel : t.leaveTable}>
+          {compact
+            ? lbl('⎋', trainingMode ? t.training.abandonLabel : t.leaveTable)
+            : (trainingMode ? t.training.abandonLabel : t.leaveTable)}
         </button>
-      )}
-      {!trainingMode && isCreator && (phase === 'BIDDING' || phase === 'PLAYING') && (
-        <button
-          className="btn-undo"
-          onClick={() => socket.emit('undoLastAction', { code: roomCode })}
-          disabled={!room.canUndo}
-          title={t.undoAction}
-        >
-          ↩ {t.undoAction}
-        </button>
-      )}
-      {!trainingMode && isCreator && (
-        <button className="btn-manage" onClick={() => setShowAdminPanel(true)} title={t.managePlayersTitle}>
-          ⚙ {t.managePlayers}
-        </button>
-      )}
-      {/* Game Review: only rendered for the room creator in live games. */}
-      {!trainingMode && isCreator && phase === 'PLAYING' && (
-        <button
-          className="btn-tag-play-error"
-          onClick={() => setTagErrorOpen(true)}
-          title={t.button.tagPlayError}
-        >
-          ⚠ {t.button.tagPlayError}
-        </button>
-      )}
-      <button className="btn-leave" onClick={leaveTable}>
-        {trainingMode ? t.training.abandonLabel : t.leaveTable}
-      </button>
-    </div>
-  );
+      </div>
+    );
+  };
+  const handToolbar = buildToolbar(false);
+  const bidToolbar  = buildToolbar(true);
 
   return (
     <div className="game-board">
@@ -1014,7 +1025,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
                 sortMode={sortMode}
                 trainingMode={trainingMode}
               />
-              {handToolbar}
+              {bidToolbar}
             </div>
           </>
         )}
