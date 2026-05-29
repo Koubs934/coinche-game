@@ -243,7 +243,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
       aria-label={t.throw.aim}
       aria-pressed={!!throwOpen}
     >
-      🍅
+      🍋
     </button>
   ) : null;
 
