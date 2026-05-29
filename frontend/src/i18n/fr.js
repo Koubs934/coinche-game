@@ -119,6 +119,7 @@ export default {
   coincheBonus: 'Coinche',
   surcoinchBonus: 'Surcoinche',
   chutePenalty: 'Base de chute',
+  contractBase: 'Base du contrat',
   replayBtn: 'Rejouer',
   replayPrev: 'Précédent',
   replayNext: 'Suivant',

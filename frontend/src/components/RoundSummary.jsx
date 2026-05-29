@@ -321,7 +321,7 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
               );
             })()}
 
-            {!isCapot && contractMade && currentBid && (
+            {!isCapot && contractMade && currentBid && multiplier === 1 && (
               <>
                 {trickPoints && (
                   <tr>
@@ -342,15 +342,38 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
                   <td>{contractTeam === 0 ? currentBid.value : 0}</td>
                   <td>{contractTeam === 1 ? currentBid.value : 0}</td>
                 </tr>
-                {multiplier > 1 && (
+              </>
+            )}
+
+            {/* Coinche/Surcoinche made — flat score: contract value × multiplier + 160
+                (+belote only if contract team holds it), defenders get a strict 0.
+                Rows sum to the backend total for the contract team and 0 for defenders. */}
+            {!isCapot && contractMade && currentBid && multiplier > 1 && (
+              <>
+                <tr>
+                  <td className="score-label">{t.contractBase} (160)</td>
+                  <td>{contractTeam === 0 ? 160 : 0}</td>
+                  <td>{contractTeam === 1 ? 160 : 0}</td>
+                </tr>
+                {beloteInfo?.complete && beloteInfo.team === contractTeam && (
                   <tr>
-                    <td className="score-label">
-                      {multiplier === 4 ? t.surcoinchBonus : t.coincheBonus} (+{currentBid.value * (multiplier - 1)})
-                    </td>
-                    <td>{contractTeam === 0 ? currentBid.value * (multiplier - 1) : 0}</td>
-                    <td>{contractTeam === 1 ? currentBid.value * (multiplier - 1) : 0}</td>
+                    <td className="score-label">{t.belote}/{t.rebelote} (+20)</td>
+                    <td>{contractTeam === 0 ? 20 : 0}</td>
+                    <td>{contractTeam === 1 ? 20 : 0}</td>
                   </tr>
                 )}
+                <tr>
+                  <td className="score-label">{t.announcedPoints}</td>
+                  <td>{contractTeam === 0 ? currentBid.value : 0}</td>
+                  <td>{contractTeam === 1 ? currentBid.value : 0}</td>
+                </tr>
+                <tr>
+                  <td className="score-label">
+                    {multiplier === 4 ? t.surcoinchBonus : t.coincheBonus} (+{currentBid.value * (multiplier - 1)})
+                  </td>
+                  <td>{contractTeam === 0 ? currentBid.value * (multiplier - 1) : 0}</td>
+                  <td>{contractTeam === 1 ? currentBid.value * (multiplier - 1) : 0}</td>
+                </tr>
               </>
             )}
 

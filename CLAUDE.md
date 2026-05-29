@@ -91,8 +91,12 @@ Full rule + scoring tables in [CONTEXT.md §4](CONTEXT.md#4-game-rules-as-curren
   before the undo doesn't fire after.
 - **Socket-only transport** for game state; `/health` is the only REST endpoint
   (training V2.2's `/api/conversation/*` is the deliberate exception).
-- **Failed-contract scores intentionally NOT rounded** to nearest 10 (made-contract
-  scores are). Confirmed in `verify.js` S2/S4/S6/S8.
+- **Scoring rounding by case**: uncoinched made contracts are rounded to nearest 10
+  (trick points + announced value); coinche/surcoinche made contracts use a FLAT score
+  (`value × multiplier + 160 + belote_if_contract_team`, defenders 0) that is already a
+  multiple of 10, so rounding is moot; failed-contract scores (`160 + value × multiplier`)
+  are intentionally NOT rounded. Capot is flat `500 × multiplier` (no +160). Confirmed in
+  `verify.js` S1/S2/S4/S6/S8 (rounded/failed/capot) and S10/S11/S12 (flat coinche made).
 - **Rule-silent prompt hardened against V2.1 fabrication** (claudeService.js, this
   commit). Model must explicitly state when Feuille is silent rather than invent a rule.
 - **Scenario authoring principle**: distinguish "V2.1 covers it but author wrote null"
