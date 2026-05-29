@@ -34,16 +34,6 @@ export function cardPts(card, trump) {
   return ((card.suit === trump) ? TRUMP_PTS : NON_TRUMP_PTS)[card.value] || 0;
 }
 
-export function computeLivePoints(tricks, trump) {
-  const pts = [0, 0];
-  if (!tricks?.length || !trump) return pts;
-  for (const trick of tricks) {
-    const team = trick.winner % 2;
-    for (const { card } of trick.cards) pts[team] += cardPts(card, trump);
-  }
-  return pts;
-}
-
 // Return the suit with the highest trump potential in the hand.
 // Tie-break 1: more cards in the suit. Tie-break 2: canonical order S→H→D→C.
 export function bestSuitForHand(hand) {

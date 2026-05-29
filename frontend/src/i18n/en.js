@@ -26,6 +26,8 @@ export default {
   targetScore: 'Target Score',
   team1: 'Team 1',
   team2: 'Team 2',
+  us: 'Us',
+  them: 'Them',
   assignTeams: 'Assign Teams',
   moveToTeam1: 'Move to Team 1',
   moveToTeam2: 'Move to Team 2',

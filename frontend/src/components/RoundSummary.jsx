@@ -222,6 +222,10 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
     return members.join(' & ');
   }
 
+  // Subjective, per-viewer team label: the viewer's own team is "Us", the other "Them".
+  const myTeam    = players.find(p => p.position === myPosition)?.team;
+  const teamLabel = (team) => team === myTeam ? t.us : t.them;
+
   const isCapot      = currentBid?.value === 'capot';
   const contractTeam = currentBid != null ? currentBid.playerIndex % 2 : null;
   const opposingTeam = contractTeam != null ? 1 - contractTeam : null;
@@ -291,8 +295,8 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
           <thead>
             <tr>
               <th></th>
-              <th>{t.team1}</th>
-              <th>{t.team2}</th>
+              <th>{teamLabel(0)}</th>
+              <th>{teamLabel(1)}</th>
             </tr>
           </thead>
           <tbody>
@@ -432,7 +436,7 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
         {room.phase === 'GAME_OVER' ? (
           <div className="game-over-section">
             <h3>{t.gameOver}</h3>
-            <p>{scores[0] > scores[1] ? getTeamLabel(0) : getTeamLabel(1)} {t.wins}</p>
+            <p>{scores[0] > scores[1] ? teamLabel(0) : teamLabel(1)} {t.wins}</p>
           </div>
         ) : (
           myConfirmed ? (

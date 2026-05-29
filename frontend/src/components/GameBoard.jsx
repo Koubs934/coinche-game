@@ -6,7 +6,7 @@ import AdminPanel from './AdminPanel';
 import {
   SUIT_SYM,
   buildPerPlayerHistory,
-  computeLivePoints, bestSuitForHand,
+  bestSuitForHand,
   sortHand, winDir, cardKey, applyManualOrder, reorderArr,
   displayName,
 } from './gameBoardHelpers';
@@ -180,7 +180,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     : dragVisual
       ? reorderArr(manualHand, dragVisual.fromIdx, dragVisual.toIdx)
       : manualHand;
-  const livePoints   = computeLivePoints(tricks, trumpSuit);
   const lastDoneTrick  = tricks?.length > 0 ? tricks[tricks.length - 1] : null;
   const animatedHand   = dealAnimCounts != null
     ? displayHand.slice(0, dealAnimCounts[myPosition])
@@ -801,18 +800,10 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
       {/* ── Score bars ─────────────────────────────────────────────────────── */}
       <div className="score-bars">
         <div className="total-score-bar">
-          <span className="tsb-item team0-col">{t.team1}: <strong>{scores[0]}</strong></span>
+          <span className="tsb-item team0-col">{myTeam === 0 ? t.us : t.them}: <strong>{scores[0]}</strong></span>
           <span className="tsb-target">/ {targetScore}</span>
-          <span className="tsb-item team1-col">{t.team2}: <strong>{scores[1]}</strong></span>
+          <span className="tsb-item team1-col">{myTeam === 1 ? t.us : t.them}: <strong>{scores[1]}</strong></span>
         </div>
-        {phase === 'PLAYING' && tricks?.length > 0 && (
-          <div className="live-score-bar">
-            <span className="lsb-label">{t.liveRound}:</span>
-            <span className="team0-col"><strong>{livePoints[0]}</strong></span>
-            <span className="lsb-sep">–</span>
-            <span className="team1-col"><strong>{livePoints[1]}</strong></span>
-          </div>
-        )}
       </div>
 
       {/* ── Middle row (felt) ─────────────────────────────────────────────── */}
