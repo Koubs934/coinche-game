@@ -38,8 +38,8 @@ cd backend && npm run dev          # nodemon, port 3001
 cd frontend && npm run dev         # Vite, port 5173
 
 # Tests
-cd backend && npm run test:vitest  # 118 tests across 9 suites
-node backend/src/game/verify.js    # legacy CLI test runner (R/S scenarios)
+cd backend && npm run test:vitest  # 207 tests across 11 suites
+node backend/src/game/verify.js    # CLI assertion suite (140): rules, scoring, bot bidding + card play
 
 # Smoke-test the Anthropic conversational flow
 cd backend && export $(cat .env.railway.local | xargs) && \
@@ -142,8 +142,8 @@ Full rule + scoring tables in [CONTEXT.md §4](CONTEXT.md#4-game-rules-as-curren
   for prod, in `backend/.env.railway.local` for local.
 
 ## Known issues to fix
-- Debug `console.log` for `bestSuitForHand` scoring left in `GameBoard.jsx` from
-  commit `a812602`. Fires on every dealer change in production builds. Remove.
+- None currently. (The `bestSuitForHand` debug `console.log` from commit `a812602`
+  has been removed.)
 
 ## Maintenance
 Keep this file current — when a decision is reversed or a gotcha goes away, edit or
