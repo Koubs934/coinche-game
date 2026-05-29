@@ -100,8 +100,10 @@ console.log('\n=== Card Play Rules ===\n');
   assert(valid[0].value === 'J' && valid[0].suit === 'H', 'R3: JH is the only legal card');
 }
 
-// Scenario R4: no lead suit + opponent already trumped + cannot overtrump but has lower trump
-// Player 1 cut with JH (best trump). Player 2 has only Q and 8 of trump — both lower. Any trump legal.
+// Scenario R4: no lead suit + opponent already trumped + cannot overtrump
+// Player 1 cut with JH (best trump). Player 2 has only Q and 8 of trump — both lower.
+// This group does NOT play forced "pisser": when you can't overcut you are FREE to
+// discard any card (no obligation to throw a lower trump).
 {
   const trumpSuit = 'H';
   const trick = [
@@ -115,8 +117,8 @@ console.log('\n=== Card Play Rules ===\n');
     card('A', 'D'), // non-trump
   ];
   const valid = getValidCards(hand, trick, trumpSuit, 2);
-  assert(valid.length === 2, 'R4: cannot overtrump — any trump allowed (pisser)', cardIds(valid));
-  assert(valid.every(c => c.suit === 'H'), 'R4: only trumps, not non-trump');
+  assert(valid.length === 3, 'R4: can\'t overtrump — free to discard (no forced pisser)', cardIds(valid));
+  assert(valid.some(c => c.suit === 'D'), 'R4: non-trump discard IS allowed');
 }
 
 // Scenario R5: no lead suit + no trump
@@ -171,35 +173,26 @@ console.log('\n=== Card Play Rules ===\n');
   assert(valid.every(c => c.suit === 'H'), 'R7: only trumps allowed');
 }
 
-// Scenario R8: non-trump led + no suit + trump in trick + partner winning the trump
-// Player 1 cut with 9H. Player 2's partner (player 0) played the winning AH later.
-// No exception for partner winning when trump is already in trick — must overtrump or play any trump.
+// Scenario R8: non-trump led + no suit + partner winning + trump already in trick
+// Player 1 cut with 9H, then partner (player 0) overtrumped with JH and is now master.
+// The partner-master exception is NOT suspended by trump being in the trick — player 2
+// is FREE to discard any card.
 {
   const trumpSuit = 'H';
   const trick = [
-    play(card('A', 'S'), 3), // player 3 leads AS (non-trump)
-    play(card('9', 'H'), 1), // player 1 cuts with 9H (TRUMP_RANK=7)
-    play(card('A', 'H'), 0), // player 0 (partner of 2) plays AH (TRUMP_RANK=6 — lower than 9H!)
-    // player 2 to play — partner (0) is NOT currently winning (9H beats AH in trump rank)
-  ];
-  // Actually let's use a case where partner IS winning the trump to test the rule.
-  // Player 0 (partner) plays JH (TRUMP_RANK=8, highest trump). Player 2 has QH and non-trump.
-  const trick2 = [
     play(card('A', 'S'), 3), // player 3 leads AS
     play(card('9', 'H'), 1), // player 1 cuts with 9H
     play(card('J', 'H'), 0), // player 0 (partner) overtrumps with JH — now winning
-    // player 2 to play — partner (0) IS currently winning, BUT trump is in trick
+    // player 2 to play — partner (0) IS currently winning, with trump in the trick
   ];
   const hand = [
     card('Q', 'H'), // TRUMP_RANK 3 — lower than JH
     card('8', 'H'), // TRUMP_RANK 2 — lower than JH
     card('A', 'D'), // non-trump
   ];
-  const valid = getValidCards(hand, trick2, trumpSuit, 2);
-  // Trump is already in trick — partner-maître exception does NOT apply.
-  // Cannot overtrump (no trump higher than JH). Must play any trump.
-  assert(valid.length === 2, 'R8: trump in trick + partner winning — still must play trump', cardIds(valid));
-  assert(valid.every(c => c.suit === 'H'), 'R8: only trumps, not non-trump discard');
+  const valid = getValidCards(hand, trick, trumpSuit, 2);
+  assert(valid.length === 3, 'R8: partner master with trump in trick — still free to discard', cardIds(valid));
+  assert(valid.some(c => c.suit === 'D'), 'R8: non-trump discard IS allowed');
 }
 
 // ─── SCORING SCENARIOS ───────────────────────────────────────────────────────
