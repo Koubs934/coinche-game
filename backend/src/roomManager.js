@@ -148,14 +148,18 @@ function publicRoom(room) {
 
 // ─── Partner peek (private inside-joke feature) ─────────────────────────────
 // A toggle that lets two SPECIFIC partnered users see each other's hands. Gated
-// hard to these two user IDs, only when both are present AND on the same team.
+// hard to these two user IDs, only when both are present AND on the same team
+// AND a third specific user ("Pacha") is also seated in the room as an opponent.
 // Self-contained: one flag (room.partnerPeek), one toggle fn, one branch in
 // publicGame. The reveal is injected PER RECIPIENT in publicGame, so it never
-// reaches any other player. Hardcoding the IDs is intentional.
+// reaches any other player. Hardcoding the IDs is intentional. IDs resolved once
+// from the profiles table (usernames AK7 / faispaschier / Pacha) — easy to remove.
 const PARTNER_PEEK_IDS = [
-  '7f35ed6a-8e9a-421e-8e79-1086fa663478', // Aaron / AK7
-  '507f441f-a481-4269-9d18-356b9ba76f43', // Sacha
+  '7f35ed6a-8e9a-421e-8e79-1086fa663478', // AK7 (Aaron)
+  '507f441f-a481-4269-9d18-356b9ba76f43', // faispaschier (Sacha's current account)
 ];
+// The peek only arms when this opponent is at the table (Jerem's "Pacha" account).
+const PARTNER_PEEK_OPPONENT_ID = 'b1b3041f-48fa-4fe0-9dbe-48f334b51bce'; // Pacha
 
 // Returns { a, b } when both gated users are present and partnered (same team);
 // null otherwise. Same team in the 2v2 fixed layout ⟺ partners (positions ±2).
@@ -166,14 +170,29 @@ function partnerPeekPair(room) {
   return null;
 }
 
+// True only when "Pacha" is a seated player in the room (the required opponent).
+function partnerPeekOpponentPresent(room) {
+  return room.players.some(p => p.userId === PARTNER_PEEK_OPPONENT_ID);
+}
+
+// Full eligibility: the pair is present-and-partnered AND Pacha is seated.
+// Returns the pair when eligible, null otherwise.
+function partnerPeekEligiblePair(room) {
+  const pair = partnerPeekPair(room);
+  if (!pair) return null;
+  if (!partnerPeekOpponentPresent(room)) return null;
+  return pair;
+}
+
 // Per-viewer peek result. canPeek = this viewer is one of the two gated users and
-// both are present+partnered (→ show the toggle). peekHand = the partner's actual
-// cards, present ONLY when the flag is also ON. Returns {canPeek:false} for anyone
-// who isn't one of the two gated users — so opponents/bots get no peek fields.
+// the full eligibility holds (pair partnered + Pacha seated) → show the toggle.
+// peekHand = the partner's actual cards, present ONLY when the flag is also ON.
+// Returns {canPeek:false} for anyone who isn't one of the two gated users — so
+// opponents/bots get no peek fields.
 function computePartnerPeek(room, viewerPosition) {
   const viewer = room.players.find(p => p.position === viewerPosition);
   if (!viewer || !PARTNER_PEEK_IDS.includes(viewer.userId)) return { canPeek: false };
-  const pair = partnerPeekPair(room);
+  const pair = partnerPeekEligiblePair(room);
   if (!pair) return { canPeek: false };
   const partner = viewer.userId === PARTNER_PEEK_IDS[0] ? pair.b : pair.a;
   const out = { canPeek: true, peekOn: !!room.partnerPeek, partnerPosition: partner.position };
@@ -185,7 +204,7 @@ function togglePartnerPeek(code, userId) {
   const room = rooms.get(code);
   if (!room) return { error: 'Room not found' };
   if (!PARTNER_PEEK_IDS.includes(userId)) return { error: 'Not allowed' };
-  if (!partnerPeekPair(room)) return { error: 'Partner peek not available' };
+  if (!partnerPeekEligiblePair(room)) return { error: 'Partner peek not available' };
   room.partnerPeek = !room.partnerPeek;
   return { room };
 }
