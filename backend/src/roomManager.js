@@ -49,6 +49,16 @@ function getTeamByPosition(position) {
   return position % 2;
 }
 
+// Next position clockwise from `fromPos` that belongs to `team` (skips the other team).
+function _nextSameTeamPosition(fromPos, team) {
+  let p = (fromPos + 1) % 4;
+  for (let i = 0; i < 4; i++) {
+    if (getTeamByPosition(p) === team) return p;
+    p = (p + 1) % 4;
+  }
+  return (fromPos + 1) % 4; // unreachable with the 2-per-team layout
+}
+
 function getTeamByUserId(room, userId) {
   const p = room.players.find(p => p.userId === userId);
   return p ? p.team : -1;
@@ -403,8 +413,23 @@ function passBid(code, userId) {
   room.game.biddingActions[position] = { type: 'pass' };
   room.game.biddingHistory.push({ position, type: 'pass' });
   room.game.consecutivePasses++;
-  room.game.biddingTurn = (position + 1) % 4;
 
+  const bid = room.game.currentBid;
+
+  // Surcoinche window: bid is coinched but not yet surcoinched. Only the contracting team is
+  // prompted here (the coinching team is skipped), so every pass = a contracting player
+  // declining to surcoinche. Two contracting players → close once both have declined.
+  if (bid && bid.coinched && !bid.surcoinched) {
+    if (room.game.consecutivePasses >= 2) {
+      _startPlaying(room);
+    } else {
+      room.game.biddingTurn = _nextSameTeamPosition(position, bid.team);
+    }
+    return { room };
+  }
+
+  // Normal (pre-coinche) flow — unchanged:
+  room.game.biddingTurn = (position + 1) % 4;
   if (room.game.consecutivePasses >= 3 && room.game.currentBid) {
     _startPlaying(room);
   } else if (room.game.consecutivePasses >= 4 && !room.game.currentBid) {
@@ -432,9 +457,10 @@ function coinche(code, userId) {
   bid.coinched = true;
   room.game.biddingActions[position] = { type: 'coinche' };
   room.game.biddingHistory.push({ position, type: 'coinche' });
-  // Bidding continues — 3 consecutive passes needed to end (no new bids allowed)
   room.game.consecutivePasses = 0;
-  room.game.biddingTurn = (position + 1) % 4;
+  // Only the contracting team may respond (Surcoinche / Pass). Skip the coinching team so
+  // the coincher's partner is never asked to pass.
+  room.game.biddingTurn = _nextSameTeamPosition(position, bid.team);
   return { room };
 }
 
@@ -456,9 +482,8 @@ function surcoinche(code, userId) {
   bid.surcoinched = true;
   room.game.biddingActions[position] = { type: 'surcoinche' };
   room.game.biddingHistory.push({ position, type: 'surcoinche' });
-  // Bidding continues — 3 consecutive passes needed to end
-  room.game.consecutivePasses = 0;
-  room.game.biddingTurn = (position + 1) % 4;
+  // Surcoinche is the ceiling — nothing can follow. Close bidding now.
+  _startPlaying(room);
   return { room };
 }
 
