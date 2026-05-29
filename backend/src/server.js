@@ -530,6 +530,14 @@ function sendChatHistory(socket, room) {
   socket.emit('chat:history', { messages: room?.chatMessages || [] });
 }
 
+// Ping every connected socket that the set of active rooms changed (created /
+// joined / left / started / membership). Home-screen clients re-request
+// 'lobby:getRooms'; everyone else ignores it. One tiny fan-out, only on
+// lifecycle transitions — never on per-card/bid mutations.
+function broadcastLobbyChanged() {
+  io.emit('lobby:roomsChanged');
+}
+
 // Persist the just-finished round as a GameRecord and notify the room creator.
 // Guarded by room.game.gameId so a second broadcast of the same ROUND_OVER
 // phase (e.g. through bot confirm cascades) does not rewrite the file.
@@ -589,6 +597,14 @@ io.on('connection', socket => {
     next();
   });
 
+  // ── Lobby: active-rooms list (home screen "Parties en cours") ────────────
+  // Read-only; returns only rooms this user can JOIN or REJOIN (see
+  // listJoinableRooms). Clients fetch on mount/focus and re-fetch when they
+  // receive the 'lobby:roomsChanged' ping.
+  socket.on('lobby:getRooms', () => {
+    socket.emit('lobby:rooms', { rooms: rm.listJoinableRooms(userId) });
+  });
+
   // ── Create room ──────────────────────────────────────────────────────────
   socket.on('createRoom', () => {
     // Leave any existing room
@@ -604,6 +620,7 @@ io.on('connection', socket => {
     });
     sendChatHistory(socket, room);
     persistence.saveRoom(room);
+    broadcastLobbyChanged();
   });
 
   // ── Join room ────────────────────────────────────────────────────────────
@@ -626,6 +643,7 @@ io.on('connection', socket => {
         });
         sendChatHistory(socket, result.room);
         broadcastGame(result.room);
+        broadcastLobbyChanged();
       } else {
         // Non-admin: create a pending join request for the creator to approve
         const result = rm.requestJoin(code, { userId, username, socketId: socket.id });
@@ -651,6 +669,7 @@ io.on('connection', socket => {
     });
     sendChatHistory(socket, room);
     broadcast(room);
+    broadcastLobbyChanged();
   });
 
   // ── Rejoin after disconnect ──────────────────────────────────────────────
@@ -678,6 +697,7 @@ io.on('connection', socket => {
     });
     sendChatHistory(socket, room);
     broadcast(room);
+    broadcastLobbyChanged();
   });
 
   // ── Fill with bots ───────────────────────────────────────────────────────
@@ -685,6 +705,7 @@ io.on('connection', socket => {
     const result = rm.fillWithBots(code, userId);
     if (result.error) return emitError(socket, result.error);
     broadcast(result.room); // lobby broadcast, no bot scheduling needed yet
+    broadcastLobbyChanged();
   });
 
   // ── Team / settings ──────────────────────────────────────────────────────
@@ -705,6 +726,7 @@ io.on('connection', socket => {
     const result = rm.startGame(code, userId);
     if (result.error) return emitError(socket, result.error);
     broadcastGame(result.room); // may need to kick off bot bidding immediately
+    broadcastLobbyChanged();    // LOBBY → in-game: list now shows the new phase
   });
 
   // ── Bidding ──────────────────────────────────────────────────────────────
@@ -843,6 +865,7 @@ io.on('connection', socket => {
     // result.room is null only if the lobby was deleted (no human players remain)
     if (result.room) broadcast(result.room);
     if (result.deleted) persistence.deleteRoom(code);
+    broadcastLobbyChanged();
   });
 
   // ── Remove player (creator only) ─────────────────────────────────────────
@@ -854,6 +877,7 @@ io.on('connection', socket => {
       if (s) { s.leave(code); s.emit('leftRoom'); }
     }
     broadcast(result.room);
+    broadcastLobbyChanged();
   });
 
   // ── Accept pending join request (creator only) ────────────────────────────
@@ -874,6 +898,7 @@ io.on('connection', socket => {
       }
     }
     broadcastGame(room); // may resume bot scheduling if game unpaused
+    broadcastLobbyChanged();
   });
 
   // ── Cancel pending join request ───────────────────────────────────────────
@@ -892,7 +917,7 @@ io.on('connection', socket => {
   socket.on('disconnect', () => {
     rateLimit.clearSocket(socket.id);
     const result = rm.handleDisconnect(socket.id);
-    if (result) broadcast(result.room);
+    if (result) { broadcast(result.room); broadcastLobbyChanged(); }
   });
 });
 

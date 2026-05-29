@@ -220,6 +220,19 @@ export default {
   // Hint below the Lobby Training button when the user has in-progress partials
   lobbyResumableHint: (n) => n === 1 ? '1 scenario to finish' : `${n} scenarios to finish`,
 
+  // Home / landing screen (layout B)
+  lobby: {
+    readyToPlay:   'Ready to play',
+    activeGames:   'Active games',
+    noActiveGames: 'No active games',
+    refresh:       'Refresh',
+    rejoin:        'Rejoin',
+    join:          'Join',
+    roomLine:      (count, mode) => `${count}/4 · ${mode}`,
+    modeCoinche:   'Coinche',
+    modeBelote:    'Belote',
+  },
+
   training: {
     // Confirm + button label when the user leaves a training run
     abandonConfirm: 'Abandon this scenario? Your annotation will be discarded.',

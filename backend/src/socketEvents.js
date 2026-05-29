@@ -137,6 +137,19 @@
 //     reconnection. Responds on 'roomUpdate' (filtered to the requester).
 //     Errors: UNKNOWN_GAME.
 //
+// Lobby / home screen:
+//   'lobby:getRooms' ()
+//     Read-only request for the active-rooms list ("Parties en cours"). The
+//     sender is taken from the socket auth; no payload. Returns only rooms the
+//     user can JOIN (a free seat, not a member) or REJOIN (already seated).
+//     Rooms that are full AND that the user has no seat in are omitted (no
+//     spectating). Never exposes hands/cards.
+//       → S→C 'lobby:rooms' { rooms: Array<{
+//             code, phase, playerCount, maxPlayers,
+//             mode: 'coinche',  // no distinct Coinche/Belote mode exists yet
+//             players: Array<{username, isBot, connected}>,
+//             canJoin: boolean, canRejoin: boolean }> }
+//
 // Table chat (ephemeral per-room text chat, all 4 seats):
 //   'chat:message' ({ text })
 //     Sender is resolved from the socket's own room membership — no client
@@ -166,6 +179,13 @@
 //     table-chat (capped at 50). May be an empty list.
 //   'chat:message' : { id, userId, username, position, text, ts }
 //     Broadcast to every room socket when any player sends a chat message.
+//   'lobby:rooms'  : { rooms: [...] }  (see lobby:getRooms for shape)
+//     Sent in reply to 'lobby:getRooms'.
+//   'lobby:roomsChanged' : ()
+//     Tiny fan-out ping to ALL sockets when the active-room set changes
+//     (create / join / leave / start / membership). Home-screen clients
+//     re-request 'lobby:getRooms'; everyone else ignores it. Never fired on
+//     per-card / per-bid mutations.
 //   'error'      : { message, code? }
 //                     code is an optional machine-readable sentinel — UI uses
 //                     it to drive recovery flows without string-matching.

@@ -220,6 +220,19 @@ export default {
   // Indication sous le bouton Entraînement quand un partiel est en attente
   lobbyResumableHint: (n) => n === 1 ? '1 scénario à terminer' : `${n} scénarios à terminer`,
 
+  // Écran d'accueil (layout B)
+  lobby: {
+    readyToPlay:   'Prêt à jouer',
+    activeGames:   'Parties en cours',
+    noActiveGames: 'Aucune partie en cours',
+    refresh:       'Actualiser',
+    rejoin:        'Reprendre',
+    join:          'Rejoindre',
+    roomLine:      (count, mode) => `${count}/4 · ${mode}`,
+    modeCoinche:   'Coinche',
+    modeBelote:    'Belote',
+  },
+
   training: {
     // Confirm + button label when the user leaves a training run
     abandonConfirm: "Abandonner ce scénario ? Votre annotation sera jetée.",

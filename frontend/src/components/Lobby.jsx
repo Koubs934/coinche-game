@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import AdminPanel from './AdminPanel';
+import ActiveGamesList from './ActiveGamesList';
 
 export default function Lobby({
   socket, roomState, myPosition, pendingRoom, onCancelPending,
@@ -14,6 +15,40 @@ export default function Lobby({
   const [error, setError] = useState('');
   const [view, setView] = useState('home'); // 'home' | 'create' | 'join'
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [activeRooms, setActiveRooms] = useState([]);
+
+  // Whether the home/landing screen is showing (not in a room, not pending).
+  const onHome = !roomState && !pendingRoom;
+
+  // Active-rooms list ("Parties en cours"): fetch on mount + window focus, and
+  // re-fetch whenever the server pings 'lobby:roomsChanged'. Only runs on the
+  // home screen so we don't poll while inside a room. Listeners are scoped here
+  // (App.jsx owns the room-state events; this owns the lobby-list events).
+  useEffect(() => {
+    if (!socket || !onHome) return;
+    const fetchRooms = () => socket.emit('lobby:getRooms');
+    const onRooms    = ({ rooms }) => setActiveRooms(Array.isArray(rooms) ? rooms : []);
+    const onChanged  = () => fetchRooms();
+    socket.on('lobby:rooms', onRooms);
+    socket.on('lobby:roomsChanged', onChanged);
+    window.addEventListener('focus', fetchRooms);
+    fetchRooms();
+    return () => {
+      socket.off('lobby:rooms', onRooms);
+      socket.off('lobby:roomsChanged', onChanged);
+      window.removeEventListener('focus', fetchRooms);
+    };
+  }, [socket, onHome]);
+
+  // Reuse the existing flows: REJOIN (user holds a seat) goes through rejoinRoom
+  // / handleReconnect; JOIN (free seat) goes through joinRoom (which itself
+  // routes lobby vs in-game / creator vs pending-approval server-side).
+  function joinActiveRoom(room) {
+    if (!socket) return;
+    setError('');
+    if (room.canRejoin) socket.emit('rejoinRoom', { code: room.code });
+    else                socket.emit('joinRoom',   { code: room.code });
+  }
 
   function createRoom() {
     socket.emit('createRoom');
@@ -211,25 +246,46 @@ export default function Lobby({
     );
   }
 
+  const avatarInitial = (username?.[0] || '?').toUpperCase();
+
   return (
     <div className="lobby lobby-home">
-      <div className="lobby-card">
-        <h1 className="lobby-title">♦ Belote ♣</h1>
-        <p className="lobby-welcome">👋 {username}</p>
-        <button className="btn-primary btn-large" onClick={createRoom}>{t.createRoom}</button>
-        <button className="btn-secondary btn-large" onClick={() => setView('join')}>{t.joinRoom}</button>
-        {onOpenTraining && (
-          <>
-            <button className="btn-secondary btn-large" onClick={onOpenTraining}>
-              {t.lobbyTrainingBtn}
+      <div className="home-wrap">
+        {/* Profile strip */}
+        <div className="home-profile">
+          <div className="home-avatar">{avatarInitial}</div>
+          <div className="home-profile-text">
+            <span className="home-profile-name">{username}</span>
+            <span className="home-profile-sub">{t.lobby.readyToPlay}</span>
+          </div>
+        </div>
+
+        {/* Primary + secondary actions */}
+        <div className="home-actions">
+          <button className="btn-primary home-create" onClick={createRoom}>
+            {t.createRoom}
+          </button>
+          <div className="home-actions-row">
+            <button className="btn-secondary home-action-sm" onClick={() => setView('join')}>
+              {t.joinRoom}
             </button>
-            {resumableCount > 0 && (
-              <p className="lobby-training-hint">
-                {t.lobbyResumableHint(resumableCount)}
-              </p>
+            {onOpenTraining && (
+              <button className="btn-secondary home-action-sm" onClick={onOpenTraining}>
+                {t.lobbyTrainingBtn}
+              </button>
             )}
-          </>
-        )}
+          </div>
+          {onOpenTraining && resumableCount > 0 && (
+            <p className="lobby-training-hint">{t.lobbyResumableHint(resumableCount)}</p>
+          )}
+        </div>
+
+        {/* Parties en cours */}
+        <ActiveGamesList
+          rooms={activeRooms}
+          onJoin={joinActiveRoom}
+          onRefresh={() => socket?.emit('lobby:getRooms')}
+        />
       </div>
     </div>
   );

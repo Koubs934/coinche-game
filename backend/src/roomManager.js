@@ -1106,6 +1106,51 @@ function getRoom(code) {
   return rooms.get(code) || null;
 }
 
+// ─── Lobby: active-rooms listing ─────────────────────────────────────────────
+//
+// Powers the home screen's "Parties en cours" list. Returns the rooms this user
+// can interact with, each tagged with whether they can JOIN (a free seat, not a
+// member) or REJOIN (already hold a seat). Rooms that are full AND that the user
+// isn't part of are omitted — there is no spectator mode. Hands/cards are never
+// exposed here; only public lobby metadata.
+//
+// NOTE: there is no distinct Coinche/Belote game-mode setting in the codebase —
+// the game is always Coinche-Belote — so `mode` is reported as room.mode when
+// present (future-proofing) and otherwise the 'coinche' default.
+function listJoinableRooms(userId) {
+  const out = [];
+  for (const room of rooms.values()) {
+    const seated = room.players.length; // counts bots too (they hold seats)
+    if (seated === 0) continue;         // defensive: empty rooms are normally deleted
+    const isMember = room.players.some(p => p.userId === userId && !p.isBot);
+    const isFull   = seated >= 4;
+    // No spectating: hide full rooms the user has no seat in.
+    if (isFull && !isMember) continue;
+
+    out.push({
+      code:        room.code,
+      phase:       room.phase,
+      playerCount: seated,
+      maxPlayers:  4,
+      mode:        room.mode || 'coinche',
+      players: room.players.map(p => ({
+        username:  p.username,
+        isBot:     !!p.isBot,
+        connected: p.connected !== false,
+      })),
+      canRejoin: isMember,
+      canJoin:   !isMember && !isFull,
+    });
+  }
+  // Rooms the user already holds a seat in float to the top, then fuller rooms,
+  // then a stable alphabetical tiebreak.
+  out.sort((a, b) =>
+    (Number(b.canRejoin) - Number(a.canRejoin)) ||
+    (b.playerCount - a.playerCount) ||
+    a.code.localeCompare(b.code));
+  return out;
+}
+
 // ─── Table chat ──────────────────────────────────────────────────────────────
 //
 // Per-room, ephemeral, text-only chat shared by all four seats. Lives entirely
@@ -1188,6 +1233,7 @@ module.exports = {
   publicGame,
   togglePartnerPeek,
   addChatMessage,
+  listJoinableRooms,
   getPosition,
   hydrateRooms,
   getRoomByGameId,

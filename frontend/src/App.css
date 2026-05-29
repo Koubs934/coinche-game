@@ -362,6 +362,130 @@ a      { color: var(--accent); }
   margin-top: -6px;
 }
 
+/* ─── Home / landing screen (layout B) ──────────────────────────────────────
+   Clean, top-aligned column: profile strip → primary/secondary actions →
+   "Parties en cours". Keeps the green+gold identity, elevated with subtly
+   bordered cards. */
+.lobby-home { align-items: flex-start; }
+.home-wrap {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Profile strip */
+.home-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--ui-card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+}
+.home-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: bold;
+  font-size: 1.25em;
+  color: #1a1a1a;
+  background: linear-gradient(135deg, var(--accent), #f7c544);
+  flex-shrink: 0;
+}
+.home-profile-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.home-profile-name { font-weight: bold; font-size: 1.05em; color: var(--text); }
+.home-profile-sub  { font-size: 0.82em; color: var(--muted); }
+
+/* Actions */
+.home-actions { display: flex; flex-direction: column; gap: 10px; }
+.home-create  { width: 100%; font-size: 1.05em; padding: 14px; border-radius: 10px; }
+.home-actions-row { display: flex; gap: 10px; }
+.home-action-sm   { flex: 1; padding: 11px; border-radius: 10px; font-size: 0.95em; }
+
+/* Parties en cours */
+.active-games { display: flex; flex-direction: column; gap: 10px; }
+.active-games-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.active-games-title {
+  font-size: 0.78em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.active-games-refresh {
+  background: none;
+  color: var(--muted);
+  font-size: 1.1em;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.active-games-refresh:hover { color: var(--accent); }
+.active-games-empty {
+  color: var(--muted);
+  font-size: 0.88em;
+  text-align: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+.active-games-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.game-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--ui-card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+}
+.game-card-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.game-card-top  { display: flex; align-items: baseline; gap: 10px; }
+.game-card-code {
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: var(--accent);
+  font-size: 1.05em;
+}
+.game-card-meta { font-size: 0.82em; color: var(--muted); }
+.game-card-players {
+  font-size: 0.8em;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.game-card-join {
+  flex-shrink: 0;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 0.9em;
+}
+.game-card-join.is-rejoin {
+  background: var(--accent);
+  color: #1a1a1a;
+  font-weight: bold;
+}
+.game-card-join.is-rejoin:hover { opacity: 0.88; }
+
 /* ─── Game board ────────────────────────────────────────────────────────── */
 .game-board {
   flex: 1;
