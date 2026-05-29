@@ -7,7 +7,7 @@ const path = require('path');
 
 const rm = require('./roomManager');
 const presence = require('./presence');
-const { scheduleBotTurns, scheduleBotConfirms, scheduleBotShuffleCut } = require('./botProcessor');
+const { scheduleBotTurns, scheduleBotConfirms, scheduleBotShuffleCut, cancelBotSchedules } = require('./botProcessor');
 const rateLimit = require('./rateLimit');
 const persistence = require('./persistence');
 const gameRecordStorage = require('./game/gameRecordStorage');
@@ -551,6 +551,19 @@ function broadcastPresenceChanged() {
 // lobby. Room enter/leave transitions are pinged inline by the handlers.
 presence.configure({ onChange: broadcastPresenceChanged });
 
+// Abandoned-room cleanup: when roomManager deletes a dead room (no human keeping
+// it alive), cancel its pending bot turns, drop it from Redis, and refresh
+// lobbies. Grace window is configurable via DEAD_ROOM_GRACE_MS (ms); default 4 min.
+const DEAD_ROOM_GRACE_MS = Number(process.env.DEAD_ROOM_GRACE_MS);
+rm.configureCleanup({
+  graceMs: Number.isFinite(DEAD_ROOM_GRACE_MS) ? DEAD_ROOM_GRACE_MS : undefined,
+  onRoomDeleted: (code) => {
+    cancelBotSchedules(code);
+    persistence.deleteRoom(code);
+    broadcastLobbyChanged();
+  },
+});
+
 // Persist the just-finished round as a GameRecord and notify the room creator.
 // Guarded by room.game.gameId so a second broadcast of the same ROUND_OVER
 // phase (e.g. through bot confirm cascades) does not rewrite the file.
@@ -894,9 +907,18 @@ io.on('connection', socket => {
 
     socket.leave(code);
     socket.emit('leftRoom');
-    // result.room is null only if the lobby was deleted (no human players remain)
-    if (result.room) broadcast(result.room);
-    if (result.deleted) persistence.deleteRoom(code);
+    if (result.deleted) {
+      // LOBBY emptied of humans — roomManager already removed it from the Map.
+      // Mirror the full-delete side-effects (no bots running pre-start, but keep
+      // it uniform).
+      cancelBotSchedules(code);
+      persistence.deleteRoom(code);
+    } else if (result.room) {
+      // In-game leave: if no human members remain (solo-vs-bots), delete now;
+      // else keep it (paused). Skip broadcasting a just-deleted room.
+      const { deleted } = rm.evaluateRoomForCleanup(code);
+      if (!deleted) broadcast(result.room);
+    }
     broadcastLobbyChanged();
     broadcastPresenceChanged(); // leaver: in-game → online
   });
@@ -955,7 +977,14 @@ io.on('connection', socket => {
     // 'lobby:presenceChanged' from the presence module, after the grace window.
     presence.disconnect(userId, socket.id);
     const result = rm.handleDisconnect(socket.id);
-    if (result) { broadcast(result.room); broadcastLobbyChanged(); }
+    if (result) {
+      // Re-evaluate the room: delete now if no human members remain (e.g. a
+      // solo-vs-bots player vanished), else arm the grace timer. Don't broadcast
+      // a room that was just deleted — that would re-persist it to Redis. The
+      // delete path already pinged lobbies via onRoomDeleted.
+      const { deleted } = rm.evaluateRoomForCleanup(result.code);
+      if (!deleted) { broadcast(result.room); broadcastLobbyChanged(); }
+    }
   });
 });
 
@@ -972,6 +1001,20 @@ async function start() {
 
   // Promote stale training partials to abandoned-partial and prime scenario cache.
   trainingStartupCleanup();
+
+  // Periodic sweep of abandoned/dead rooms (~every minute). Catches human-less
+  // rooms and ones whose grace window has elapsed, including any hydrated from
+  // Redis that never got a per-event timer. Each deletion fires onRoomDeleted
+  // (cancel bots, drop from Redis, refresh lobbies).
+  const sweep = setInterval(() => {
+    try {
+      const removed = rm.sweepDeadRooms();
+      if (removed.length) console.log(`[cleanup] swept ${removed.length} dead room(s): ${removed.join(', ')}`);
+    } catch (err) {
+      console.error('[cleanup] sweep failed:', err.message);
+    }
+  }, 60 * 1000);
+  if (typeof sweep.unref === 'function') sweep.unref(); // don't keep the process alive for the sweep
 
   httpServer.listen(PORT, () => {
     console.log(`Coinche server listening on port ${PORT}`);

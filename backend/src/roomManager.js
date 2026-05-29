@@ -254,6 +254,7 @@ function createRoom({ userId, username, socketId }) {
     history: [],
     actionNonce: 0,
     chatMessages: [],
+    lastHumanSeenAt: Date.now(), // abandoned-room cleanup anchor
   });
   return rooms.get(code);
 }
@@ -267,6 +268,7 @@ function joinRoom(code, { userId, username, socketId }) {
 
   const position = room.players.length;
   room.players.push({ userId, username, socketId, team: position % 2, position, connected: true });
+  noteRoomActivity(room);
   return { room };
 }
 
@@ -959,6 +961,7 @@ function creatorJoin(code, { userId, username, socketId }) {
 
   if (room.players.length === 4) room.paused = false;
 
+  noteRoomActivity(room);
   return { room, position: openPosition };
 }
 
@@ -1020,6 +1023,7 @@ function acceptJoin(code, creatorId, targetUserId) {
 
   if (room.players.length === 4) room.paused = false;
 
+  noteRoomActivity(room);
   return { room, acceptedSocketId: request.socketId, acceptedPosition: openPosition };
 }
 
@@ -1082,6 +1086,7 @@ function handleReconnect(socketId, code, userId) {
     if (room.paused && room.players.every(p => p.connected)) {
       room.paused = false;
     }
+    noteRoomActivity(room); // a human is back — cancel any pending grace timer
     return { room, player };
   }
 
@@ -1114,6 +1119,121 @@ function isUserSeated(userId) {
     if (room.players.some(p => p.userId === userId && !p.isBot)) return true;
   }
   return false;
+}
+
+// ─── Abandoned-room cleanup ──────────────────────────────────────────────────
+//
+// "Parties en cours" was flooding with dead rooms — abandoned solo-vs-bots games
+// and old partials nobody is in. A room is DEAD when no real human keeps it alive:
+//   • 0 human MEMBERS (only bots / empty)        → delete immediately.
+//   • members but 0 CONNECTED                    → arm a grace timer, then delete;
+//                                                   cancelled if a human reconnects.
+//   • ≥1 connected human                         → ALIVE, never delete.
+//
+// Two triggers cooperate: per-event evaluation (on disconnect/leave) arms/cancels
+// the grace timer; a periodic sweep also catches rooms that never got a timer
+// (e.g. hydrated from Redis on restart) using room.lastHumanSeenAt as the anchor.
+//
+// Deletion side-effects (cancel pending bot setTimeouts, drop from Redis, refresh
+// lobbies) live in server.js — injected here via onRoomDeleted to avoid a
+// circular dependency on botProcessor.
+
+const DEFAULT_DEAD_ROOM_GRACE_MS = 4 * 60 * 1000; // 4 min (in the 3–5 min range)
+
+let _deadRoomGraceMs = DEFAULT_DEAD_ROOM_GRACE_MS;
+let _onRoomDeleted = null;
+const cleanupTimers = new Map(); // code -> grace timeout id
+
+function configureCleanup({ graceMs, onRoomDeleted } = {}) {
+  if (typeof graceMs === 'number' && graceMs >= 0) _deadRoomGraceMs = graceMs;
+  if (typeof onRoomDeleted === 'function') _onRoomDeleted = onRoomDeleted;
+}
+
+function _humanMembers(room)    { return room.players.filter(p => !p.isBot); }
+function _connectedHumans(room) { return room.players.filter(p => !p.isBot && p.connected !== false); }
+
+function _clearCleanupTimer(code) {
+  const t = cleanupTimers.get(code);
+  if (t) { clearTimeout(t); cleanupTimers.delete(code); }
+}
+
+// Remove a room from the Map and fire the deletion side-effects exactly once.
+function _destroyRoom(code) {
+  _clearCleanupTimer(code);
+  const existed = rooms.delete(code);
+  if (existed && _onRoomDeleted) {
+    try { _onRoomDeleted(code); } catch (err) {
+      console.error(`[cleanup] onRoomDeleted failed for ${code}: ${err.message}`);
+    }
+  }
+  return existed;
+}
+
+// Mark a room as kept-alive by a present human: refresh the activity stamp and
+// cancel any pending grace timer. Call when a human creates/joins/reconnects.
+function noteRoomActivity(room) {
+  if (!room) return;
+  room.lastHumanSeenAt = Date.now();
+  _clearCleanupTimer(room.code);
+}
+
+// Re-evaluate a room's liveness after a human disconnect or leave. Returns one
+// of { deleted } / { armed } / { alive }.
+function evaluateRoomForCleanup(code) {
+  const room = rooms.get(code);
+  if (!room) return { deleted: false };
+
+  if (_humanMembers(room).length === 0) {
+    // Nobody human will ever rejoin (only bots, or empty) — delete now.
+    _destroyRoom(code);
+    return { deleted: true };
+  }
+
+  if (_connectedHumans(room).length > 0) {
+    room.lastHumanSeenAt = Date.now();
+    _clearCleanupTimer(code);
+    return { alive: true };
+  }
+
+  // Members but none connected — arm the grace timer (idempotent).
+  if (!cleanupTimers.has(code)) {
+    const t = setTimeout(() => {
+      cleanupTimers.delete(code);
+      const r = rooms.get(code);
+      if (r && _connectedHumans(r).length === 0) _destroyRoom(code);
+    }, _deadRoomGraceMs);
+    if (typeof t.unref === 'function') t.unref(); // don't hold the event loop open
+    cleanupTimers.set(code, t);
+  }
+  return { armed: true };
+}
+
+// Periodic sweep: delete every DEAD room. Catches rooms that never got a per-event
+// timer (hydrated on restart, or armed before a crash). `now` is injectable for tests.
+function sweepDeadRooms(now = Date.now()) {
+  const dead = [];
+  for (const [code, room] of rooms) {
+    const humans = _humanMembers(room);
+    if (humans.length === 0) { dead.push(code); continue; }
+    if (humans.some(h => h.connected !== false)) {
+      room.lastHumanSeenAt = now; // still alive — refresh anchor
+      continue;
+    }
+    // Members but none connected — dead once the grace window has elapsed.
+    if (now - (room.lastHumanSeenAt || 0) >= _deadRoomGraceMs) dead.push(code);
+  }
+  for (const code of dead) _destroyRoom(code);
+  return dead;
+}
+
+// Test-only: wipe all rooms + timers + cleanup config back to defaults so each
+// test file starts clean (the rooms Map is module-global).
+function _resetForTests() {
+  for (const t of cleanupTimers.values()) clearTimeout(t);
+  cleanupTimers.clear();
+  rooms.clear();
+  _deadRoomGraceMs = DEFAULT_DEAD_ROOM_GRACE_MS;
+  _onRoomDeleted = null;
 }
 
 // ─── Lobby: active-rooms listing ─────────────────────────────────────────────
@@ -1207,7 +1327,14 @@ function addChatMessage(code, userId, text) {
 // Called once at server startup, before the socket server accepts connections.
 function hydrateRooms(roomsArray) {
   for (const room of roomsArray) {
-    if (room && room.code) rooms.set(room.code, room);
+    if (room && room.code) {
+      // Give hydrated rooms a fresh grace window from startup: their players are
+      // all connected:false until they rejoin, so without this the first sweep
+      // would delete a legitimate game before anyone could reconnect after a
+      // deploy. Human-less hydrated rooms are still deleted immediately.
+      room.lastHumanSeenAt = Date.now();
+      rooms.set(room.code, room);
+    }
   }
 }
 
@@ -1245,9 +1372,14 @@ module.exports = {
   addChatMessage,
   listJoinableRooms,
   isUserSeated,
+  configureCleanup,
+  noteRoomActivity,
+  evaluateRoomForCleanup,
+  sweepDeadRooms,
   getPosition,
   hydrateRooms,
   getRoomByGameId,
   createGameErrorAnnotation,
   buildGameRecord,
+  _resetForTests,
 };
