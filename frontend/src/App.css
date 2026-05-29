@@ -108,6 +108,15 @@ a      { color: var(--accent); }
 .btn-lang:hover { background: #3a4f65; }
 .btn-signout { background: none; color: var(--muted); font-size: 1.2em; padding: 2px 4px; }
 .btn-signout:hover { color: #e05050; }
+.btn-settings {
+  background: none;
+  color: var(--muted);
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.btn-settings:hover { color: var(--accent); }
 
 /* ─── Toasts ────────────────────────────────────────────────────────────── */
 .toast-error, .toast-info {
@@ -935,6 +944,17 @@ a      { color: var(--accent); }
 .bid-val-suit.black { color: #cfd6dd; }            /* black suit on dark chip */
 .bid-val-btn.selected .bid-val-suit.red   { color: #c0392b; }  /* on amber chip */
 .bid-val-btn.selected .bid-val-suit.black { color: #1a1a1a; }  /* on amber chip */
+
+/* Suit row — keeps the 4 chips centered (col 2) while Annuler, when shown, sits in
+   the left gap (col 1) without shifting them. */
+.suit-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 6px;
+}
+.suit-row .suit-row-undo { grid-column: 1; justify-self: start; white-space: nowrap; }
+.suit-row .suit-chips    { grid-column: 2; }
 
 /* Suit strip — its own centered row between the value grid and the action row.
    Fixed compact outlined chips; selected = gold ring (outline). */

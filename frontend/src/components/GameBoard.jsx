@@ -455,27 +455,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     return myHand.some(c => c.suit === trumpSuit && c.value === otherValue);
   }
 
-  // ── Sort mode cycle ────────────────────────────────────────────────────────
-  function cycleSortMode() {
-    // Mode Sacha ignores the per-suit choice — the suit positions come from color
-    // alternation — so Trier just toggles auto ⇄ manual. The non-manual value is a
-    // valid suit only so within-suit rank ordering (trump → TRUMP_ORDER) still works.
-    if (modeSacha) {
-      setSortMode(prev => prev === 'manual' ? (trumpSuit || bestSuitForHand(myHand)) : 'manual');
-      return;
-    }
-    const cycle = trumpSuit
-      ? [trumpSuit, 'manual']
-      : ['S', 'H', 'D', 'C', 'manual'];
-    setSortMode(prev => {
-      // When turning sort back ON from manual (no trump yet), jump to the
-      // best candidate suit rather than defaulting to the hardcoded 'S'.
-      if (prev === 'manual' && !trumpSuit) return bestSuitForHand(myHand);
-      const idx = cycle.indexOf(prev);
-      return cycle[idx === -1 ? 0 : (idx + 1) % cycle.length];
-    });
-  }
-
   // ── Manual drag-to-reorder ────────────────────────────────────────────────
   const lsKey = `coinche-hand-${roomCode}-${game.dealer}`;
 
@@ -520,12 +499,19 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     // Press feedback: lift the touched playable card (also covers touch, which
     // has no hover).
     if (idx !== -1 && isMyCardTurn) setLiftIdx(idx);
-    if (sortMode !== 'manual') return;
     if (idx === -1) return;
     dragRectRef.current = handElRef.current.getBoundingClientRect();
     try { handElRef.current.setPointerCapture(e.pointerId); } catch {}
     startXYRef.current = { x: e.clientX, y: e.clientY };
     longPressRef.current = setTimeout(() => {
+      // There is no Trier button anymore, so a long-press-drag is the only way
+      // into manual mode. Seed the manual order from the CURRENT sorted display
+      // so the hand doesn't jump and the drag indices (computed against the shown
+      // cards) stay valid.
+      if (sortMode !== 'manual') {
+        saveManualOrder(displayHand.map(cardKey));
+        setSortMode('manual');
+      }
       dragRef.current = { fromIdx: idx, toIdx: idx };
       setLiftIdx(null);
       setDragVisual({ fromIdx: idx, toIdx: idx });
@@ -681,28 +667,20 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     ? (sheetOpen ? sheetMetrics.sheetH : sheetMetrics.barH) + HAND_SHEET_GAP
     : 0;
 
-  // Toolbar (sort / undo / manage / leave). Lives inside the bid sheet during
-  // my bid turn, and in normal hand flow otherwise. `compact` renders each button
-  // as an icon over a tiny caption (bidding-phase presentation, inside the sheet);
-  // the full variant keeps the inline "icon label" used in normal flow. Same
-  // handlers, conditions and i18n labels either way — built from one source.
+  // Toolbar (undo / tag-error / leave). Lives inside the bid sheet during my bid
+  // turn, and in normal hand flow otherwise. `compact` renders each button as an
+  // icon over a tiny caption (bidding-phase presentation, inside the sheet); the
+  // full variant keeps the inline "icon label" used in normal flow. The sort
+  // (Trier) button was removed — auto-sort + Mode Sacha cover arrangement, and a
+  // long-press-drag on the hand enters manual mode. During bidding, Annuler is
+  // relocated into BiddingPanel's suit row, so undo here is PLAYING-only.
   const buildToolbar = (compact) => {
     const lbl = (icon, caption) => compact
       ? (<><span className="ti-icon">{icon}</span><span className="ti-cap">{caption}</span></>)
       : (<>{icon} {caption}</>);
     return (
       <div className={`hand-toolbar${compact ? ' hand-toolbar-icons' : ''}`}>
-        {!isShuffleCut && (
-          <button
-            className={`btn-sort${sortMode !== 'manual' ? ' sort-on' : ''}${!modeSacha && (sortMode === 'H' || sortMode === 'D') ? ' sort-red' : ''}`}
-            onClick={cycleSortMode}
-            title={t.sortHand}
-          >
-            {lbl(sortMode === 'manual' ? '⇅' : (modeSacha ? '🎨' : SUIT_SYM[sortMode]),
-                 sortMode === 'manual' ? t.sortManual : t.sortHand)}
-          </button>
-        )}
-        {!trainingMode && isCreator && (phase === 'BIDDING' || phase === 'PLAYING') && (
+        {!trainingMode && isCreator && phase === 'PLAYING' && (
           <button
             className="btn-undo"
             onClick={() => socket.emit('undoLastAction', { code: roomCode })}
@@ -1028,8 +1006,13 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
                 game={game} myPosition={myPosition} myTeam={myTeam}
                 sortMode={sortMode}
                 trainingMode={trainingMode}
+                isCreator={isCreator}
+                canUndo={room.canUndo}
               />
-              {bidToolbar}
+              {/* In normal play the bid toolbar is now empty (Trier removed, Annuler
+                  moved into the suit row) — don't render an empty bar. Training has no
+                  Header/Settings, so keep it there for the abandon button. */}
+              {trainingMode && bidToolbar}
             </div>
           </>
         )}

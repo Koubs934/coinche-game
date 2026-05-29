@@ -4,7 +4,7 @@ import { useLang } from '../context/LanguageContext';
 const BID_VALUES = [80, 90, 100, 110, 120, 130, 140, 150, 160, 'capot'];
 const SUITS = ['S', 'H', 'D', 'C'];
 
-export default function BiddingPanel({ socket, roomCode, game, myPosition, myTeam, sortMode, trainingMode }) {
+export default function BiddingPanel({ socket, roomCode, game, myPosition, myTeam, sortMode, trainingMode, isCreator, canUndo }) {
   const { t } = useLang();
   const [selectedValue, setSelectedValue] = useState(null);
   // Default to the sort candidate suit when Trier is ON; fall back to 'H' otherwise.
@@ -16,6 +16,9 @@ export default function BiddingPanel({ socket, roomCode, game, myPosition, myTea
   const currentBid = game.currentBid;
   const canCoinche = isMyTurn && currentBid && !currentBid.coinched && myTeam !== currentBid.team;
   const canSurcoinche = isMyTurn && currentBid?.coinched && !currentBid?.surcoinched && myTeam === currentBid.team;
+  // Annuler (undo) lives in the suit row during bidding — creator-only, hidden in
+  // training. Shown whenever the creator could undo; disabled when nothing to undo.
+  const showUndo = !trainingMode && isCreator;
 
   function isValidBid(value) {
     if (currentBid?.coinched) return false; // no new bids after coinche
@@ -118,19 +121,33 @@ export default function BiddingPanel({ socket, roomCode, game, myPosition, myTea
         </div>
       )}
 
-      {/* Suit strip — centered row of 4 chips between the values and the action
-          row. The selected suit keeps the existing gold ring. */}
-      {showSuits && (
-        <div className="suit-chips">
-          {SUITS.map(s => (
+      {/* Suit strip — 4 chips centered in the row. Annuler (undo), when shown, sits
+          in the left gap without shifting the centered chips (grid: 1fr auto 1fr). */}
+      {(showSuits || showUndo) && (
+        <div className="suit-row">
+          {showUndo && (
             <button
-              key={s}
-              className={`suit-btn ${s === 'H' || s === 'D' ? 'red' : 'black'}${selectedSuit === s ? ' selected' : ''}`}
-              onClick={() => setSelectedSuit(s)}
+              className="btn-undo suit-row-undo"
+              onClick={() => socket.emit('undoLastAction', { code: roomCode })}
+              disabled={!canUndo}
+              title={t.undoAction}
             >
-              {t.suitSymbol[s]}
+              ↩ {t.undoAction}
             </button>
-          ))}
+          )}
+          {showSuits && (
+            <div className="suit-chips">
+              {SUITS.map(s => (
+                <button
+                  key={s}
+                  className={`suit-btn ${s === 'H' || s === 'D' ? 'red' : 'black'}${selectedSuit === s ? ' selected' : ''}`}
+                  onClick={() => setSelectedSuit(s)}
+                >
+                  {t.suitSymbol[s]}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
