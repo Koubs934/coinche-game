@@ -19,6 +19,9 @@
   --radius: 6px;
   --card-w: 42px;
   --card-h: 62px;
+  /* iOS bottom safe-area (home indicator / rounded corners). Non-zero only with
+     viewport-fit=cover in index.html; falls back to 0px elsewhere. */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
   font-size: 15px;
 }
 
@@ -1073,7 +1076,7 @@ a      { color: var(--accent); }
 .board-hand > .hand-toolbar {
   margin-top: 2px;
   border-top: 1px solid rgba(255,255,255,0.08);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: calc(var(--safe-bottom) + 12px);
 }
 
 /* ─── Collapsible bid sheet + highest-bid bar ────────────────────────────────
@@ -1084,7 +1087,7 @@ a      { color: var(--accent); }
   width: 100%;
   display: flex;
   flex-direction: column;
-  padding-bottom: env(safe-area-inset-bottom);  /* bottom-most element in tall bidding */
+  padding-bottom: calc(var(--safe-bottom) + 12px);  /* bottom-most element in tall bidding */
 }
 .bid-sheet-handle { display: none; }
 .bid-bar          { display: none; }
@@ -1104,7 +1107,7 @@ a      { color: var(--accent); }
     border-top-left-radius: 16px;
     border-top-right-radius: 16px;
     box-shadow: 0 -6px 22px rgba(0,0,0,0.5);
-    padding: 0 8px max(8px, env(safe-area-inset-bottom));
+    padding: 0 8px calc(var(--safe-bottom) + 12px);
     transition: transform 0.32s ease;
     will-change: transform;
   }
@@ -1137,7 +1140,7 @@ a      { color: var(--accent); }
     gap: 8px;
     width: 100%;
     min-height: 46px;
-    padding: 8px 14px max(8px, env(safe-area-inset-bottom));
+    padding: 8px 14px calc(var(--safe-bottom) + 12px);
     background: var(--sheet);
     border-top: 1px solid rgba(255,255,255,0.12);
     border-radius: var(--radius) var(--radius) 0 0;
@@ -1220,7 +1223,7 @@ a      { color: var(--accent); }
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 16px 16px;
+  padding: 12px 16px calc(var(--safe-bottom) + 16px);
   gap: 12px;
   overflow-y: auto;
 }
