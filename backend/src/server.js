@@ -858,6 +858,24 @@ io.on('connection', socket => {
     persistence.saveRoom(result.room);
   });
 
+  // ── Throw projectiles ──────────────────────────────────────────────────
+  // Cosmetic "throw stuff at a player" gesture, networked like chat but not
+  // persisted. Sender resolved from the socket (never client-trusted); bots
+  // never throw; target must be another seated position; item must be allowed;
+  // a per-sender cooldown throttles spam. On success the throw is broadcast to
+  // every room socket (sender included) so each client animates it from its own
+  // viewer-relative perspective. Invalid/throttled throws are silently dropped.
+  socket.on('throw:item', ({ targetPosition, item } = {}) => {
+    const room = rm.getRoomForSocket(socket.id);
+    if (!room) return;
+    const result = rm.throwItem(room.code, userId, targetPosition, item);
+    if (result.error) return; // ignore (incl. cooldown) — never a toast
+    for (const player of result.room.players) {
+      const s = io.sockets.sockets.get(player.socketId);
+      if (s) s.emit('throw:thrown', result.throw);
+    }
+  });
+
   // ── Undo last action (creator only) ─────────────────────────────────────
   socket.on('undoLastAction', ({ code }) => {
     const result = rm.undoLastAction(code, userId);

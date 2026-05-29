@@ -177,6 +177,15 @@
 //     `position` is the sender's seat (0-3); the FE maps it to a viewer-relative
 //     seat slot to anchor a notification bubble.
 //
+// Throw projectiles (cosmetic gesture, NOT persisted):
+//   'throw:item' ({ targetPosition: 0-3, item: string })
+//     Sender resolved from the socket (not client-trusted). Validated: sender is
+//     a seated non-bot player; targetPosition is another occupied seat (≠ self);
+//     item ∈ {tomato,egg,banana,pie,shoe,poop}. Per-sender ~1s cooldown; faster
+//     throws are silently dropped. Bots never throw. On success:
+//       → S→C 'throw:thrown' { fromPosition, toPosition, item } to ALL room
+//         sockets (sender included); each client animates it from its own view.
+//
 // All C→S events are rate-limited by server.js middleware (30/sec per socket).
 
 // ─── S→C events ────────────────────────────────────────────────────────────

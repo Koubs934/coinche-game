@@ -166,6 +166,11 @@ export default {
   // Undo
   undoAction: 'Undo',
 
+  // Throw projectiles
+  throw: {
+    aim: 'Throw something',
+  },
+
   // Table chat
   chat: {
     title:       'Chat',

@@ -21,6 +21,8 @@ export default function Avatar({
   size,
   circleClassName = '',
   circleStyle,
+  onClick,
+  title,
 }) {
   const svg = useMemo(() => {
     if (isBot) return null;
@@ -34,20 +36,24 @@ export default function Avatar({
   }, [isBot, config && JSON.stringify(config)]);
 
   const style = { ...(size ? { width: size, height: size } : null), ...circleStyle };
-  const base = `avatar ${circleClassName}`.trim();
+  const clickable = typeof onClick === 'function';
+  const base = `avatar ${circleClassName}${clickable ? ' avatar-clickable' : ''}`.trim();
+  const interactive = clickable
+    ? { onClick, role: 'button', tabIndex: 0, title }
+    : { 'aria-hidden': 'true' };
 
   if (svg) {
     return (
       <div
         className={`${base} avatar-img`}
         style={style}
-        aria-hidden="true"
+        {...interactive}
         dangerouslySetInnerHTML={{ __html: svg }}
       />
     );
   }
   return (
-    <div className={base} style={style}>
+    <div className={base} style={style} {...interactive}>
       {isBot ? '🤖' : initial}
     </div>
   );

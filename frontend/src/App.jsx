@@ -7,6 +7,8 @@ import Header from './components/Header';
 import SettingsModal from './components/SettingsModal';
 import ChatPanel from './components/ChatPanel';
 import ChatBubbles from './components/ChatBubbles';
+import ThrowLayer from './components/ThrowLayer';
+import { THROW_TOTAL_MS, THROW_ITEMS as THROW_ITEMS_PREVIEW } from './lib/throwItems';
 import Lobby from './components/Lobby';
 import ProfileScreen from './components/ProfileScreen';
 import GameBoard from './components/GameBoard';
@@ -55,6 +57,38 @@ export default function App() {
     return (
       <>
         <TrainingPickerMock />
+        <EnvBadge />
+      </>
+    );
+  }
+  if (MOCK_MODE === 'throw') {
+    // Auth-free preview of the throw picker + each item's impact (frozen). Used
+    // for responsive self-eval; mirrors the other ?mock= flags.
+    return (
+      <>
+        <div className="app">
+          <div className="throw-mock">
+            <p className="throw-mock-label">Picker</p>
+            <div className="throw-picker throw-picker-static">
+              {THROW_ITEMS_PREVIEW.map(it => (
+                <button key={it.id} type="button" className="throw-pick-btn" title={it.id}>{it.emoji}</button>
+              ))}
+            </div>
+            <p className="throw-mock-label">Impacts</p>
+            <div className="throw-mock-impacts">
+              {THROW_ITEMS_PREVIEW.map(it => (
+                <div key={it.id} className="throw-mock-cell">
+                  <div className="throw-impact throw-impact-frozen" style={{ position: 'relative' }}>
+                    <span className={`throw-splat throw-splat-${it.splat}`} />
+                    {it.burst && <span className="throw-burst">{it.burst}</span>}
+                    <span className="throw-impact-emoji">{it.emoji}</span>
+                  </div>
+                  <span className="throw-mock-name">{it.id}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
         <EnvBadge />
       </>
     );
@@ -114,6 +148,13 @@ export default function App() {
   const chatOpenRef   = useRef(false);
   const bubbleTimers  = useRef({}); // senderPosition → setTimeout id
   useEffect(() => { chatOpenRef.current = chatOpen; }, [chatOpen]);
+
+  // ── Throw projectiles ──────────────────────────────────────────────────────
+  // Active flying throws (cosmetic). Each {id, fromPosition, toPosition, item}
+  // auto-removed after the animation finishes. Multiple coexist.
+  const [throws, setThrows] = useState([]);
+  const throwIdRef    = useRef(0);
+  const throwTimers   = useRef([]);
 
   // Training-mode state (kept entirely separate from normal-room state)
   const [trainingView,       setTrainingView]       = useState(null); // 'picker' | 'run' | 'complete' | null
@@ -226,6 +267,7 @@ export default function App() {
       setRoomState(null); setGameState(null); setMyPosition(null); setPendingRoom(null);
       sessionStorage.removeItem('coinche_room');
       clearChat();
+      clearThrows();
     });
 
     // ── Table chat ──────────────────────────────────────────────────────
@@ -235,6 +277,25 @@ export default function App() {
       bubbleTimers.current = {};
       setChatMessages([]); setChatUnread(0); setChatBubbles({}); setChatOpen(false);
     }
+
+    // ── Throw projectiles ────────────────────────────────────────────────
+    function clearThrows() {
+      throwTimers.current.forEach(clearTimeout);
+      throwTimers.current = [];
+      setThrows([]);
+    }
+    // A throw was broadcast to the whole room (sender included). Enqueue it for
+    // the animation layer and auto-remove after the animation completes.
+    socket.on('throw:thrown', (thr) => {
+      if (!thr || typeof thr.fromPosition !== 'number' || typeof thr.toPosition !== 'number') return;
+      const id = ++throwIdRef.current;
+      setThrows(list => [...list, { ...thr, id }]);
+      const timer = setTimeout(() => {
+        setThrows(list => list.filter(x => x.id !== id));
+        throwTimers.current = throwTimers.current.filter(x => x !== timer);
+      }, THROW_TOTAL_MS + 100);
+      throwTimers.current.push(timer);
+    });
 
     // Replayed on every (re)join — replace the whole list. History never pops
     // bubbles or bumps the unread count (these are old/already-seen messages).
@@ -380,6 +441,8 @@ export default function App() {
     return () => {
       Object.values(bubbleTimers.current).forEach(clearTimeout);
       bubbleTimers.current = {};
+      throwTimers.current.forEach(clearTimeout);
+      throwTimers.current = [];
       socket.disconnect();
       socketRef.current = null;
     };
@@ -612,6 +675,9 @@ export default function App() {
           onOpen={openChat}
         />
       )}
+      {/* Throw-projectile animation overlay (in-game + round-summary; pointer-
+          events:none so it never blocks card/seat taps). */}
+      {inGame && <ThrowLayer throws={throws} myPosition={myPosition} />}
       {roomState && (
         <ChatPanel
           open={chatOpen}

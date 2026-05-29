@@ -17,6 +17,7 @@ import {
 } from './gameBoardParts';
 import GameErrorTagOverlay from '../game/GameErrorTagOverlay';
 import Avatar from './Avatar';
+import { THROW_ITEMS } from '../lib/throwItems';
 
 // ─── Fanned-arc hand tuning ────────────────────────────────────────────────
 const HAND_ARCH = 2.2;   // px per off² — vertical arch depth (middle highest)
@@ -130,6 +131,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   // V1 pause semantics are frontend-only — backend keeps accepting plays from
   // everyone else while this is up.
   const [tagErrorOpen, setTagErrorOpen] = useState(false);
+  // Throw-projectile picker: which seat's avatar was tapped (absolute position),
+  // or null. Disabled in training (no multiplayer broadcast there).
+  const [throwPickerSeat, setThrowPickerSeat] = useState(null);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const prevTricksLenRef = useRef(0);
@@ -229,6 +233,18 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   }
 
   const isCreator = room.creatorId === myPlayer?.userId;
+
+  // Throw projectiles — disabled in training (no multiplayer broadcast there).
+  const canThrow = !trainingMode;
+  function openThrowPicker(targetPos) {
+    if (!canThrow || targetPos === myPosition) return; // no self-throw
+    setThrowPickerSeat(prev => (prev === targetPos ? null : targetPos));
+  }
+  function throwAt(item) {
+    if (throwPickerSeat == null) return;
+    socket.emit('throw:item', { targetPosition: throwPickerSeat, item });
+    setThrowPickerSeat(null);
+  }
 
   function leaveTable() {
     if (trainingMode) {
@@ -799,6 +815,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
               isCreator={isCreator}
               onRemove={removePlayer}
               bidHistory={isBidding ? perPlayerHistory[(myPosition + 2) % 4] : null}
+              onAvatarClick={canThrow ? openThrowPicker : undefined}
             />
             {/* Partner peek — compact face-up row of the partner's cards, directly
                 below their name/avatar. Only ever rendered for the two gated users
@@ -830,6 +847,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
             isCreator={isCreator}
             onRemove={removePlayer}
             bidHistory={isBidding ? perPlayerHistory[(myPosition + 3) % 4] : null}
+            onAvatarClick={canThrow ? openThrowPicker : undefined}
           />
         </div>
 
@@ -948,6 +966,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
             isCreator={isCreator}
             onRemove={removePlayer}
             bidHistory={isBidding ? perPlayerHistory[(myPosition + 1) % 4] : null}
+            onAvatarClick={canThrow ? openThrowPicker : undefined}
           />
         </div>
       </div>
@@ -1116,6 +1135,34 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
             between the header and the cards. */}
         {!bidSheetActive && handToolbar}
       </div>
+
+      {/* ── Throw-projectile picker ──────────────────────────────────────────
+          Opens on tapping another seat's avatar. The backdrop (interactive)
+          dismisses on outside tap; the flying animation lives in ThrowLayer
+          (App level, pointer-events:none) so it never blocks card taps. */}
+      {throwPickerSeat != null && (() => {
+        const slot = ((throwPickerSeat - myPosition) + 4) % 4;
+        const place = { 1: 'right', 2: 'top', 3: 'left' }[slot];
+        if (!place) return null;
+        return (
+          <>
+            <div className="throw-picker-backdrop" onClick={() => setThrowPickerSeat(null)} />
+            <div className={`throw-picker throw-picker-${place}`}>
+              {THROW_ITEMS.map(it => (
+                <button
+                  key={it.id}
+                  type="button"
+                  className="throw-pick-btn"
+                  title={it.id}
+                  onClick={() => throwAt(it.id)}
+                >
+                  {it.emoji}
+                </button>
+              ))}
+            </div>
+          </>
+        );
+      })()}
 
       {/* ── Belote decision prompt ───────────────────────────────────────────── */}
       {beloteDecisionCard && (

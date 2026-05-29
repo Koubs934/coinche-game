@@ -1301,6 +1301,7 @@ function _resetForTests() {
   for (const t of cleanupTimers.values()) clearTimeout(t);
   cleanupTimers.clear();
   rooms.clear();
+  lastThrowAt.clear();
   _deadRoomGraceMs = DEFAULT_DEAD_ROOM_GRACE_MS;
   _onRoomDeleted = null;
 }
@@ -1390,6 +1391,42 @@ function addChatMessage(code, userId, text) {
   return { room, message };
 }
 
+// ─── Throw projectiles (transient cosmetic gesture) ──────────────────────────
+//
+// A purely cosmetic "throw stuff at a player" reaction, networked like chat but
+// NOT persisted (it's a momentary animation). The sender is resolved from the
+// socket's own membership (never client-trusted). Bots never throw. A small
+// per-sender cooldown throttles spam. The allowed item set is the single source
+// of truth shared with the FE catalog.
+const THROW_ITEMS = new Set(['tomato', 'egg', 'banana', 'pie', 'shoe', 'poop']);
+const THROW_COOLDOWN_MS = 1000;
+const lastThrowAt = new Map(); // `${code}:${userId}` -> ts
+
+// Validate a throw and return { room, throw:{fromPosition,toPosition,item} } or
+// { error }. `now` is injectable for deterministic cooldown tests.
+function throwItem(code, userId, targetPosition, item, now = Date.now()) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+
+  const sender = room.players.find(p => p.userId === userId);
+  if (!sender || sender.isBot) return { error: 'Not a player in this room' };
+
+  if (!THROW_ITEMS.has(item)) return { error: 'Invalid item' };
+  if (!Number.isInteger(targetPosition) || targetPosition < 0 || targetPosition > 3) {
+    return { error: 'Invalid target position' };
+  }
+  if (targetPosition === sender.position) return { error: 'Cannot throw at yourself' };
+  const target = room.players.find(p => p.position === targetPosition);
+  if (!target) return { error: 'No player at that seat' };
+
+  // Per-sender cooldown — drop throws fired faster than THROW_COOLDOWN_MS.
+  const key = `${code}:${userId}`;
+  if (now - (lastThrowAt.get(key) || 0) < THROW_COOLDOWN_MS) return { error: 'Too fast' };
+  lastThrowAt.set(key, now);
+
+  return { room, throw: { fromPosition: sender.position, toPosition: targetPosition, item } };
+}
+
 // ─── Persistence integration ───────────────────────────────────────────────
 
 // Seed the in-memory Map from a previously-persisted snapshot array.
@@ -1439,6 +1476,7 @@ module.exports = {
   publicGame,
   togglePartnerPeek,
   addChatMessage,
+  throwItem,
   listJoinableRooms,
   isUserSeated,
   configureCleanup,

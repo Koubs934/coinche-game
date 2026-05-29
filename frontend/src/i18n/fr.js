@@ -166,6 +166,11 @@ export default {
   // Annuler
   undoAction: 'Annuler',
 
+  // Lancer des projectiles
+  throw: {
+    aim: 'Balancer un truc',
+  },
+
   // Chat de table
   chat: {
     title:       'Chat',
