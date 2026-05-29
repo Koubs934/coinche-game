@@ -253,6 +253,7 @@ function createRoom({ userId, username, socketId }) {
     pendingJoins: [],
     history: [],
     actionNonce: 0,
+    chatMessages: [],
   });
   return rooms.get(code);
 }
@@ -1105,6 +1106,46 @@ function getRoom(code) {
   return rooms.get(code) || null;
 }
 
+// ─── Table chat ──────────────────────────────────────────────────────────────
+//
+// Per-room, ephemeral, text-only chat shared by all four seats. Lives entirely
+// in room.chatMessages (in-memory, capped at CHAT_HISTORY_LIMIT). It rides along
+// in the persisted room snapshot so a server restart re-hydrates recent history,
+// but there is no dedicated DB/Supabase storage — it's intentionally throwaway.
+// Bots never call this (they have no socket); the handler in server.js is only
+// reachable from a real player socket.
+
+const CHAT_HISTORY_LIMIT = 50;
+const CHAT_TEXT_MAX = 500;
+
+function addChatMessage(code, userId, text) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+
+  const player = room.players.find(p => p.userId === userId);
+  if (!player || player.isBot) return { error: 'Not a player in this room' };
+
+  if (typeof text !== 'string') return { error: 'Invalid message' };
+  const trimmed = text.trim();
+  if (!trimmed) return { error: 'Empty message' };
+  const capped = trimmed.slice(0, CHAT_TEXT_MAX);
+
+  if (!Array.isArray(room.chatMessages)) room.chatMessages = [];
+  const message = {
+    id:       crypto.randomUUID(),
+    userId,
+    username: player.username,
+    position: player.position, // FE anchors the seat bubble off this
+    text:     capped,
+    ts:       Date.now(),
+  };
+  room.chatMessages.push(message);
+  if (room.chatMessages.length > CHAT_HISTORY_LIMIT) {
+    room.chatMessages.splice(0, room.chatMessages.length - CHAT_HISTORY_LIMIT);
+  }
+  return { room, message };
+}
+
 // ─── Persistence integration ───────────────────────────────────────────────
 
 // Seed the in-memory Map from a previously-persisted snapshot array.
@@ -1146,6 +1187,7 @@ module.exports = {
   publicRoom,
   publicGame,
   togglePartnerPeek,
+  addChatMessage,
   getPosition,
   hydrateRooms,
   getRoomByGameId,

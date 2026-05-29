@@ -166,6 +166,15 @@ export default {
   // Annuler
   undoAction: 'Annuler',
 
+  // Chat de table
+  chat: {
+    title:       'Chat',
+    open:        'Ouvrir le chat',
+    placeholder: 'Écrire un message…',
+    send:        'Envoyer',
+    empty:       'Aucun message — dites bonjour !',
+  },
+
   // Validation
   invalidRoomCode: 'Le code doit comporter 6 lettres ou chiffres',
   usernameTooShort: 'Le nom doit comporter au moins 2 caractères',

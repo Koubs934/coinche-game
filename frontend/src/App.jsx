@@ -5,6 +5,8 @@ import { useLang } from './context/LanguageContext';
 import Auth from './components/Auth';
 import Header from './components/Header';
 import SettingsModal from './components/SettingsModal';
+import ChatPanel from './components/ChatPanel';
+import ChatBubbles from './components/ChatBubbles';
 import Lobby from './components/Lobby';
 import GameBoard from './components/GameBoard';
 import GameErrorTaggerMock from './game/GameErrorTaggerMock';
@@ -78,6 +80,17 @@ export default function App() {
   const [myPosition, setMyPosition] = useState(null);
   const [pendingRoom, setPendingRoom] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+
+  // ── Table chat state ──────────────────────────────────────────────────────
+  // chatBubbles is a map: senderPosition → message. One bubble per seat (a new
+  // message from the same seat replaces it), auto-dismissed by a per-seat timer.
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatOpen, setChatOpen]         = useState(false);
+  const [chatUnread, setChatUnread]     = useState(0);
+  const [chatBubbles, setChatBubbles]   = useState({});
+  const chatOpenRef   = useRef(false);
+  const bubbleTimers  = useRef({}); // senderPosition → setTimeout id
+  useEffect(() => { chatOpenRef.current = chatOpen; }, [chatOpen]);
 
   // Training-mode state (kept entirely separate from normal-room state)
   const [trainingView,       setTrainingView]       = useState(null); // 'picker' | 'run' | 'complete' | null
@@ -172,6 +185,44 @@ export default function App() {
     socket.on('leftRoom', () => {
       setRoomState(null); setGameState(null); setMyPosition(null); setPendingRoom(null);
       sessionStorage.removeItem('coinche_room');
+      clearChat();
+    });
+
+    // ── Table chat ──────────────────────────────────────────────────────
+    // Reset all chat UI when we leave a room (own bubbles + timers included).
+    function clearChat() {
+      Object.values(bubbleTimers.current).forEach(clearTimeout);
+      bubbleTimers.current = {};
+      setChatMessages([]); setChatUnread(0); setChatBubbles({}); setChatOpen(false);
+    }
+
+    // Replayed on every (re)join — replace the whole list. History never pops
+    // bubbles or bumps the unread count (these are old/already-seen messages).
+    socket.on('chat:history', ({ messages }) => {
+      setChatMessages(Array.isArray(messages) ? messages : []);
+    });
+
+    // Live message broadcast to every seat (sender included). Own messages just
+    // flow into the list. Others' messages, while the panel is CLOSED, pop a
+    // seat-anchored bubble + bump the unread badge; while OPEN they only flow in.
+    socket.on('chat:message', (msg) => {
+      if (!msg) return;
+      setChatMessages(prev => [...prev, msg]);
+      if (msg.userId === user.id) return;
+      if (chatOpenRef.current) return;
+
+      setChatUnread(c => c + 1);
+      // Replace this seat's bubble (no stacking) and reset its dismiss timer.
+      setChatBubbles(prev => ({ ...prev, [msg.position]: msg }));
+      if (bubbleTimers.current[msg.position]) clearTimeout(bubbleTimers.current[msg.position]);
+      bubbleTimers.current[msg.position] = setTimeout(() => {
+        setChatBubbles(prev => {
+          const next = { ...prev };
+          delete next[msg.position];
+          return next;
+        });
+        delete bubbleTimers.current[msg.position];
+      }, 4000);
     });
 
     // ── Game Review (creator-only) ────────────────────────────────────
@@ -287,10 +338,24 @@ export default function App() {
     });
 
     return () => {
+      Object.values(bubbleTimers.current).forEach(clearTimeout);
+      bubbleTimers.current = {};
       socket.disconnect();
       socketRef.current = null;
     };
   }, [user]);
+
+  // ── Chat control actions ──────────────────────────────────────────────────
+  function openChat() {
+    setChatOpen(true);
+    setChatUnread(0);
+    // The panel supersedes any live bubbles — dismiss them + their timers.
+    Object.values(bubbleTimers.current).forEach(clearTimeout);
+    bubbleTimers.current = {};
+    setChatBubbles({});
+  }
+  function closeChat() { setChatOpen(false); }
+  function sendChat(text) { socketRef.current?.emit('chat:message', { text }); }
 
   // ── Training control actions (called by child components) ──────────────
 
@@ -451,6 +516,9 @@ export default function App() {
       <Header
         roomCode={roomState?.code}
         onOpenSettings={() => setShowSettings(true)}
+        showChat={!!roomState}
+        onOpenChat={openChat}
+        chatUnread={chatUnread}
       />
 
       <SettingsModal
@@ -491,6 +559,28 @@ export default function App() {
           resumableCount={trainingResumable?.length || 0}
         />
       )}
+
+      {/* Table chat — seat-anchored notification bubbles (in-game only, so the
+          seats exist) + the bottom-sheet conversation panel (any room). */}
+      {inGame && (
+        <ChatBubbles
+          bubbles={chatBubbles}
+          myPosition={myPosition}
+          players={roomState?.players}
+          onOpen={openChat}
+        />
+      )}
+      {roomState && (
+        <ChatPanel
+          open={chatOpen}
+          onClose={closeChat}
+          messages={chatMessages}
+          myUserId={user?.id}
+          players={roomState?.players}
+          onSend={sendChat}
+        />
+      )}
+
       <EnvBadge />
     </div>
   );

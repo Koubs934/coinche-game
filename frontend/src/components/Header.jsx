@@ -1,7 +1,7 @@
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 
-export default function Header({ roomCode, onOpenSettings }) {
+export default function Header({ roomCode, onOpenSettings, showChat, onOpenChat, chatUnread = 0 }) {
   const { username } = useAuth();
   const { t } = useLang();
 
@@ -14,6 +14,16 @@ export default function Header({ roomCode, onOpenSettings }) {
         </div>
         <div className="app-header-row-right">
           <span className="header-user">{username}</span>
+          {showChat && (
+            <button className="btn-chat" onClick={onOpenChat} title={t.chat.open} aria-label={t.chat.open}>
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+              </svg>
+              {chatUnread > 0 && (
+                <span className="chat-badge">{chatUnread > 9 ? '9+' : chatUnread}</span>
+              )}
+            </button>
+          )}
           <button className="btn-settings" onClick={onOpenSettings} title={t.settings} aria-label={t.settings}>
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="3" />

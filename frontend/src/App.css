@@ -3241,3 +3241,228 @@ a      { color: var(--accent); }
   .gerr-card-face { font-size: 1.2em; }
 }
 
+
+/* ─── Table chat ─────────────────────────────────────────────────────────── */
+.btn-chat {
+  position: relative;
+  background: none;
+  color: var(--muted);
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.btn-chat:hover { color: var(--accent); }
+.chat-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent2);
+  color: #fff;
+  font-size: 0.6em;
+  font-weight: bold;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* Bottom-sheet conversation panel — slides up over the table, which stays
+   visible above it. Mirrors the admin/settings overlay backdrop + bid-sheet
+   slide-in, for consistency. z-index sits above the settings overlay (400)
+   but below toasts (1000). */
+.chat-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 450;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: rgba(0, 0, 0, 0.35);
+}
+.chat-sheet {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  background: var(--ui-card);
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  max-height: 70dvh;
+  padding-bottom: var(--safe-bottom);
+  animation: chat-slide-up 0.18s ease-out;
+}
+@keyframes chat-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.chat-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+.chat-sheet-title { font-weight: bold; font-size: 1.05em; color: var(--text); }
+
+.chat-message-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 120px;
+}
+.chat-empty {
+  color: var(--muted);
+  font-size: 0.88em;
+  text-align: center;
+  margin: auto 0;
+}
+.chat-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 80%;
+  align-self: flex-start;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 10px;
+}
+.chat-msg-mine {
+  align-self: flex-end;
+  background: rgba(240, 165, 0, 0.18);
+}
+.chat-msg-author { font-size: 0.72em; font-weight: bold; color: var(--muted); }
+.chat-msg-text {
+  font-size: 0.92em;
+  color: var(--text);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+.chat-input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.chat-input::placeholder { color: var(--muted); }
+.chat-send-btn {
+  background: var(--accent);
+  color: #1a1a1a;
+  font-weight: bold;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  white-space: nowrap;
+}
+.chat-send-btn:hover { opacity: 0.88; }
+
+/* Seat-anchored notification bubbles. The layer fills the .app column (which is
+   position:relative, max-width:600px) so each bubble anchors to the table, not
+   the full viewport. Layer ignores pointer events; the bubbles re-enable them. */
+.chat-bubble-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 95;
+}
+.chat-bubble {
+  position: absolute;
+  pointer-events: auto;
+  max-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 10px;
+  background: #2a3a4d;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  text-align: left;
+  animation: chat-bubble-pop 0.16s ease-out;
+}
+@keyframes chat-bubble-pop {
+  from { transform: scale(0.8); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.chat-bubble-author { font-size: 0.68em; font-weight: bold; color: var(--muted); }
+.chat-bubble-text {
+  font-size: 0.84em;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+/* Tail — a small rotated square poking toward the seat. */
+.chat-bubble::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #2a3a4d;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  transform: rotate(45deg);
+}
+
+/* Top seat (partner): centred under the seat, tail pointing up. Its own pop
+   keyframes preserve the translateX(-50%) centring during the animation. */
+.chat-bubble-top {
+  top: 86px;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: chat-bubble-pop-top 0.16s ease-out;
+}
+@keyframes chat-bubble-pop-top {
+  from { transform: translateX(-50%) scale(0.8); opacity: 0; }
+  to   { transform: translateX(-50%) scale(1);   opacity: 1; }
+}
+.chat-bubble-top::after {
+  top: -6px;
+  left: 50%;
+  margin-left: -5px;
+  border-right: none;
+  border-bottom: none;
+}
+/* Left opponent: hugs the left edge, tail pointing left. */
+.chat-bubble-left {
+  top: 38%;
+  left: 8px;
+}
+.chat-bubble-left::after {
+  left: -6px;
+  top: 50%;
+  margin-top: -5px;
+  border-top: none;
+  border-right: none;
+}
+/* Right opponent: hugs the right edge, tail pointing right. */
+.chat-bubble-right {
+  top: 38%;
+  right: 8px;
+}
+.chat-bubble-right::after {
+  right: -6px;
+  top: 50%;
+  margin-top: -5px;
+  border-bottom: none;
+  border-left: none;
+}

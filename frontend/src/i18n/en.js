@@ -166,6 +166,15 @@ export default {
   // Undo
   undoAction: 'Undo',
 
+  // Table chat
+  chat: {
+    title:       'Chat',
+    open:        'Open chat',
+    placeholder: 'Write a message…',
+    send:        'Send',
+    empty:       'No messages yet — say hello!',
+  },
+
   // Input validation
   invalidRoomCode: 'Room code must be 6 letters or digits',
   usernameTooShort: 'Username must be at least 2 characters',

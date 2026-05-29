@@ -137,6 +137,17 @@
 //     reconnection. Responds on 'roomUpdate' (filtered to the requester).
 //     Errors: UNKNOWN_GAME.
 //
+// Table chat (ephemeral per-room text chat, all 4 seats):
+//   'chat:message' ({ text })
+//     Sender is resolved from the socket's own room membership — no client
+//     code/userId is trusted. text is trimmed, capped at 500 chars; empty or
+//     non-string payloads are silently dropped (never surfaced as an error).
+//     Bots never emit. On success, the built message is broadcast to ALL room
+//     sockets (sender included):
+//       → S→C 'chat:message' { id, userId, username, position, text, ts }
+//     `position` is the sender's seat (0-3); the FE maps it to a viewer-relative
+//     seat slot to anchor a notification bubble.
+//
 // All C→S events are rate-limited by server.js middleware (30/sec per socket).
 
 // ─── S→C events ────────────────────────────────────────────────────────────
@@ -150,6 +161,11 @@
 //     and useful for diagnostic logging only — do NOT show it in the UI.
 //   'gameErrorAnnotationCreated': { gameId, annotation:{annotationId,cardRef,note,createdAt,createdByUserId} }
 //     Emitted to the creator's socket after a successful createGameErrorAnnotation.
+//   'chat:history' : { messages: Array<{id,userId,username,position,text,ts}> }
+//     Sent to a single socket on every (re)join — replays the room's recent
+//     table-chat (capped at 50). May be an empty list.
+//   'chat:message' : { id, userId, username, position, text, ts }
+//     Broadcast to every room socket when any player sends a chat message.
 //   'error'      : { message, code? }
 //                     code is an optional machine-readable sentinel — UI uses
 //                     it to drive recovery flows without string-matching.

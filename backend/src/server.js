@@ -522,6 +522,14 @@ function emitError(socket, message) {
   socket.emit('error', { message });
 }
 
+// Replay the room's recent table-chat history to a single socket. Called on
+// every (re)join so a player who refreshes / reconnects sees the conversation
+// so far. Sends an empty list for a fresh room — harmless and keeps the FE's
+// load path uniform.
+function sendChatHistory(socket, room) {
+  socket.emit('chat:history', { messages: room?.chatMessages || [] });
+}
+
 // Persist the just-finished round as a GameRecord and notify the room creator.
 // Guarded by room.game.gameId so a second broadcast of the same ROUND_OVER
 // phase (e.g. through bot confirm cascades) does not rewrite the file.
@@ -594,6 +602,7 @@ io.on('connection', socket => {
       game: rm.publicGame(room, 0),
       myPosition: 0,
     });
+    sendChatHistory(socket, room);
     persistence.saveRoom(room);
   });
 
@@ -615,6 +624,7 @@ io.on('connection', socket => {
           game: rm.publicGame(result.room, result.position),
           myPosition: result.position,
         });
+        sendChatHistory(socket, result.room);
         broadcastGame(result.room);
       } else {
         // Non-admin: create a pending join request for the creator to approve
@@ -639,6 +649,7 @@ io.on('connection', socket => {
       game: rm.publicGame(room, position),
       myPosition: position,
     });
+    sendChatHistory(socket, room);
     broadcast(room);
   });
 
@@ -665,6 +676,7 @@ io.on('connection', socket => {
       game: rm.publicGame(room, player.position),
       myPosition: player.position,
     });
+    sendChatHistory(socket, room);
     broadcast(room);
   });
 
@@ -726,6 +738,25 @@ io.on('connection', socket => {
     const result = rm.togglePartnerPeek(code, userId);
     if (result.error) return emitError(socket, result.error);
     broadcast(result.room);
+  });
+
+  // ── Table chat ─────────────────────────────────────────────────────────
+  // Ephemeral per-room text chat. Sender is resolved from the socket's own
+  // membership (no client-supplied code/userId is trusted). The message —
+  // including the sender's seat position so each recipient can anchor a
+  // notification bubble to the right seat — is broadcast to every socket in
+  // the room, sender included. Invalid payloads (not a player, empty/non-string
+  // text) are silently dropped.
+  socket.on('chat:message', ({ text } = {}) => {
+    const room = rm.getRoomForSocket(socket.id);
+    if (!room) return;
+    const result = rm.addChatMessage(room.code, userId, text);
+    if (result.error) return; // ignore — never surface chat validation as a toast
+    for (const player of result.room.players) {
+      const s = io.sockets.sockets.get(player.socketId);
+      if (s) s.emit('chat:message', result.message);
+    }
+    persistence.saveRoom(result.room);
   });
 
   // ── Undo last action (creator only) ─────────────────────────────────────
@@ -839,6 +870,7 @@ io.on('connection', socket => {
           game: rm.publicGame(room, acceptedPosition),
           myPosition: acceptedPosition,
         });
+        sendChatHistory(s, room);
       }
     }
     broadcastGame(room); // may resume bot scheduling if game unpaused
