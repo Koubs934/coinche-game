@@ -68,6 +68,7 @@ export default function ThrowMock() {
                 <span className="throw-impact-emoji">{it.emoji}</span>
                 {it.messy && <span className="throw-drip" />}
                 {it.stun && <span className="throw-stunned">😵</span>}
+                {it.callout && <span className="throw-callout">{it.callout}</span>}
               </div>
               <span className="throw-mock-name">{it.id}</span>
             </div>

@@ -40,7 +40,8 @@ describe('throwItem — happy path', () => {
 
   it('accepts every item in the expanded allowed-set (incl. lemon)', () => {
     const items = ['tomato', 'egg', 'banana', 'pie', 'shoe', 'poop',
-                   'lemon', 'watermelon', 'apple', 'orange', 'fish', 'baguette'];
+                   'lemon', 'watermelon', 'apple', 'orange', 'fish', 'baguette',
+                   'hand', 'train'];
     for (const item of items) {
       const room = botRoom(`u-${item}`);          // fresh room → no cooldown bleed
       const target = room.players.find(p => p.position !== 0).position;

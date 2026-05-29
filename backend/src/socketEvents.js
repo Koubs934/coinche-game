@@ -182,7 +182,7 @@
 //     Sender resolved from the socket (not client-trusted). Validated: sender is
 //     a seated non-bot player; targetPosition is another occupied seat (≠ self);
 //     item ∈ {tomato,egg,banana,pie,shoe,poop,lemon,watermelon,apple,orange,
-//     fish,baguette}. Per-sender ~1s cooldown; faster
+//     fish,baguette,hand,train}. Per-sender ~1s cooldown; faster
 //     throws are silently dropped. Bots never throw. On success:
 //       → S→C 'throw:thrown' { fromPosition, toPosition, item } to ALL room
 //         sockets (sender included); each client animates it from its own view.

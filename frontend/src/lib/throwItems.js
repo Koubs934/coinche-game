@@ -12,6 +12,9 @@
 //             shake | slip | wobble | recoil | sour | knock | slap
 //   messy     true → a drip/stain slides down the avatar and fades
 //   stun      true → a brief 😵 "stunned" overlay on impact (heavy/bonk items)
+//   callout   optional comic-style TEXT pop near the target on impact (may
+//             contain an emoji). Determined client-side from the item, so no
+//             network payload change — every client renders the right text.
 
 export const THROW_ITEMS = [
   { id: 'tomato',     emoji: '🍅', splat: 'tomato',     color: 'd83a2e', burst: '',   reaction: 'shake',  messy: true,  stun: false },
@@ -26,6 +29,9 @@ export const THROW_ITEMS = [
   { id: 'orange',     emoji: '🍊', splat: 'orange',     color: 'ff9f1c', burst: '💦', reaction: 'shake',  messy: true,  stun: false },
   { id: 'fish',       emoji: '🐟', splat: 'fish',       color: '8fd3ff', burst: '💦', reaction: 'slap',   messy: true,  stun: false },
   { id: 'baguette',   emoji: '🥖', splat: 'stars',      color: 'd8a24a', burst: '✨', reaction: 'recoil', messy: false, stun: true  },
+  // Special items: text callout on impact (the only ones using `callout`).
+  { id: 'hand',  emoji: '✋', splat: 'slap',   color: 'ff4d4d', burst: '💥', reaction: 'slap',  messy: false, stun: false, callout: 'Calbote de djeuns!!' },
+  { id: 'train', emoji: '🚂', splat: 'charge', color: 'b0bec5', burst: '💨', reaction: 'knock', messy: false, stun: false, callout: 'Garaban 🍋' },
 ];
 
 export const THROW_ITEM_IDS = THROW_ITEMS.map(i => i.id);

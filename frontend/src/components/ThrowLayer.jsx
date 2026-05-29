@@ -123,6 +123,7 @@ function ThrowInstance({ thr, myPosition, box }) {
         <span className="throw-impact-emoji">{item.emoji}</span>
         {item.messy && <span className="throw-drip" />}
         {item.stun && <span className="throw-stunned">😵</span>}
+        {item.callout && <span className="throw-callout">{item.callout}</span>}
       </div>
     </>
   );

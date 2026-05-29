@@ -1401,6 +1401,7 @@ function addChatMessage(code, userId, text) {
 const THROW_ITEMS = new Set([
   'tomato', 'egg', 'banana', 'pie', 'shoe', 'poop',
   'lemon', 'watermelon', 'apple', 'orange', 'fish', 'baguette',
+  'hand', 'train',
 ]);
 const THROW_COOLDOWN_MS = 1000;
 const lastThrowAt = new Map(); // `${code}:${userId}` -> ts
