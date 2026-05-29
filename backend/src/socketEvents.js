@@ -150,6 +150,16 @@
 //             players: Array<{username, isBot, connected}>,
 //             canJoin: boolean, canRejoin: boolean }> }
 //
+//   'lobby:getFriends' ()
+//     Read-only request for online-friends presence ("Amis en ligne"). The
+//     sender is taken from socket auth; no payload. Returns a presence map for
+//     every currently-online user EXCEPT the requester. Any userId not in the
+//     map is offline. The full registered-user roster is fetched separately by
+//     the client from Supabase (public.profiles) and merged with this map — the
+//     backend has no Supabase access, so it owns presence only.
+//       → S→C 'lobby:friends' { presence: { [userId]: 'online' | 'in-game' } }
+//     'in-game' = online AND seated in a room (roomManager); else 'online'.
+//
 // Table chat (ephemeral per-room text chat, all 4 seats):
 //   'chat:message' ({ text })
 //     Sender is resolved from the socket's own room membership — no client
@@ -186,6 +196,14 @@
 //     (create / join / leave / start / membership). Home-screen clients
 //     re-request 'lobby:getRooms'; everyone else ignores it. Never fired on
 //     per-card / per-bid mutations.
+//   'lobby:friends' : { presence: { [userId]: 'online' | 'in-game' } }
+//     Sent in reply to 'lobby:getFriends' (excludes the requester).
+//   'lobby:presenceChanged' : ()
+//     Tiny fan-out ping to ALL sockets on a real presence transition only: a
+//     user's FIRST socket connecting, their LAST socket disconnecting (after a
+//     short grace window), or a user entering/leaving a room (online↔in-game).
+//     Home-screen clients re-request 'lobby:getFriends'. Never fired on
+//     per-card / per-bid mutations or on extra tabs of an already-online user.
 //   'error'      : { message, code? }
 //                     code is an optional machine-readable sentinel — UI uses
 //                     it to drive recovery flows without string-matching.

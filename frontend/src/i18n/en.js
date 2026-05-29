@@ -231,6 +231,13 @@ export default {
     roomLine:      (count, mode) => `${count}/4 · ${mode}`,
     modeCoinche:   'Coinche',
     modeBelote:    'Belote',
+    // Amis en ligne (presence)
+    friends:       'Friends online',
+    onlineCount:   (n) => `${n} online`,
+    noOneOnline:   'No one online',
+    statusOnline:  'online',
+    statusInGame:  'in game',
+    statusOffline: 'offline',
   },
 
   training: {

@@ -486,6 +486,89 @@ a      { color: var(--accent); }
 }
 .game-card-join.is-rejoin:hover { opacity: 0.88; }
 
+/* ─── Amis en ligne (presence) ──────────────────────────────────────────── */
+.friends-online { display: flex; flex-direction: column; gap: 10px; }
+.friends-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.friends-title {
+  font-size: 0.78em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.friends-count {
+  font-size: 0.78em;
+  color: var(--success);
+  font-weight: 600;
+}
+.friends-empty {
+  color: var(--muted);
+  font-size: 0.88em;
+  text-align: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+/* Horizontal scrolling avatar row */
+.friends-row {
+  list-style: none;
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.friend {
+  flex: 0 0 auto;
+  width: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+.friend-offline { opacity: 0.45; }
+.friend-avatar-wrap { position: relative; }
+.friend-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: bold;
+  font-size: 1.1em;
+  color: var(--text);
+  background: #3a4a5e; /* fallback / offline tint (per-user hue set inline) */
+}
+.friend-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--ui-bg);
+}
+.friend-dot-online  { background: var(--success); }
+.friend-dot-in-game { background: var(--accent); }
+.friend-dot-offline { background: #6b7785; }
+.friend-name {
+  font-size: 0.76em;
+  color: var(--text);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.friend-status { font-size: 0.66em; color: var(--muted); }
+
 /* ─── Game board ────────────────────────────────────────────────────────── */
 .game-board {
   flex: 1;

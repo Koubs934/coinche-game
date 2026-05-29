@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import AdminPanel from './AdminPanel';
 import ActiveGamesList from './ActiveGamesList';
+import OnlineFriends from './OnlineFriends';
+import { supabase } from '../lib/supabase';
 
 export default function Lobby({
   socket, roomState, myPosition, pendingRoom, onCancelPending,
@@ -16,6 +18,8 @@ export default function Lobby({
   const [view, setView] = useState('home'); // 'home' | 'create' | 'join'
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [activeRooms, setActiveRooms] = useState([]);
+  const [profiles, setProfiles] = useState([]);   // all registered users (Supabase)
+  const [presence, setPresence] = useState({});   // userId → 'online' | 'in-game'
 
   // Whether the home/landing screen is showing (not in a room, not pending).
   const onHome = !roomState && !pendingRoom;
@@ -37,6 +41,42 @@ export default function Lobby({
       socket.off('lobby:rooms', onRooms);
       socket.off('lobby:roomsChanged', onChanged);
       window.removeEventListener('focus', fetchRooms);
+    };
+  }, [socket, onHome]);
+
+  // Full registered-user roster ("Amis en ligne"). The backend has no Supabase
+  // access, so the roster is read here from public.profiles (RLS allows any
+  // authenticated user to select); presence (online/in-game) comes from the
+  // backend below and is merged in render. Fetched once per home visit.
+  useEffect(() => {
+    if (!onHome || !user) return;
+    let cancelled = false;
+    supabase
+      .from('profiles')
+      .select('id, username')
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) { console.error('[friends] profiles fetch failed:', error.message); return; }
+        if (Array.isArray(data)) setProfiles(data);
+      });
+    return () => { cancelled = true; };
+  }, [onHome, user]);
+
+  // Presence map from the backend: fetch on mount + window focus, re-fetch on
+  // the 'lobby:presenceChanged' ping. Mirrors the active-rooms effect above.
+  useEffect(() => {
+    if (!socket || !onHome) return;
+    const fetchFriends = () => socket.emit('lobby:getFriends');
+    const onFriends    = ({ presence: p }) => setPresence(p && typeof p === 'object' ? p : {});
+    const onChanged    = () => fetchFriends();
+    socket.on('lobby:friends', onFriends);
+    socket.on('lobby:presenceChanged', onChanged);
+    window.addEventListener('focus', fetchFriends);
+    fetchFriends();
+    return () => {
+      socket.off('lobby:friends', onFriends);
+      socket.off('lobby:presenceChanged', onChanged);
+      window.removeEventListener('focus', fetchFriends);
     };
   }, [socket, onHome]);
 
@@ -248,6 +288,12 @@ export default function Lobby({
 
   const avatarInitial = (username?.[0] || '?').toUpperCase();
 
+  // Merge the roster with live presence, excluding self. Anyone not in the
+  // presence map is offline.
+  const friends = profiles
+    .filter(p => p.id !== user?.id)
+    .map(p => ({ id: p.id, username: p.username || '?', status: presence[p.id] || 'offline' }));
+
   return (
     <div className="lobby lobby-home">
       <div className="home-wrap">
@@ -286,6 +332,9 @@ export default function Lobby({
           onJoin={joinActiveRoom}
           onRefresh={() => socket?.emit('lobby:getRooms')}
         />
+
+        {/* Amis en ligne */}
+        <OnlineFriends friends={friends} />
       </div>
     </div>
   );

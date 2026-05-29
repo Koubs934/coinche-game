@@ -61,3 +61,18 @@ describe('lobby — listJoinableRooms', () => {
     expect(idxMine).toBe(0); // the user's own room floats to the top
   });
 });
+
+describe('lobby — isUserSeated (presence in-game resolver)', () => {
+  it('true for a seated human, false for a stranger', () => {
+    rm.createRoom({ userId: 'seated-1', username: 'AK7', socketId: uniqSocketId() });
+    expect(rm.isUserSeated('seated-1')).toBe(true);
+    expect(rm.isUserSeated('not-in-any-room')).toBe(false);
+  });
+
+  it('does not match bot seats', () => {
+    const room = rm.createRoom({ userId: 'seated-2', username: 'AK7', socketId: uniqSocketId() });
+    rm.fillWithBots(room.code, 'seated-2');
+    const botId = room.players.find(p => p.isBot).userId;
+    expect(rm.isUserSeated(botId)).toBe(false);
+  });
+});

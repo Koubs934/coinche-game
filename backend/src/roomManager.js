@@ -1106,6 +1106,16 @@ function getRoom(code) {
   return rooms.get(code) || null;
 }
 
+// True if this user holds a (non-bot) seat in any room — used by presence to
+// distinguish EN PARTIE from EN LIGNE. A room in LOBBY counts: the user is
+// seated and occupied setting a game up.
+function isUserSeated(userId) {
+  for (const room of rooms.values()) {
+    if (room.players.some(p => p.userId === userId && !p.isBot)) return true;
+  }
+  return false;
+}
+
 // ─── Lobby: active-rooms listing ─────────────────────────────────────────────
 //
 // Powers the home screen's "Parties en cours" list. Returns the rooms this user
@@ -1234,6 +1244,7 @@ module.exports = {
   togglePartnerPeek,
   addChatMessage,
   listJoinableRooms,
+  isUserSeated,
   getPosition,
   hydrateRooms,
   getRoomByGameId,

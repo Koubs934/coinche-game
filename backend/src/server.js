@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const rm = require('./roomManager');
+const presence = require('./presence');
 const { scheduleBotTurns, scheduleBotConfirms, scheduleBotShuffleCut } = require('./botProcessor');
 const rateLimit = require('./rateLimit');
 const persistence = require('./persistence');
@@ -538,6 +539,18 @@ function broadcastLobbyChanged() {
   io.emit('lobby:roomsChanged');
 }
 
+// Tiny fan-out ping when a user's PRESENCE changes — online/offline (from the
+// presence module) or in-game/online (room enter/leave, fired by the handlers
+// below). Home-screen clients re-request 'lobby:getFriends'; never fired on
+// per-card/bid mutations.
+function broadcastPresenceChanged() {
+  io.emit('lobby:presenceChanged');
+}
+
+// Presence transitions (first socket online / last socket offline) ping the
+// lobby. Room enter/leave transitions are pinged inline by the handlers.
+presence.configure({ onChange: broadcastPresenceChanged });
+
 // Persist the just-finished round as a GameRecord and notify the room creator.
 // Guarded by room.game.gameId so a second broadcast of the same ROUND_OVER
 // phase (e.g. through bot confirm cascades) does not rewrite the file.
@@ -585,6 +598,10 @@ function broadcastGame(room) {
 io.on('connection', socket => {
   const { userId, username } = socket;
 
+  // Track this socket for online presence. Fires a presence ping only if this
+  // is the user's first live socket (offline → online transition).
+  presence.connect(userId, socket.id);
+
   // Rate-limit every event from this socket. Normal play emits ~1 event/sec;
   // 30/sec is well above that and still stops a spammy client from wedging
   // the server or triggering bot cascades.
@@ -605,6 +622,18 @@ io.on('connection', socket => {
     socket.emit('lobby:rooms', { rooms: rm.listJoinableRooms(userId) });
   });
 
+  // ── Lobby: friends presence (home screen "Amis en ligne") ────────────────
+  // Returns a presence map { userId: 'online' | 'in-game' } for every currently
+  // online user EXCEPT the requester (any userId not in the map is offline).
+  // The full registered-user roster is fetched by the client from Supabase
+  // (public.profiles) and merged with this map — the backend has no Supabase
+  // access, so it owns presence only, not the roster. Read-only.
+  socket.on('lobby:getFriends', () => {
+    const map = presence.buildPresenceMap(rm.isUserSeated);
+    delete map[userId]; // exclude self
+    socket.emit('lobby:friends', { presence: map });
+  });
+
   // ── Create room ──────────────────────────────────────────────────────────
   socket.on('createRoom', () => {
     // Leave any existing room
@@ -621,6 +650,7 @@ io.on('connection', socket => {
     sendChatHistory(socket, room);
     persistence.saveRoom(room);
     broadcastLobbyChanged();
+    broadcastPresenceChanged(); // creator: online → in-game
   });
 
   // ── Join room ────────────────────────────────────────────────────────────
@@ -644,6 +674,7 @@ io.on('connection', socket => {
         sendChatHistory(socket, result.room);
         broadcastGame(result.room);
         broadcastLobbyChanged();
+        broadcastPresenceChanged(); // joiner: online → in-game
       } else {
         // Non-admin: create a pending join request for the creator to approve
         const result = rm.requestJoin(code, { userId, username, socketId: socket.id });
@@ -670,6 +701,7 @@ io.on('connection', socket => {
     sendChatHistory(socket, room);
     broadcast(room);
     broadcastLobbyChanged();
+    broadcastPresenceChanged(); // joiner: online → in-game
   });
 
   // ── Rejoin after disconnect ──────────────────────────────────────────────
@@ -866,6 +898,7 @@ io.on('connection', socket => {
     if (result.room) broadcast(result.room);
     if (result.deleted) persistence.deleteRoom(code);
     broadcastLobbyChanged();
+    broadcastPresenceChanged(); // leaver: in-game → online
   });
 
   // ── Remove player (creator only) ─────────────────────────────────────────
@@ -878,6 +911,7 @@ io.on('connection', socket => {
     }
     broadcast(result.room);
     broadcastLobbyChanged();
+    broadcastPresenceChanged(); // removed player: in-game → online
   });
 
   // ── Accept pending join request (creator only) ────────────────────────────
@@ -899,6 +933,7 @@ io.on('connection', socket => {
     }
     broadcastGame(room); // may resume bot scheduling if game unpaused
     broadcastLobbyChanged();
+    broadcastPresenceChanged(); // accepted player: online → in-game
   });
 
   // ── Cancel pending join request ───────────────────────────────────────────
@@ -916,6 +951,9 @@ io.on('connection', socket => {
   // ── Disconnect ───────────────────────────────────────────────────────────
   socket.on('disconnect', () => {
     rateLimit.clearSocket(socket.id);
+    // Presence: drop this socket. Going offline (last socket) fires its own
+    // 'lobby:presenceChanged' from the presence module, after the grace window.
+    presence.disconnect(userId, socket.id);
     const result = rm.handleDisconnect(socket.id);
     if (result) { broadcast(result.room); broadcastLobbyChanged(); }
   });
