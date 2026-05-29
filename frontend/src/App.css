@@ -392,6 +392,15 @@ a      { color: var(--accent); }
   gap: 6px;
   max-width: 96%;
 }
+/* Stacks the top seat over its peek strip so the revealed hand sits directly
+   BELOW the partner's name/avatar (not beside it). */
+.top-seat-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
 /* Partner peek — discreet face-up strip of the partner's cards under their seat.
    Visually distinct from the player's own hand (small chips, dashed tint). */
 .peek-hand {

@@ -789,28 +789,32 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
           )}
           {surcoincheBy === (myPosition + 2) % 4 && <CoincheBadge type="surcoinche" t={t} />}
           {coincheBy    === (myPosition + 2) % 4 && surcoincheBy !== (myPosition + 2) % 4 && <CoincheBadge type="coinche" t={t} />}
-          <PlayerSeat
-            {...seatData(2)}
-            direction="top"
-            isCreator={isCreator}
-            onRemove={removePlayer}
-            bidHistory={isBidding ? perPlayerHistory[(myPosition + 2) % 4] : null}
-          />
-          {/* Partner peek — compact face-up row of the partner's cards, just below
-              their seat. Only ever rendered for the two gated users (peekHand is
-              present only in their server payload); subtle + visually distinct. */}
-          {peekHand && peekHand.length > 0 && (
-            <div className="peek-hand" aria-label="partner peek">
-              {sortHand(peekHand, trumpSuit, modeSacha).map((c, i) => (
-                <span
-                  key={`${c.suit}${c.value}-${i}`}
-                  className={`peek-card${c.suit === 'H' || c.suit === 'D' ? ' red' : ''}`}
-                >
-                  {c.value}{SUIT_SYM[c.suit]}
-                </span>
-              ))}
-            </div>
-          )}
+          {/* Seat + peek strip stacked vertically: name/avatar on top, the revealed
+              hand directly BELOW it (badges remain beside this column). */}
+          <div className="top-seat-stack">
+            <PlayerSeat
+              {...seatData(2)}
+              direction="top"
+              isCreator={isCreator}
+              onRemove={removePlayer}
+              bidHistory={isBidding ? perPlayerHistory[(myPosition + 2) % 4] : null}
+            />
+            {/* Partner peek — compact face-up row of the partner's cards, directly
+                below their name/avatar. Only ever rendered for the two gated users
+                (peekHand is present only in their server payload). */}
+            {peekHand && peekHand.length > 0 && (
+              <div className="peek-hand" aria-label="partner peek">
+                {sortHand(peekHand, trumpSuit, modeSacha).map((c, i) => (
+                  <span
+                    key={`${c.suit}${c.value}-${i}`}
+                    className={`peek-card${c.suit === 'H' || c.suit === 'D' ? ' red' : ''}`}
+                  >
+                    {c.value}{SUIT_SYM[c.suit]}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="board-left">
