@@ -15,6 +15,12 @@ export default {
   signOut: 'Sign Out',
   settings: 'Settings',
   language: 'Language',
+  preferences: 'Preferences',
+  modeSacha: 'Mode Sacha',
+  sachaOff: 'Alternating colors · trump on left',
+  sachaOn: 'Alternating colors · trump anywhere',
+  delfinoOff: 'Normal card size',
+  delfinoOn: 'Enlarged cards',
 
   // Lobby
   createRoom: 'Create Room',

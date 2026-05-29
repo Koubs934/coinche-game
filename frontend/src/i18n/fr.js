@@ -15,6 +15,12 @@ export default {
   signOut: 'Se déconnecter',
   settings: 'Réglages',
   language: 'Langue',
+  preferences: 'Préférences',
+  modeSacha: 'Mode Sacha',
+  sachaOff: 'Couleurs alternées · atout à gauche',
+  sachaOn: 'Couleurs alternées · atout libre',
+  delfinoOff: 'Cartes en taille normale',
+  delfinoOn: 'Cartes agrandies',
 
   // Lobby
   createRoom: 'Créer une salle',

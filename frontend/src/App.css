@@ -1856,6 +1856,121 @@ a      { color: var(--accent); }
 .btn-manage:hover { color: var(--text); background: rgba(0,0,0,0.5); }
 .btn-manage-lobby { font-size: 0.9em; padding: 10px 20px; min-height: auto; }
 
+/* ─── Réglages (settings) overlay ───────────────────────────────────────────
+   Shares .admin-panel-overlay as the backdrop; the panel itself is its own card. */
+.settings-modal {
+  background: var(--ui-card);
+  border-radius: 12px;
+  padding: 16px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 340px;
+  max-width: 92vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.settings-title { font-weight: bold; font-size: 1.05em; color: var(--text); }
+.settings-section {
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.settings-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
+
+/* Uniform full-width rows: label left, control right */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.18);
+  border-radius: var(--radius);
+}
+.settings-row-label { font-size: 0.95em; color: var(--text); }
+.pref-row .pref-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pref-subtitle { font-size: 0.78em; color: var(--muted); }
+
+/* Segmented FR | EN language toggle */
+.seg-toggle {
+  display: inline-flex;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.seg-opt {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.82em;
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.seg-opt.active { background: var(--accent); color: #1e2a38; }
+.seg-opt:not(.active):hover { background: rgba(255,255,255,0.07); color: var(--text); }
+
+/* Reusable pill switch (track + sliding knob) */
+.pref-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 46px;
+  height: 26px;
+  border-radius: 13px;
+  border: none;
+  background: rgba(255,255,255,0.18);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  padding: 0;
+}
+.pref-switch.on { background: #1f9e8a; }
+.pref-switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  transition: transform 0.15s ease;
+}
+.pref-switch.on .pref-switch-knob { transform: translateX(20px); }
+
+/* Full-width action rows (manage + destructive) */
+.settings-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 46px;
+  padding: 6px 12px;
+  font-size: 0.95em;
+  color: var(--text);
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.settings-action:hover { background: rgba(0,0,0,0.32); }
+.settings-chevron { color: var(--muted); font-size: 1.2em; line-height: 1; }
+.settings-action.danger {
+  justify-content: center;
+  color: #ff8080;
+  background: rgba(139,26,26,0.22);
+  border-color: rgba(204,17,17,0.4);
+}
+.settings-action.danger:hover { background: rgba(139,26,26,0.42); color: #ffaaaa; }
+
 .btn-undo {
   background: rgba(80,60,20,0.35);
   color: #d4a84b;

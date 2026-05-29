@@ -1,17 +1,32 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
-import HandSizeToggle from './HandSizeToggle';
+import { useModeSacha } from '../context/ModeSachaContext';
 import AdminPanel from './AdminPanel';
 
-// "Réglages" overlay — consolidates the controls that used to be scattered across
-// the Header and the in-game toolbar: language, Mode Delfino (in-game only), manage
-// players (creator only), leave, and sign out. Rendered at App level so it has the
-// socket + room state that leave/manage need, and so the gear is reachable from both
-// lobby and game.
-export default function SettingsModal({ open, onClose, socket, room, myPosition, onCycleHandSize }) {
+// Reusable pill switch (track + sliding knob). Teal/accent track when ON, muted when OFF.
+function Switch({ on, onToggle, label }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      className={`pref-switch${on ? ' on' : ''}`}
+      onClick={onToggle}
+    >
+      <span className="pref-switch-knob" />
+    </button>
+  );
+}
+
+// "Réglages" overlay — consolidates language, Mode Delfino, Mode Sacha (preferences),
+// plus manage / leave / sign-out (actions). Rendered at App level so it has the socket
+// + room state that leave/manage need, and so the gear is reachable from lobby + game.
+export default function SettingsModal({ open, onClose, socket, room, myPosition, handSize, onCycleHandSize }) {
   const { lang, toggleLang, t } = useLang();
   const { signOut } = useAuth();
+  const { modeSacha, toggleModeSacha } = useModeSacha();
   const [showAdmin, setShowAdmin] = useState(false);
 
   if (!open) return null;
@@ -19,6 +34,7 @@ export default function SettingsModal({ open, onClose, socket, room, myPosition,
   const myUserId  = room?.players?.find(p => p.position === myPosition)?.userId;
   const isCreator = !!room && myUserId === room.creatorId;
   const inGame    = !!room && ['PLAYING', 'ROUND_OVER', 'GAME_OVER', 'SHUFFLE', 'CUT'].includes(room.phase);
+  const delfinoOn = handSize === 'XL';
 
   function removePlayer(targetUserId) {
     socket?.emit('removePlayer', { code: room.code, targetUserId });
@@ -48,53 +64,73 @@ export default function SettingsModal({ open, onClose, socket, room, myPosition,
 
   return (
     <div className="admin-panel-overlay" onClick={onClose}>
-      <div className="admin-panel settings-panel" onClick={e => e.stopPropagation()}>
-        <div className="admin-panel-header">
-          <span className="admin-panel-title">{t.settings}</span>
-          <button className="btn-close" onClick={onClose}>✕</button>
+      <div className="settings-modal" onClick={e => e.stopPropagation()}>
+        <div className="settings-header">
+          <span className="settings-title">{t.settings}</span>
+          <button className="btn-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
 
-        <div className="settings-rows">
-          {/* Language */}
-          <div className="settings-row">
-            <span className="settings-row-label">{t.language}</span>
-            <button className="btn-lang" onClick={toggleLang} title="Toggle language">
-              {lang.toUpperCase()}
-            </button>
-          </div>
+        <div className="settings-section">{t.preferences}</div>
 
-          {/* Mode Delfino — only in a live game (hidden in the lobby) */}
-          {inGame && onCycleHandSize && (
-            <div className="settings-row">
-              <HandSizeToggle onCycle={onCycleHandSize} />
-            </div>
-          )}
-
-          {/* Manage players — creator only */}
-          {isCreator && (
-            <div className="settings-row">
-              <button className="btn-manage" onClick={() => setShowAdmin(true)} title={t.managePlayersTitle}>
-                ⚙ {t.managePlayers}
+        {/* Language — segmented FR | EN */}
+        <div className="settings-row">
+          <span className="settings-row-label">{t.language}</span>
+          <div className="seg-toggle" role="group" aria-label={t.language}>
+            {['fr', 'en'].map(l => (
+              <button
+                key={l}
+                type="button"
+                className={`seg-opt${lang === l ? ' active' : ''}`}
+                onClick={() => { if (lang !== l) toggleLang(); }}
+              >
+                {l.toUpperCase()}
               </button>
-            </div>
-          )}
-
-          {/* Leave the table */}
-          {room && (
-            <div className="settings-row">
-              <button className="btn-leave" onClick={leave}>
-                ⎋ {t.leaveTable}
-              </button>
-            </div>
-          )}
-
-          {/* Sign out */}
-          <div className="settings-row">
-            <button className="btn-link btn-signout" onClick={signOut} title={t.signOut}>
-              ⎋ {t.signOut}
-            </button>
+            ))}
           </div>
         </div>
+
+        {/* Mode Delfino — in-game only; switch flips hand-card size */}
+        {inGame && onCycleHandSize && (
+          <div className="settings-row pref-row">
+            <div className="pref-text">
+              <span className="settings-row-label">Mode Delfino</span>
+              <span className="pref-subtitle">{delfinoOn ? t.delfinoOn : t.delfinoOff}</span>
+            </div>
+            <Switch on={delfinoOn} onToggle={onCycleHandSize} label="Mode Delfino" />
+          </div>
+        )}
+
+        {/* Mode Sacha — global sort preference */}
+        <div className="settings-row pref-row">
+          <div className="pref-text">
+            <span className="settings-row-label">{t.modeSacha}</span>
+            <span className="pref-subtitle">{modeSacha ? t.sachaOn : t.sachaOff}</span>
+          </div>
+          <Switch on={modeSacha} onToggle={toggleModeSacha} label={t.modeSacha} />
+        </div>
+
+        {/* Manage players — creator only */}
+        {isCreator && (
+          <>
+            <div className="settings-divider" />
+            <button className="settings-action" onClick={() => setShowAdmin(true)}>
+              <span>{t.managePlayers}</span>
+              <span className="settings-chevron" aria-hidden="true">›</span>
+            </button>
+          </>
+        )}
+
+        <div className="settings-divider" />
+
+        {/* Destructive actions — uniform red rows */}
+        {room && (
+          <button className="settings-action danger" onClick={leave}>
+            {t.leaveTable}
+          </button>
+        )}
+        <button className="settings-action danger" onClick={signOut}>
+          {t.signOut}
+        </button>
       </div>
     </div>
   );

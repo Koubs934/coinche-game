@@ -79,16 +79,26 @@ function bestNonTrumpOrder(suits, leftColor) {
   return bestPerm;
 }
 
-export function sortHand(hand, trump) {
+// Mode Sacha (sacha=true): arrange ALL present suits purely by color alternation —
+// trump is NOT forced leftmost, it lands wherever alternation places it. Within-suit
+// rank ordering is unchanged (the `trump` suit still uses TRUMP_ORDER), so Sacha only
+// moves suit POSITIONS. Default (sacha=false): trump/chosen suit leads, remaining suits
+// alternate — exactly as before.
+export function sortHand(hand, trump, sacha = false) {
   if (!hand?.length) return hand || [];
   const presentSuits  = [...new Set(hand.map(c => c.suit))];
-  const trumpInHand   = trump && presentSuits.includes(trump);
-  const nonTrumpSuits = presentSuits.filter(s => s !== trump);
-  const leftColor     = trumpInHand ? SUIT_COLOR[trump] : null;
-  const suitOrder     = [
-    ...(trumpInHand ? [trump] : []),
-    ...bestNonTrumpOrder(nonTrumpSuits, leftColor),
-  ];
+  let suitOrder;
+  if (sacha) {
+    suitOrder = bestNonTrumpOrder(presentSuits, null);
+  } else {
+    const trumpInHand   = trump && presentSuits.includes(trump);
+    const nonTrumpSuits = presentSuits.filter(s => s !== trump);
+    const leftColor     = trumpInHand ? SUIT_COLOR[trump] : null;
+    suitOrder = [
+      ...(trumpInHand ? [trump] : []),
+      ...bestNonTrumpOrder(nonTrumpSuits, leftColor),
+    ];
+  }
   return [...hand].sort((a, b) => {
     const ai = suitOrder.indexOf(a.suit), bi = suitOrder.indexOf(b.suit);
     if (ai !== bi) return ai - bi;

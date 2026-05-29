@@ -459,6 +459,7 @@ export default function App() {
         socket={socketRef.current}
         room={roomState}
         myPosition={myPosition}
+        handSize={handSize}
         onCycleHandSize={cycleHandSize}
       />
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useLang } from '../context/LanguageContext';
+import { useModeSacha } from '../context/ModeSachaContext';
 import BiddingPanel from './BiddingPanel';
 import RoundSummary from './RoundSummary';
 import {
@@ -76,6 +77,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   // that differ from normal-game (action emits, abandon confirm, hidden UI
   // that doesn't apply: undo, admin panel, pending joins).
   const { t } = useLang();
+  // Mode Sacha is a global preference (read-only here in training; toggled from the
+  // Réglages overlay during normal play). Both GameBoard instances honor it live.
+  const { modeSacha } = useModeSacha();
 
   // ── State ──────────────────────────────────────────────────────────────────
   // sortMode: 'S'|'H'|'D'|'C' = sort as if that suit were trump; 'manual' = drag order
@@ -174,7 +178,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
 
   const manualHand   = applyManualOrder(myHand, manualOrderKeys);
   const displayHand  = sortMode !== 'manual'
-    ? sortHand(myHand, sortMode)
+    ? sortHand(myHand, sortMode, modeSacha)
     : dragVisual
       ? reorderArr(manualHand, dragVisual.fromIdx, dragVisual.toIdx)
       : manualHand;
@@ -453,6 +457,13 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
 
   // ── Sort mode cycle ────────────────────────────────────────────────────────
   function cycleSortMode() {
+    // Mode Sacha ignores the per-suit choice — the suit positions come from color
+    // alternation — so Trier just toggles auto ⇄ manual. The non-manual value is a
+    // valid suit only so within-suit rank ordering (trump → TRUMP_ORDER) still works.
+    if (modeSacha) {
+      setSortMode(prev => prev === 'manual' ? (trumpSuit || bestSuitForHand(myHand)) : 'manual');
+      return;
+    }
     const cycle = trumpSuit
       ? [trumpSuit, 'manual']
       : ['S', 'H', 'D', 'C', 'manual'];
@@ -683,11 +694,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
       <div className={`hand-toolbar${compact ? ' hand-toolbar-icons' : ''}`}>
         {!isShuffleCut && (
           <button
-            className={`btn-sort${sortMode !== 'manual' ? ' sort-on' : ''}${sortMode === 'H' || sortMode === 'D' ? ' sort-red' : ''}`}
+            className={`btn-sort${sortMode !== 'manual' ? ' sort-on' : ''}${!modeSacha && (sortMode === 'H' || sortMode === 'D') ? ' sort-red' : ''}`}
             onClick={cycleSortMode}
             title={t.sortHand}
           >
-            {lbl(sortMode === 'manual' ? '⇅' : SUIT_SYM[sortMode],
+            {lbl(sortMode === 'manual' ? '⇅' : (modeSacha ? '🎨' : SUIT_SYM[sortMode]),
                  sortMode === 'manual' ? t.sortManual : t.sortHand)}
           </button>
         )}
