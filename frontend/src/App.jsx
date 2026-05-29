@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 import { useLang } from './context/LanguageContext';
 import Auth from './components/Auth';
 import Header from './components/Header';
+import SettingsModal from './components/SettingsModal';
 import Lobby from './components/Lobby';
 import GameBoard from './components/GameBoard';
 import GameErrorTaggerMock from './game/GameErrorTaggerMock';
@@ -76,6 +77,7 @@ export default function App() {
   const [gameState, setGameState] = useState(null);
   const [myPosition, setMyPosition] = useState(null);
   const [pendingRoom, setPendingRoom] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Training-mode state (kept entirely separate from normal-room state)
   const [trainingView,       setTrainingView]       = useState(null); // 'picker' | 'run' | 'complete' | null
@@ -448,8 +450,15 @@ export default function App() {
     <div className="app" data-hand-size={handSize}>
       <Header
         roomCode={roomState?.code}
-        scores={roomState?.scores}
-        targetScore={roomState?.targetScore}
+        onOpenSettings={() => setShowSettings(true)}
+      />
+
+      <SettingsModal
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        socket={socketRef.current}
+        room={roomState}
+        myPosition={myPosition}
         onCycleHandSize={cycleHandSize}
       />
 

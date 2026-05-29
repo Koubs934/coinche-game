@@ -2,7 +2,6 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useLang } from '../context/LanguageContext';
 import BiddingPanel from './BiddingPanel';
 import RoundSummary from './RoundSummary';
-import AdminPanel from './AdminPanel';
 import {
   SUIT_SYM,
   buildPerPlayerHistory,
@@ -90,7 +89,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     return bestSuitForHand(hand);
   });
   const [showLastTrick, setShowLastTrick] = useState(false);
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
   // trickOverlay = { cards, winnerPos, animate } | null
   const [trickOverlay, setTrickOverlay] = useState(null);
   // manualOrderKeys: card-key array defining manual hand order; null = server order
@@ -586,13 +584,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   if (room.phase === 'ROUND_OVER' || room.phase === 'GAME_OVER') {
     return (
       <>
-        {!trainingMode && showAdminPanel && isCreator && (
-          <AdminPanel
-            players={players} creatorId={room.creatorId} myUserId={myPlayer?.userId}
-            phase={room.phase}
-            onRemove={removePlayer} onClose={() => setShowAdminPanel(false)}
-          />
-        )}
         {paused && <PauseBanner players={players} t={t} />}
         {!trainingMode && room.pendingJoins?.length > 0 && (
           <div className="pending-joins-panel">
@@ -710,11 +701,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
             {lbl('↩', t.undoAction)}
           </button>
         )}
-        {!trainingMode && isCreator && (
-          <button className="btn-manage" onClick={() => setShowAdminPanel(true)} title={t.managePlayersTitle}>
-            {lbl('⚙', t.managePlayers)}
-          </button>
-        )}
         {/* Game Review: only rendered for the room creator in live games. */}
         {!trainingMode && isCreator && phase === 'PLAYING' && (
           <button
@@ -725,11 +711,13 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
             {lbl('⚠', t.button.tagPlayError)}
           </button>
         )}
-        <button className="btn-leave" onClick={leaveTable} title={trainingMode ? t.training.abandonLabel : t.leaveTable}>
-          {compact
-            ? lbl('⎋', trainingMode ? t.training.abandonLabel : t.leaveShort)
-            : (trainingMode ? t.training.abandonLabel : t.leaveTable)}
-        </button>
+        {/* Manage / Leave for normal play now live in the Réglages overlay (Header gear).
+            In training there is no Header/Settings, so keep the abandon button here. */}
+        {trainingMode && (
+          <button className="btn-leave" onClick={leaveTable} title={t.training.abandonLabel}>
+            {compact ? lbl('⎋', t.training.abandonLabel) : t.training.abandonLabel}
+          </button>
+        )}
       </div>
     );
   };
@@ -742,13 +730,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
 
   return (
     <div className="game-board">
-      {showAdminPanel && isCreator && (
-        <AdminPanel
-          players={players} creatorId={room.creatorId} myUserId={myPlayer?.userId}
-          phase={room.phase}
-          onRemove={removePlayer} onClose={() => setShowAdminPanel(false)}
-        />
-      )}
       {paused && <PauseBanner players={players} t={t} />}
 
       {/* ── Pending join requests ───────────────────────────────────────────── */}

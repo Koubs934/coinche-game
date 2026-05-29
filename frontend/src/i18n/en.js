@@ -13,6 +13,8 @@ export default {
   haveAccount: 'Already have an account?',
   noAccount: "Don't have an account?",
   signOut: 'Sign Out',
+  settings: 'Settings',
+  language: 'Language',
 
   // Lobby
   createRoom: 'Create Room',

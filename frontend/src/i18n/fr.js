@@ -13,6 +13,8 @@ export default {
   haveAccount: 'Déjà un compte ?',
   noAccount: 'Pas encore de compte ?',
   signOut: 'Se déconnecter',
+  settings: 'Réglages',
+  language: 'Langue',
 
   // Lobby
   createRoom: 'Créer une salle',
