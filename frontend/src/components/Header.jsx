@@ -2,7 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import HandSizeToggle from './HandSizeToggle';
 
-export default function Header({ roomCode, scores, targetScore, onCycleHandSize }) {
+export default function Header({ roomCode, onCycleHandSize }) {
   const { username, signOut } = useAuth();
   const { lang, toggleLang, t } = useLang();
 
@@ -13,18 +13,6 @@ export default function Header({ roomCode, scores, targetScore, onCycleHandSize 
           <span className="app-logo">♦ Belote</span>
           {roomCode && <span className="room-code">{roomCode}</span>}
         </div>
-        {scores && (
-          <div className="header-scores">
-            <span className="score-item team0">
-              {t.team1}: <strong>{scores[0]}</strong>
-            </span>
-            <span className="score-sep">/</span>
-            <span className="score-item team1">
-              {t.team2}: <strong>{scores[1]}</strong>
-            </span>
-            {targetScore && <span className="score-target">— {targetScore}</span>}
-          </div>
-        )}
       </div>
 
       <div className="app-header-row">

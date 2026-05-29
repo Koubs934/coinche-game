@@ -155,7 +155,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   const prevSCActionRef     = useRef(room.lastShuffleCutAction ?? null); // for shuffle/cut feedback
 
   // ── Derived ────────────────────────────────────────────────────────────────
-  const { players, scores, targetScore, paused, shuffleDealer, cutPlayer, lastShuffleCutAction, lastShuffleCutActorPos } = room;
+  const { players, scores, paused, shuffleDealer, cutPlayer, lastShuffleCutAction, lastShuffleCutActorPos } = room;
   const {
     phase, currentTrick, currentPlayer, biddingTurn,
     trumpSuit, currentBid, hands, handCounts, beloteInfo, tricks,
@@ -801,7 +801,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
       <div className="score-bars">
         <div className="total-score-bar">
           <span className="tsb-item team0-col">{myTeam === 0 ? t.us : t.them}: <strong>{scores[0]}</strong></span>
-          <span className="tsb-target">/ {targetScore}</span>
           <span className="tsb-item team1-col">{myTeam === 1 ? t.us : t.them}: <strong>{scores[1]}</strong></span>
         </div>
       </div>
