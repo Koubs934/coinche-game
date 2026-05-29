@@ -64,6 +64,29 @@ function getTeamByUserId(room, userId) {
   return p ? p.team : -1;
 }
 
+// Choose the seat for a NEW occupant (human or bot): the lowest free seat on the
+// team with FEWER players. With 4 seats / 2 per team (team0 = seats 0,2; team1 =
+// 1,3) this always fills the open spots toward 2v2 — never a 3rd on a team while
+// the other still has a free seat. Returns -1 when the room is full.
+//
+// This (plus assignTeam relocating into a real free seat) keeps team strictly
+// derived from position, so the lobby team a player shows on is the same thing
+// that determines their in-game seat + partner (partner = position + 2 mod 4).
+function _chooseSeat(room) {
+  const taken = new Set(room.players.map(p => p.position));
+  const free = [[], []]; // free[0] = open even seats (team0); free[1] = open odd seats (team1)
+  for (let s = 0; s < 4; s++) if (!taken.has(s)) free[s % 2].push(s);
+  if (free[0].length === 0 && free[1].length === 0) return -1;
+
+  const count = [0, 0];
+  for (const p of room.players) count[p.position % 2]++;
+
+  let team;
+  if (free[0].length && free[1].length) team = count[0] <= count[1] ? 0 : 1;
+  else                                  team = free[0].length ? 0 : 1;
+  return free[team][0];
+}
+
 // ─── Guard helpers (reduce repetition in public API functions) ─────────────
 
 function requireRoom(code) {
@@ -285,21 +308,37 @@ function joinRoom(code, { userId, username, socketId }) {
   if (room.players.length >= 4) return { error: 'Room is full' };
   if (room.players.find(p => p.userId === userId)) return { error: 'Already in room' };
 
-  const position = room.players.length;
+  // Seat into a free seat on the underfull team (team is derived from the seat),
+  // so manual team moves are respected and we never form a 3v1.
+  const position = _chooseSeat(room);
+  if (position === -1) return { error: 'Room is full' };
   room.players.push({ userId, username, socketId, team: position % 2, position, connected: true });
   noteRoomActivity(room);
   return { room };
 }
 
+// "Move to other team" = a real SEAT change into a free seat of the target team,
+// so team never decouples from position. If the target team has no free seat the
+// move is unavailable (which is what structurally prevents a 3v1).
 function assignTeam(code, creatorId, targetUserId, team) {
   const room = rooms.get(code);
   if (!room) return { error: 'Room not found' };
   if (room.creatorId !== creatorId) return { error: 'Only the room creator can assign teams' };
   if (room.phase !== 'LOBBY') return { error: 'Game already in progress' };
+  if (team !== 0 && team !== 1) return { error: 'Invalid team' };
 
   const player = room.players.find(p => p.userId === targetUserId);
   if (!player) return { error: 'Player not found' };
-  player.team = team;
+  if (player.position % 2 === team) return { room }; // already on that team — no-op
+
+  // Find a free seat belonging to the target team (team0 = seats 0,2; team1 = 1,3).
+  const taken = new Set(room.players.map(p => p.position));
+  let target = -1;
+  for (let s = team; s < 4; s += 2) { if (!taken.has(s)) { target = s; break; } }
+  if (target === -1) return { error: 'That team has no free seat' };
+
+  player.position = target;
+  player.team = target % 2;
   return { room };
 }
 
@@ -318,7 +357,10 @@ function fillWithBots(code, creatorId) {
 
   while (room.players.length < 4) {
     while (existingBotNums.has(botNum)) botNum++;
-    const position = room.players.length;
+    // Seat each bot into a free seat on the underfull team (respecting manual
+    // moves) so they balance the table to 2v2 instead of filling by array index.
+    const position = _chooseSeat(room);
+    if (position === -1) break;
     room.players.push({
       userId: `bot-${botNum}`,
       username: `Bot ${botNum}`,

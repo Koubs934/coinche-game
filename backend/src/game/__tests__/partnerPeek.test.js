@@ -66,14 +66,13 @@ describe('partner-peek — togglePartnerPeek authorization', () => {
 describe('partner-peek — canPeek in publicGame', () => {
   // Drive a real round into BIDDING with the given fourth player, AK7+FAIS partnered.
   function startedRoom(fourthId) {
-    const room = rm.createRoom({ userId: AK7, username: 'AK7', socketId: sid() });
-    rm.joinRoom(room.code, { userId: FAIS,     username: 'faispaschier', socketId: sid() });
-    rm.joinRoom(room.code, { userId: fourthId, username: 'four',         socketId: sid() });
-    rm.joinRoom(room.code, { userId: GILOU,    username: 'Gilou',        socketId: sid() });
-    // AK7 (creator) makes FAIS a partner (team 0); others team 1.
-    rm.assignTeam(room.code, AK7, FAIS, 0);
-    rm.assignTeam(room.code, AK7, fourthId, 1);
-    rm.assignTeam(room.code, AK7, GILOU, 1);
+    const room = rm.createRoom({ userId: AK7, username: 'AK7', socketId: sid() }); // seat0 (t0)
+    rm.joinRoom(room.code, { userId: FAIS, username: 'faispaschier', socketId: sid() }); // seat1 (t1)
+    // Move FAIS to team0 while a team0 seat is still free → AK7 + FAIS partnered.
+    rm.assignTeam(room.code, AK7, FAIS, 0); // FAIS → seat2 (t0)
+    // The remaining two auto-seat onto the underfull team1 (seats 1 & 3).
+    rm.joinRoom(room.code, { userId: fourthId, username: 'four',  socketId: sid() });
+    rm.joinRoom(room.code, { userId: GILOU,    username: 'Gilou', socketId: sid() });
     rm.startGame(room.code, AK7);
     // SHUFFLE → CUT → PLAYING(BIDDING)
     rm.skipShuffle(room.code, room.players.find(p => p.position === room.shuffleDealer).userId);
