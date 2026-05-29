@@ -73,7 +73,7 @@ function useMediaQuery(query) {
 
 // ─── Main GameBoard ────────────────────────────────────────────────────────
 
-export default function GameBoard({ socket, roomCode, room, game, myPosition, trainingMode }) {
+export default function GameBoard({ socket, roomCode, room, game, myPosition, trainingMode, throwOpen, onToggleThrow }) {
   // trainingMode, when provided, is { runId } — gates the handful of behaviors
   // that differ from normal-game (action emits, abandon confirm, hidden UI
   // that doesn't apply: undo, admin panel, pending joins).
@@ -229,6 +229,23 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   }
 
   const isCreator = room.creatorId === myPlayer?.userId;
+
+  // Throw button — lives in the bottom band (right of the avatar/name), opening
+  // the App-level tray upward. In-game only (hidden in training). The same
+  // element is reused on the round-summary screen. Only one return path renders
+  // per pass, so sharing the variable across both branches is safe.
+  const throwButton = (!trainingMode && typeof onToggleThrow === 'function') ? (
+    <button
+      type="button"
+      className={`btn-throw${throwOpen ? ' active' : ''}`}
+      onClick={onToggleThrow}
+      title={t.throw.aim}
+      aria-label={t.throw.aim}
+      aria-pressed={!!throwOpen}
+    >
+      🍅
+    </button>
+  ) : null;
 
   function leaveTable() {
     if (trainingMode) {
@@ -608,6 +625,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
           </div>
         )}
         <RoundSummary socket={socket} roomCode={roomCode} room={room} game={game} myPosition={myPosition} />
+        {/* Throw stays reachable on the summary screen (bottom-right). */}
+        {throwButton && <div className="throw-summary-bar">{throwButton}</div>}
       </>
     );
   }
@@ -979,6 +998,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
           {isBidding && perPlayerHistory[myPosition]?.length > 0 && (
             <BidStack history={perPlayerHistory[myPosition]} t={t} />
           )}
+          {/* Throw button — right-aligned, opposite the avatar/name, above the hand. */}
+          {throwButton}
         </div>
 
         {/* Bid sheet (my bid turn): collapsible bottom sheet on short viewports,

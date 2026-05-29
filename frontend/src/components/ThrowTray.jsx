@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { THROW_ITEMS } from '../lib/throwItems';
 
 // Throw item tray + drag-and-drop targeting. Opened by the header throw button;
@@ -12,8 +12,28 @@ import { THROW_ITEMS } from '../lib/throwItems';
 // tapping a card both closes the tray AND still plays the card.
 export default function ThrowTray({ open, onClose, onThrow, myPosition }) {
   const [drag, setDrag] = useState(null); // { item, x, y } while dragging
+  const [pos, setPos]   = useState(null); // { right, bottom } anchored to the button
   const dragRef  = useRef(null);
   const hoverRef = useRef(null); // currently-highlighted seat element
+
+  // Anchor the tray just above the throw button (bottom band), opening UPWARD,
+  // so the whole table stays visible. Measured from the live button rect so it
+  // tracks layout / viewport; re-measured on resize. Fixed positioning.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const measure = () => {
+      const btn = document.querySelector('.btn-throw');
+      if (!btn) { setPos(null); return; }
+      const r = btn.getBoundingClientRect();
+      setPos({
+        right:  Math.max(8, Math.round(window.innerWidth - r.right)),
+        bottom: Math.round(window.innerHeight - r.top + 8), // 8px above the button
+      });
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [open]);
 
   // Outside-tap dismiss without blocking gameplay. Ignore taps on the tray
   // itself and on the header throw button (which toggles open separately).
@@ -86,7 +106,11 @@ export default function ThrowTray({ open, onClose, onThrow, myPosition }) {
 
   return (
     <>
-      <div className="throw-tray" role="group">
+      <div
+        className="throw-tray"
+        role="group"
+        style={pos ? { right: `${pos.right}px`, bottom: `${pos.bottom}px` } : undefined}
+      >
         {THROW_ITEMS.map(it => (
           <button
             key={it.id}

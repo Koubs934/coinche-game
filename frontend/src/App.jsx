@@ -9,7 +9,8 @@ import ChatPanel from './components/ChatPanel';
 import ChatBubbles from './components/ChatBubbles';
 import ThrowLayer from './components/ThrowLayer';
 import ThrowTray from './components/ThrowTray';
-import { THROW_TOTAL_MS, THROW_ITEMS as THROW_ITEMS_PREVIEW } from './lib/throwItems';
+import ThrowMock from './components/ThrowMock';
+import { THROW_TOTAL_MS } from './lib/throwItems';
 import Lobby from './components/Lobby';
 import ProfileScreen from './components/ProfileScreen';
 import GameBoard from './components/GameBoard';
@@ -63,45 +64,10 @@ export default function App() {
     );
   }
   if (MOCK_MODE === 'throw') {
-    // Auth-free preview of the throw tray + each item's impact (frozen mid-frame).
-    // Used for responsive self-eval; mirrors the other ?mock= flags.
+    // Auth-free preview of the bottom throw button + upward tray + impacts.
     return (
       <>
-        <div className="app">
-          <div className="throw-mock">
-            <p className="throw-mock-label">Tray</p>
-            <div className="throw-mock-tray">
-              {THROW_ITEMS_PREVIEW.map(it => (
-                <button key={it.id} type="button" className="throw-tray-item" title={it.id}>{it.emoji}</button>
-              ))}
-            </div>
-            <p className="throw-mock-label">Impacts</p>
-            <div className="throw-mock-impacts">
-              {THROW_ITEMS_PREVIEW.map(it => (
-                <div key={it.id} className="throw-mock-cell">
-                  <div
-                    className={`throw-impact throw-impact-frozen throw-impact-${it.splat}`}
-                    style={{ '--pcol': `#${it.color}` }}
-                  >
-                    <span className={`throw-splat throw-splat-${it.splat}`} />
-                    {[0, 1, 2, 3, 4, 5].map(i => {
-                      const ang = (i / 6) * Math.PI * 2;
-                      return (
-                        <span key={i} className="throw-particle"
-                          style={{ '--pdx': `${Math.cos(ang) * 36}px`, '--pdy': `${Math.sin(ang) * 36}px` }} />
-                      );
-                    })}
-                    {it.burst && <span className="throw-burst">{it.burst}</span>}
-                    <span className="throw-impact-emoji">{it.emoji}</span>
-                    {it.messy && <span className="throw-drip" />}
-                    {it.stun && <span className="throw-stunned">😵</span>}
-                  </div>
-                  <span className="throw-mock-name">{it.id}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <ThrowMock />
         <EnvBadge />
       </>
     );
@@ -642,9 +608,6 @@ export default function App() {
         showChat={!!roomState}
         onOpenChat={openChat}
         chatUnread={chatUnread}
-        showThrow={inGame}
-        throwOpen={throwTrayOpen}
-        onToggleThrow={() => setThrowTrayOpen(o => !o)}
       />
 
       <SettingsModal
@@ -669,6 +632,8 @@ export default function App() {
           room={roomState}
           game={gameState ?? EMPTY_GAME}
           myPosition={myPosition}
+          throwOpen={throwTrayOpen}
+          onToggleThrow={() => setThrowTrayOpen(o => !o)}
         />
       ) : (
         <Lobby

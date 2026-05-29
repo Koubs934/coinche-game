@@ -172,20 +172,41 @@
 @keyframes av-slap   { 0% { transform: translateX(0) rotate(0); } 20% { transform: translateX(-12px) rotate(-14deg); } 50% { transform: translateX(8px) rotate(8deg); } 80% { transform: translateX(-3px) rotate(-3deg); } 100% { transform: translateX(0); } }
 
 /* ─── Throw tray + drag ───────────────────────────────────────────────────── */
-.btn-throw { position: relative; background: none; color: var(--muted); padding: 2px 4px; display: inline-flex; align-items: center; cursor: pointer; font-size: 20px; line-height: 1; }
-.btn-throw:hover { color: var(--accent); }
-.btn-throw.active { color: var(--accent); }
-
-.throw-tray {
+/* Button lives in the bottom band (self-player-bar), pushed to the right edge —
+   opposite the avatar/name — and on the round-summary screen (bottom-right). */
+.btn-throw {
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  cursor: pointer;
+  font-size: 20px; line-height: 1;
+  flex-shrink: 0;
+}
+.btn-throw:hover  { background: rgba(0, 0, 0, 0.5); }
+.btn-throw.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(240, 165, 0, 0.35); }
+.self-player-bar .btn-throw { margin-left: auto; }   /* opposite the avatar/name */
+.throw-summary-bar {
   position: absolute;
-  top: 4px; right: 8px; left: 8px;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  z-index: 60;
+}
+
+/* Tray opens UPWARD, anchored just above the button (right/bottom set inline
+   from the measured button rect), so the whole table stays visible. */
+.throw-tray {
+  position: fixed;
+  right: 8px;            /* inline style overrides with the measured anchor */
+  bottom: 96px;
   z-index: 120;
-  margin: 0 auto;
-  max-width: 420px;
+  max-width: min(420px, calc(100vw - 16px));
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  justify-content: center;
+  justify-content: flex-end;
   padding: 10px;
   background: var(--ui-card);
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -193,7 +214,7 @@
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
   animation: throw-tray-in 0.16s ease-out;
 }
-@keyframes throw-tray-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes throw-tray-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .throw-tray-item {
   font-size: 26px;
   width: 46px; height: 46px;
