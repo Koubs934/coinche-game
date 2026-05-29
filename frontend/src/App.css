@@ -1346,15 +1346,73 @@ a      { color: var(--accent); }
 }
 .summary-card h2 { font-size: 1.3em; }
 
-.contract-result {
-  font-size: 1.1em;
-  font-weight: bold;
-  padding: 6px 16px;
-  border-radius: var(--radius);
+/* Slim result line: ✓/✗ + contract value + suit + coinche badge */
+.result-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.95em;
+  font-weight: 600;
 }
-.contract-result.made   { background: #1a5e2a; color: var(--success); }
-.contract-result.failed { background: #5e1a1a; color: #e05050; }
-.summary-contract { font-size: 0.9em; color: var(--muted); }
+.result-line.made   .result-mark,
+.result-line.made   .result-text { color: var(--success); }
+.result-line.failed .result-mark,
+.result-line.failed .result-text { color: #e05050; }
+.result-mark { font-size: 1.15em; }
+.result-contract { color: var(--muted); font-weight: 500; }
+
+/* Hero — score de la manche (this round) */
+.manche-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+}
+.manche-label {
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.manche-values {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  font-size: 2.1em;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+}
+.ms-sep { color: var(--muted); font-weight: normal; }
+.ms-nous { color: #7ec8e3; }   /* viewer's team — blue */
+.ms-eux  { color: #f4a261; }   /* opponents — orange */
+
+/* Secondary — cumulative total, smaller + muted */
+.total-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+.total-line-label { text-transform: uppercase; letter-spacing: 0.06em; }
+.total-line-values { font-variant-numeric: tabular-nums; }
+.total-line-values .ms-nous,
+.total-line-values .ms-eux { font-weight: 600; opacity: 0.8; }
+.tl-sep { color: var(--muted); margin: 0 4px; }
+
+/* Collapsible detail toggle */
+.detail-toggle {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.82em;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.detail-toggle:hover { text-decoration: underline; }
 
 .score-table {
   width: 100%;

@@ -70,6 +70,8 @@ export default {
   announcedPoints: 'Contract value',
   roundScore: 'Round score',
   totalScore: 'Total',
+  showDetail: 'Show detail ▾',
+  hideDetail: 'Hide detail ▴',
   team: 'Team',
   contractMade: 'Contract made!',
   contractFailed: 'Contract failed',

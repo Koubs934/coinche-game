@@ -205,6 +205,7 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
   const { t } = useLang();
   const [replayStep, setReplayStep] = useState(-1);
   const [showAllTricks, setShowAllTricks] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
 
   function leaveGame() {
     if (!window.confirm(t.leaveConfirmGame)) return;
@@ -223,7 +224,7 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
   }
 
   // Subjective, per-viewer team label: the viewer's own team is "Us", the other "Them".
-  const myTeam    = players.find(p => p.position === myPosition)?.team;
+  const myTeam    = players.find(p => p.position === myPosition)?.team ?? 0;
   const teamLabel = (team) => team === myTeam ? t.us : t.them;
 
   const isCapot      = currentBid?.value === 'capot';
@@ -276,21 +277,50 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
 
       {/* ── Score card ──────────────────────────────────────────────────────── */}
       <div className="summary-card">
-        <h2>{t.roundOver}</h2>
 
-        <div className={`contract-result ${contractMade ? 'made' : 'failed'}`}>
-          {contractMade ? t.contractMade : t.contractFailed}
+        {/* 1. Slim result line: ✓/✗ + contract value + suit + coinche badge */}
+        <div className={`result-line ${contractMade ? 'made' : 'failed'}`}>
+          <span className="result-mark">{contractMade ? '✓' : '✗'}</span>
+          <span className="result-text">{contractMade ? t.contractMade : t.contractFailed}</span>
+          {currentBid && (
+            <span className="result-contract">
+              {isCapot ? t.capot : currentBid.value} {t.suitSymbol[currentBid.suit]}
+              {currentBid.surcoinched && <span className="badge badge-sur"> {t.surcoinched}</span>}
+              {currentBid.coinched && !currentBid.surcoinched && <span className="badge badge-coin"> {t.coinched}</span>}
+            </span>
+          )}
         </div>
 
-        {currentBid && (
-          <div className="summary-contract">
-            {t.contract}: {isCapot ? t.capot : currentBid.value}
-            {' '}{t.suitSymbol[currentBid.suit]}
-            {currentBid.surcoinched && <span className="badge badge-sur"> — {t.surcoinched}</span>}
-            {currentBid.coinched && !currentBid.surcoinched && <span className="badge badge-coin"> — {t.coinched}</span>}
+        {/* 2. Hero — score de la manche (this round), large + color-coded */}
+        <div className="manche-score">
+          <div className="manche-label">{t.roundScore}</div>
+          <div className="manche-values">
+            <span className="ms-team ms-nous">{t.us} {roundScores[myTeam]}</span>
+            <span className="ms-sep">—</span>
+            <span className="ms-team ms-eux">{t.them} {roundScores[1 - myTeam]}</span>
           </div>
-        )}
+        </div>
 
+        {/* 3. Secondary — cumulative total, smaller + muted */}
+        <div className="total-line">
+          <span className="total-line-label">{t.totalScore}</span>
+          <span className="total-line-values">
+            <span className="ms-nous">{t.us} {scores[myTeam]}</span>
+            <span className="tl-sep">—</span>
+            <span className="ms-eux">{t.them} {scores[1 - myTeam]}</span>
+          </span>
+        </div>
+
+        {/* 4. Collapsible detail — the breakdown rows, minus the manche/total lines above */}
+        <button
+          className="detail-toggle"
+          onClick={() => setShowDetail(v => !v)}
+          aria-expanded={showDetail}
+        >
+          {showDetail ? t.hideDetail : t.showDetail}
+        </button>
+
+        {showDetail && (
         <table className="score-table">
           <thead>
             <tr>
@@ -409,18 +439,9 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
               </>
             )}
 
-            <tr className="round-final">
-              <td className="score-label">{t.roundScore}</td>
-              <td className={roundScores[0] > roundScores[1] ? 'winner-score' : ''}>{roundScores[0]}</td>
-              <td className={roundScores[1] > roundScores[0] ? 'winner-score' : ''}>{roundScores[1]}</td>
-            </tr>
-            <tr className="total-row">
-              <td className="score-label">{t.totalScore}</td>
-              <td className={scores[0] >= scores[1] ? 'leader-score' : ''}>{scores[0]}</td>
-              <td className={scores[1] > scores[0] ? 'leader-score' : ''}>{scores[1]}</td>
-            </tr>
           </tbody>
         </table>
+        )}
 
         <div className="team-names-row">
           <span>{getTeamLabel(0)}</span>

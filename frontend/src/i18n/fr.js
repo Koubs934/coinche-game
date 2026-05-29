@@ -70,6 +70,8 @@ export default {
   announcedPoints: 'Points annoncés',
   roundScore: 'Score de la manche',
   totalScore: 'Total',
+  showDetail: 'Voir le détail ▾',
+  hideDetail: 'Masquer le détail ▴',
   team: 'Équipe',
   contractMade: 'Contrat réussi !',
   contractFailed: 'Contrat chuté',
