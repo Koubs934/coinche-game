@@ -37,6 +37,16 @@ describe('throwItem — happy path', () => {
     const bot = room.players.find(p => p.isBot);
     expect(rm.throwItem(room.code, 'human-1', bot.position, 'pie').error).toBeUndefined();
   });
+
+  it('accepts every item in the expanded allowed-set (incl. lemon)', () => {
+    const items = ['tomato', 'egg', 'banana', 'pie', 'shoe', 'poop',
+                   'lemon', 'watermelon', 'apple', 'orange', 'fish', 'baguette'];
+    for (const item of items) {
+      const room = botRoom(`u-${item}`);          // fresh room → no cooldown bleed
+      const target = room.players.find(p => p.position !== 0).position;
+      expect(rm.throwItem(room.code, `u-${item}`, target, item).error).toBeUndefined();
+    }
+  });
 });
 
 describe('throwItem — rejections', () => {

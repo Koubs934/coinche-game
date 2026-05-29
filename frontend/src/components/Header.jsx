@@ -1,7 +1,10 @@
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 
-export default function Header({ roomCode, onOpenSettings, showChat, onOpenChat, chatUnread = 0 }) {
+export default function Header({
+  roomCode, onOpenSettings, showChat, onOpenChat, chatUnread = 0,
+  showThrow, throwOpen, onToggleThrow,
+}) {
   const { username } = useAuth();
   const { t } = useLang();
 
@@ -14,6 +17,17 @@ export default function Header({ roomCode, onOpenSettings, showChat, onOpenChat,
         </div>
         <div className="app-header-row-right">
           <span className="header-user">{username}</span>
+          {showThrow && (
+            <button
+              className={`btn-throw${throwOpen ? ' active' : ''}`}
+              onClick={onToggleThrow}
+              title={t.throw.aim}
+              aria-label={t.throw.aim}
+              aria-pressed={!!throwOpen}
+            >
+              🍅
+            </button>
+          )}
           {showChat && (
             <button className="btn-chat" onClick={onOpenChat} title={t.chat.open} aria-label={t.chat.open}>
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

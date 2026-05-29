@@ -5,6 +5,7 @@ import { LanguageProvider } from './context/LanguageContext';
 import { ModeSachaProvider } from './context/ModeSachaContext';
 import App from './App';
 import './App.css';
+import './throw.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

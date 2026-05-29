@@ -8,6 +8,7 @@ import SettingsModal from './components/SettingsModal';
 import ChatPanel from './components/ChatPanel';
 import ChatBubbles from './components/ChatBubbles';
 import ThrowLayer from './components/ThrowLayer';
+import ThrowTray from './components/ThrowTray';
 import { THROW_TOTAL_MS, THROW_ITEMS as THROW_ITEMS_PREVIEW } from './lib/throwItems';
 import Lobby from './components/Lobby';
 import ProfileScreen from './components/ProfileScreen';
@@ -62,26 +63,38 @@ export default function App() {
     );
   }
   if (MOCK_MODE === 'throw') {
-    // Auth-free preview of the throw picker + each item's impact (frozen). Used
-    // for responsive self-eval; mirrors the other ?mock= flags.
+    // Auth-free preview of the throw tray + each item's impact (frozen mid-frame).
+    // Used for responsive self-eval; mirrors the other ?mock= flags.
     return (
       <>
         <div className="app">
           <div className="throw-mock">
-            <p className="throw-mock-label">Picker</p>
-            <div className="throw-picker throw-picker-static">
+            <p className="throw-mock-label">Tray</p>
+            <div className="throw-mock-tray">
               {THROW_ITEMS_PREVIEW.map(it => (
-                <button key={it.id} type="button" className="throw-pick-btn" title={it.id}>{it.emoji}</button>
+                <button key={it.id} type="button" className="throw-tray-item" title={it.id}>{it.emoji}</button>
               ))}
             </div>
             <p className="throw-mock-label">Impacts</p>
             <div className="throw-mock-impacts">
               {THROW_ITEMS_PREVIEW.map(it => (
                 <div key={it.id} className="throw-mock-cell">
-                  <div className="throw-impact throw-impact-frozen" style={{ position: 'relative' }}>
+                  <div
+                    className={`throw-impact throw-impact-frozen throw-impact-${it.splat}`}
+                    style={{ '--pcol': `#${it.color}` }}
+                  >
                     <span className={`throw-splat throw-splat-${it.splat}`} />
+                    {[0, 1, 2, 3, 4, 5].map(i => {
+                      const ang = (i / 6) * Math.PI * 2;
+                      return (
+                        <span key={i} className="throw-particle"
+                          style={{ '--pdx': `${Math.cos(ang) * 36}px`, '--pdy': `${Math.sin(ang) * 36}px` }} />
+                      );
+                    })}
                     {it.burst && <span className="throw-burst">{it.burst}</span>}
                     <span className="throw-impact-emoji">{it.emoji}</span>
+                    {it.messy && <span className="throw-drip" />}
+                    {it.stun && <span className="throw-stunned">😵</span>}
                   </div>
                   <span className="throw-mock-name">{it.id}</span>
                 </div>
@@ -153,6 +166,7 @@ export default function App() {
   // Active flying throws (cosmetic). Each {id, fromPosition, toPosition, item}
   // auto-removed after the animation finishes. Multiple coexist.
   const [throws, setThrows] = useState([]);
+  const [throwTrayOpen, setThrowTrayOpen] = useState(false);
   const throwIdRef    = useRef(0);
   const throwTimers   = useRef([]);
 
@@ -283,6 +297,7 @@ export default function App() {
       throwTimers.current.forEach(clearTimeout);
       throwTimers.current = [];
       setThrows([]);
+      setThrowTrayOpen(false);
     }
     // A throw was broadcast to the whole room (sender included). Enqueue it for
     // the animation layer and auto-remove after the animation completes.
@@ -460,6 +475,11 @@ export default function App() {
   function closeChat() { setChatOpen(false); }
   function sendChat(text) { socketRef.current?.emit('chat:message', { text }); }
 
+  // Throw: drop an item on a seat → emit; the (broadcast) animation plays for all.
+  function sendThrow(targetPosition, item) {
+    socketRef.current?.emit('throw:item', { targetPosition, item });
+  }
+
   // ── Training control actions (called by child components) ──────────────
 
   function startTraining(scenarioId) {
@@ -622,6 +642,9 @@ export default function App() {
         showChat={!!roomState}
         onOpenChat={openChat}
         chatUnread={chatUnread}
+        showThrow={inGame}
+        throwOpen={throwTrayOpen}
+        onToggleThrow={() => setThrowTrayOpen(o => !o)}
       />
 
       <SettingsModal
@@ -678,6 +701,16 @@ export default function App() {
       {/* Throw-projectile animation overlay (in-game + round-summary; pointer-
           events:none so it never blocks card/seat taps). */}
       {inGame && <ThrowLayer throws={throws} myPosition={myPosition} />}
+      {/* Throw item tray + drag-to-target (interactive); flying layer above is
+          pointer-events:none. In-game only (seats exist; disabled in training). */}
+      {inGame && (
+        <ThrowTray
+          open={throwTrayOpen}
+          onClose={() => setThrowTrayOpen(false)}
+          onThrow={sendThrow}
+          myPosition={myPosition}
+        />
+      )}
       {roomState && (
         <ChatPanel
           open={chatOpen}

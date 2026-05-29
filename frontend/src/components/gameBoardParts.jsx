@@ -125,11 +125,10 @@ export function CoincheBadge({ type, t }) {
 
 // ─── Player seat (opponent, face-down) ────────────────────────────────────
 
-export function PlayerSeat({ player, isActive, isDimmed, direction, isCreator, onRemove, bidHistory, onAvatarClick }) {
+export function PlayerSeat({ player, isActive, isDimmed, direction, isCreator, onRemove, bidHistory }) {
   const { t } = useLang();
   const name = displayName(player, t);
   const initial = name[0]?.toUpperCase() || '?';
-  const canThrowAt = typeof onAvatarClick === 'function' && player;
   return (
     <div className={[
       'player-seat',
@@ -142,8 +141,6 @@ export function PlayerSeat({ player, isActive, isDimmed, direction, isCreator, o
         isBot={player?.isBot}
         initial={initial}
         circleClassName={`player-avatar team${player?.team ?? 0}-avatar`}
-        onClick={canThrowAt ? () => onAvatarClick(player.position) : undefined}
-        title={canThrowAt ? t.throw?.aim : undefined}
       />
       <div className="player-name">
         {name}

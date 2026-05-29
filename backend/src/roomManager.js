@@ -1398,7 +1398,10 @@ function addChatMessage(code, userId, text) {
 // socket's own membership (never client-trusted). Bots never throw. A small
 // per-sender cooldown throttles spam. The allowed item set is the single source
 // of truth shared with the FE catalog.
-const THROW_ITEMS = new Set(['tomato', 'egg', 'banana', 'pie', 'shoe', 'poop']);
+const THROW_ITEMS = new Set([
+  'tomato', 'egg', 'banana', 'pie', 'shoe', 'poop',
+  'lemon', 'watermelon', 'apple', 'orange', 'fish', 'baguette',
+]);
 const THROW_COOLDOWN_MS = 1000;
 const lastThrowAt = new Map(); // `${code}:${userId}` -> ts
 
