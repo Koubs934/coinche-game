@@ -23,7 +23,7 @@ function Switch({ on, onToggle, label }) {
 // "Réglages" overlay — consolidates language, Mode Delfino, Mode Sacha (preferences),
 // plus manage / leave / sign-out (actions). Rendered at App level so it has the socket
 // + room state that leave/manage need, and so the gear is reachable from lobby + game.
-export default function SettingsModal({ open, onClose, socket, room, myPosition, handSize, onCycleHandSize }) {
+export default function SettingsModal({ open, onClose, socket, room, game, myPosition, handSize, onCycleHandSize }) {
   const { lang, toggleLang, t } = useLang();
   const { signOut } = useAuth();
   const { modeSacha, toggleModeSacha } = useModeSacha();
@@ -108,6 +108,19 @@ export default function SettingsModal({ open, onClose, socket, room, myPosition,
           </div>
           <Switch on={modeSacha} onToggle={toggleModeSacha} label={t.modeSacha} />
         </div>
+
+        {/* Partner peek — server-gated: canPeek is true only for the two specific,
+            partnered users. Emits the toggle; the reveal itself is server-driven. */}
+        {game?.canPeek && (
+          <div className="settings-row">
+            <span className="settings-row-label">{t.partnerPeek}</span>
+            <Switch
+              on={!!game.peekOn}
+              onToggle={() => socket?.emit('togglePartnerPeek', { code: room.code })}
+              label={t.partnerPeek}
+            />
+          </div>
+        )}
 
         {/* Manage players — creator only */}
         {isCreator && (

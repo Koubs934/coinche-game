@@ -164,6 +164,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   } = game;
 
   const myHand       = hands[myPosition] || [];
+  // Partner peek (server-gated to two specific users; only ever set in THEIR payload).
+  const peekHand     = game.peekHand || null;
   const myPlayer     = players.find(p => p.position === myPosition);
   const myTeam       = myPlayer?.team ?? 0;
   const isMyCardTurn = phase === 'PLAYING' && currentPlayer === myPosition;
@@ -794,6 +796,21 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
             onRemove={removePlayer}
             bidHistory={isBidding ? perPlayerHistory[(myPosition + 2) % 4] : null}
           />
+          {/* Partner peek — compact face-up row of the partner's cards, just below
+              their seat. Only ever rendered for the two gated users (peekHand is
+              present only in their server payload); subtle + visually distinct. */}
+          {peekHand && peekHand.length > 0 && (
+            <div className="peek-hand" aria-label="partner peek">
+              {sortHand(peekHand, trumpSuit, modeSacha).map((c, i) => (
+                <span
+                  key={`${c.suit}${c.value}-${i}`}
+                  className={`peek-card${c.suit === 'H' || c.suit === 'D' ? ' red' : ''}`}
+                >
+                  {c.value}{SUIT_SYM[c.suit]}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="board-left">

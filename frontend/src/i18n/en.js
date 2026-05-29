@@ -21,6 +21,7 @@ export default {
   sachaOn: 'Alternating colors · trump anywhere',
   delfinoOff: 'Normal card size',
   delfinoOn: 'Enlarged cards',
+  partnerPeek: 'Partner mode',
 
   // Lobby
   createRoom: 'Create Room',

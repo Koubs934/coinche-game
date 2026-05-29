@@ -458,6 +458,7 @@ export default function App() {
         onClose={() => setShowSettings(false)}
         socket={socketRef.current}
         room={roomState}
+        game={gameState}
         myPosition={myPosition}
         handSize={handSize}
         onCycleHandSize={cycleHandSize}

@@ -389,6 +389,30 @@ a      { color: var(--accent); }
   gap: 6px;
   max-width: 96%;
 }
+/* Partner peek — discreet face-up strip of the partner's cards under their seat.
+   Visually distinct from the player's own hand (small chips, dashed tint). */
+.peek-hand {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  margin-top: 3px;
+  padding: 2px 4px;
+  max-width: 220px;
+  background: rgba(0,0,0,0.35);
+  border: 1px dashed rgba(240,165,0,0.5);
+  border-radius: var(--radius);
+}
+.peek-card {
+  font-size: 0.7em;
+  font-weight: bold;
+  line-height: 1.1;
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: #f0ead6;
+  color: #1a1a1a;
+}
+.peek-card.red { color: var(--red); }
 .board-middle {
   position: relative;
   display: flex;

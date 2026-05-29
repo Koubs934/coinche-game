@@ -146,6 +146,50 @@ function publicRoom(room) {
   };
 }
 
+// ─── Partner peek (private inside-joke feature) ─────────────────────────────
+// A toggle that lets two SPECIFIC partnered users see each other's hands. Gated
+// hard to these two user IDs, only when both are present AND on the same team.
+// Self-contained: one flag (room.partnerPeek), one toggle fn, one branch in
+// publicGame. The reveal is injected PER RECIPIENT in publicGame, so it never
+// reaches any other player. Hardcoding the IDs is intentional.
+const PARTNER_PEEK_IDS = [
+  '7f35ed6a-8e9a-421e-8e79-1086fa663478', // Aaron / AK7
+  '507f441f-a481-4269-9d18-356b9ba76f43', // Sacha
+];
+
+// Returns { a, b } when both gated users are present and partnered (same team);
+// null otherwise. Same team in the 2v2 fixed layout ⟺ partners (positions ±2).
+function partnerPeekPair(room) {
+  const a = room.players.find(p => p.userId === PARTNER_PEEK_IDS[0]);
+  const b = room.players.find(p => p.userId === PARTNER_PEEK_IDS[1]);
+  if (a && b && a.team === b.team) return { a, b };
+  return null;
+}
+
+// Per-viewer peek result. canPeek = this viewer is one of the two gated users and
+// both are present+partnered (→ show the toggle). peekHand = the partner's actual
+// cards, present ONLY when the flag is also ON. Returns {canPeek:false} for anyone
+// who isn't one of the two gated users — so opponents/bots get no peek fields.
+function computePartnerPeek(room, viewerPosition) {
+  const viewer = room.players.find(p => p.position === viewerPosition);
+  if (!viewer || !PARTNER_PEEK_IDS.includes(viewer.userId)) return { canPeek: false };
+  const pair = partnerPeekPair(room);
+  if (!pair) return { canPeek: false };
+  const partner = viewer.userId === PARTNER_PEEK_IDS[0] ? pair.b : pair.a;
+  const out = { canPeek: true, peekOn: !!room.partnerPeek, partnerPosition: partner.position };
+  if (room.partnerPeek && room.game) out.peekHand = room.game.hands[partner.position];
+  return out;
+}
+
+function togglePartnerPeek(code, userId) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+  if (!PARTNER_PEEK_IDS.includes(userId)) return { error: 'Not allowed' };
+  if (!partnerPeekPair(room)) return { error: 'Partner peek not available' };
+  room.partnerPeek = !room.partnerPeek;
+  return { room };
+}
+
 // Game state filtered for a specific viewer (hides other hands)
 function publicGame(room, viewerPosition) {
   const g = room.game;
@@ -154,7 +198,14 @@ function publicGame(room, viewerPosition) {
   // During BIDDING/PLAYING/SHUFFLE/CUT this stays undefined to prevent leaking
   // opponents' hands mid-round.
   const isRoundOver = room.phase === 'ROUND_OVER' || room.phase === 'GAME_OVER';
+  const peek = computePartnerPeek(room, viewerPosition);
   return {
+    // Partner peek — present ONLY for the two gated users (canPeek:false otherwise
+    // means these keys are simply false/undefined, never the partner's cards).
+    canPeek: peek.canPeek,
+    peekOn: peek.canPeek ? peek.peekOn : undefined,
+    peekPartnerPosition: peek.canPeek ? peek.partnerPosition : undefined,
+    peekHand: peek.peekHand,
     gameId: g.gameId || null,
     errorAnnotations: g.errorAnnotations || [],
     dealer: g.dealer,
@@ -1094,6 +1145,7 @@ module.exports = {
   getRoom,
   publicRoom,
   publicGame,
+  togglePartnerPeek,
   getPosition,
   hydrateRooms,
   getRoomByGameId,

@@ -720,6 +720,14 @@ io.on('connection', socket => {
     broadcastGame(result.room);
   });
 
+  // Partner peek toggle — gated server-side to the two specific users; re-broadcast
+  // (per-recipient publicGame is what actually reveals the partner hand, to them only).
+  socket.on('togglePartnerPeek', ({ code }) => {
+    const result = rm.togglePartnerPeek(code, userId);
+    if (result.error) return emitError(socket, result.error);
+    broadcast(result.room);
+  });
+
   // ── Undo last action (creator only) ─────────────────────────────────────
   socket.on('undoLastAction', ({ code }) => {
     const result = rm.undoLastAction(code, userId);

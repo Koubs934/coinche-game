@@ -21,6 +21,7 @@ export default {
   sachaOn: 'Couleurs alternées · atout libre',
   delfinoOff: 'Cartes en taille normale',
   delfinoOn: 'Cartes agrandies',
+  partnerPeek: 'Mode partenaire',
 
   // Lobby
   createRoom: 'Créer une salle',
