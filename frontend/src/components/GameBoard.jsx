@@ -991,7 +991,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
           <Avatar
             config={myPlayer?.avatarConfig}
             isBot={myPlayer?.isBot}
+            botSeed={myPlayer?.username ?? myPlayer?.position}
             initial={displayName(myPlayer, t)[0]?.toUpperCase() || '?'}
+            variant="head"
             circleClassName={`player-avatar team${myTeam}-avatar`}
           />
           <span className="self-name">{displayName(myPlayer, t)}</span>

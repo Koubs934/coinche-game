@@ -46,6 +46,7 @@ export default function OnlineFriends({ friends }) {
           <Avatar
             config={f.avatarConfig}
             initial={initial}
+            variant="head"
             circleClassName="friend-avatar"
             circleStyle={isOffline ? undefined : { background: `hsl(${hueFor(f.id)} 45% 32%)` }}
           />

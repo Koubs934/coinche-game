@@ -177,30 +177,56 @@ export default function Lobby({
           <p className="player-count">{t.playersJoined(players.length)}</p>
 
           <div className="teams-container">
-            {[0, 1].map(teamIdx => (
-              <div key={teamIdx} className="team-column">
-                <h3>{teamIdx === 0 ? t.team1 : t.team2}</h3>
-                {players.filter(p => p.team === teamIdx).map(p => (
-                  <div key={p.userId} className="team-player">
-                    <span className={p.connected ? '' : 'disconnected'}>
-                      {p.isBot ? '🤖 ' : ''}{p.username}{p.userId === user?.id ? ' ★' : ''}
-                    </span>
-                    {isCreator && p.userId !== user?.id && (
-                      <button
-                        className="btn-small"
-                        onClick={() => assignTeam(p.userId, 1 - teamIdx)}
+            {[0, 1].map(teamIdx => {
+              const members = players.filter(p => p.team === teamIdx);
+              const emptyCount = Math.max(0, 2 - members.length);
+              return (
+                <div key={teamIdx} className={`team-card team-card-${teamIdx}`}>
+                  <h3 className="team-card-title">{teamIdx === 0 ? t.team1 : t.team2}</h3>
+                  <div className="team-slots">
+                    {members.map(p => (
+                      <div
+                        key={p.userId}
+                        className={`team-slot occupied${p.connected ? '' : ' disconnected'}`}
                       >
-                        → {teamIdx === 0 ? t.team2 : t.team1}
-                      </button>
-                    )}
+                        <Avatar
+                          config={p.avatarConfig}
+                          isBot={p.isBot}
+                          botSeed={p.username ?? p.userId}
+                          initial={(p.username?.[0] || '?').toUpperCase()}
+                          variant="full"
+                          circleClassName={`team-figure team${teamIdx}-figure`}
+                        />
+                        <span className="team-slot-name">
+                          {p.username}
+                          {p.userId === creatorId && <span className="team-slot-star"> ★</span>}
+                        </span>
+                        {p.isBot && <span className="team-slot-bot">{t.botLabel}</span>}
+                        {isCreator && p.userId !== user?.id && (
+                          <button
+                            className="btn-small team-move"
+                            onClick={() => assignTeam(p.userId, 1 - teamIdx)}
+                          >
+                            → {teamIdx === 0 ? t.team2 : t.team1}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {Array.from({ length: emptyCount }).map((_, i) => (
+                      <div key={`empty-${i}`} className="team-slot empty">
+                        <div className="team-slot-silhouette" aria-hidden="true">
+                          <svg viewBox="0 0 24 30" width="100%" height="100%">
+                            <circle cx="12" cy="8" r="5" />
+                            <path d="M3 30c0-6 4-11 9-11s9 5 9 11" />
+                          </svg>
+                        </div>
+                        <span className="team-slot-name empty-name">{t.emptySeat}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-                {/* Empty slots */}
-                {Array.from({ length: 2 - players.filter(p => p.team === teamIdx).length }).map((_, i) => (
-                  <div key={`empty-${i}`} className="team-player empty">—</div>
-                ))}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
 
           {isCreator && (
@@ -313,7 +339,7 @@ export default function Lobby({
       <div className="home-wrap">
         {/* Profile strip — tap to open the profile / avatar builder */}
         <button className="home-profile" onClick={() => setView('profile')}>
-          <Avatar config={myAvatarConfig} initial={avatarInitial} circleClassName="home-avatar" />
+          <Avatar config={myAvatarConfig} initial={avatarInitial} variant="head" circleClassName="home-avatar" />
           <div className="home-profile-text">
             <span className="home-profile-name">{username}</span>
             <span className="home-profile-sub">{t.lobby.readyToPlay}</span>

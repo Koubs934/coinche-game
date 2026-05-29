@@ -139,7 +139,9 @@ export function PlayerSeat({ player, isActive, isDimmed, direction, isCreator, o
       <Avatar
         config={player?.avatarConfig}
         isBot={player?.isBot}
+        botSeed={player?.username ?? player?.position}
         initial={initial}
+        variant="head"
         circleClassName={`player-avatar team${player?.team ?? 0}-avatar`}
       />
       <div className="player-name">

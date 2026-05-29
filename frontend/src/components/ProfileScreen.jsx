@@ -9,7 +9,7 @@ import {
 } from '../lib/avatar';
 
 // Which features are color pickers (rendered as swatch rows) vs style cycles.
-const COLOR_KEYS = new Set(['skinColor', 'hairColor', 'clothesColor']);
+const COLOR_KEYS = new Set(['strokeColor', 'backgroundColor']);
 
 export default function ProfileScreen({ username, initialConfig, onSaved, onBack }) {
   const { user } = useAuth();
@@ -50,7 +50,7 @@ export default function ProfileScreen({ username, initialConfig, onSaved, onBack
 
         {/* Large live preview + read-only pseudo */}
         <div className="profile-preview">
-          <Avatar config={cfg} initial={initial} size={132} circleClassName="profile-avatar" />
+          <Avatar config={cfg} initial={initial} variant="full" circleClassName="profile-avatar" />
           <span className="profile-pseudo">{username}</span>
         </div>
 
@@ -66,7 +66,7 @@ export default function ProfileScreen({ username, initialConfig, onSaved, onBack
                       key={hex}
                       type="button"
                       className={`swatch${cfg[key] === hex ? ' selected' : ''}`}
-                      style={{ background: `#${hex}` }}
+                      style={{ background: hex }}
                       aria-label={hex}
                       onClick={() => setFeature(key, hex)}
                     />

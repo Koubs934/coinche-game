@@ -1,9 +1,15 @@
-// Unit tests for the avatar config seam (pure helpers — no DiceBear/React).
+// Unit tests for the avatar config seam (pure helpers — no react-peeps/React).
 import { describe, it, expect } from 'vitest';
 import {
   OPTIONS, FEATURE_KEYS, DEFAULT_AVATAR,
-  normalizeAvatarConfig, cycleFeature, randomAvatarConfig, toDiceBearOptions,
+  normalizeAvatarConfig, cycleFeature, randomAvatarConfig, toPeepProps, botAvatarConfig,
 } from './avatar.js';
+
+// An old avataaars blob — incompatible with Open Peeps; must read as "no avatar".
+const LEGACY_AVATAAARS = {
+  skinColor: 'edb98a', top: 'shortFlat', hairColor: '4a312c',
+  eyes: 'happy', mouth: 'smile', clothing: 'hoodie', accessories: 'round',
+};
 
 describe('normalizeAvatarConfig', () => {
   it('returns null for null / non-object (→ letter-circle fallback)', () => {
@@ -13,26 +19,40 @@ describe('normalizeAvatarConfig', () => {
     expect(normalizeAvatarConfig(42)).toBeNull();
   });
 
-  it('clamps unknown field values to defaults and drops unknown keys', () => {
-    const out = normalizeAvatarConfig({ top: 'NOT_A_STYLE', eyes: 'happy', bogus: 'x' });
-    expect(out.top).toBe(DEFAULT_AVATAR.top);   // unknown value → default
-    expect(out.eyes).toBe('happy');             // valid value preserved
-    expect('bogus' in out).toBe(false);         // unknown key dropped
-    // every feature key present + valid
+  it('returns null for an old avataaars config (incompatible → fallback, no crash)', () => {
+    expect(normalizeAvatarConfig(LEGACY_AVATAAARS)).toBeNull();
+  });
+
+  it('returns null for {} and for a config missing a valid body/hair/face', () => {
+    expect(normalizeAvatarConfig({})).toBeNull();
+    expect(normalizeAvatarConfig({ ...DEFAULT_AVATAR, hair: 'NOT_A_HAIR' })).toBeNull();
+    expect(normalizeAvatarConfig({ ...DEFAULT_AVATAR, body: 'NOPE' })).toBeNull();
+  });
+
+  it('clamps invalid optional fields to defaults once the identity triad is valid', () => {
+    const out = normalizeAvatarConfig({
+      body: 'ShirtBW', hair: 'Afro', face: 'Smile',
+      facialHair: 'NOPE', accessory: 'NOPE', strokeColor: 'NOPE', backgroundColor: 'NOPE',
+      bogus: 'x',
+    });
+    expect(out.hair).toBe('Afro');                               // valid value preserved
+    expect(out.facialHair).toBe(DEFAULT_AVATAR.facialHair);      // invalid → default
+    expect(out.accessory).toBe(DEFAULT_AVATAR.accessory);
+    expect(out.strokeColor).toBe(DEFAULT_AVATAR.strokeColor);
+    expect('bogus' in out).toBe(false);                          // unknown key dropped
     for (const k of FEATURE_KEYS) expect(OPTIONS[k]).toContain(out[k]);
   });
 
-  it('a {} config normalizes to all-defaults (renders the default avatar, not garbage)', () => {
-    expect(normalizeAvatarConfig({})).toEqual(DEFAULT_AVATAR);
+  it('a fully-valid config round-trips unchanged', () => {
+    expect(normalizeAvatarConfig(DEFAULT_AVATAR)).toEqual(DEFAULT_AVATAR);
   });
 });
 
 describe('cycleFeature', () => {
   it('wraps forward and backward through the option list', () => {
-    const base = { ...DEFAULT_AVATAR, eyes: OPTIONS.eyes[OPTIONS.eyes.length - 1] };
-    expect(cycleFeature(base, 'eyes', 1).eyes).toBe(OPTIONS.eyes[0]);          // wrap to start
-    expect(cycleFeature({ ...DEFAULT_AVATAR, eyes: OPTIONS.eyes[0] }, 'eyes', -1).eyes)
-      .toBe(OPTIONS.eyes[OPTIONS.eyes.length - 1]);                            // wrap to end
+    const last = OPTIONS.face[OPTIONS.face.length - 1];
+    expect(cycleFeature({ ...DEFAULT_AVATAR, face: last }, 'face', 1).face).toBe(OPTIONS.face[0]);
+    expect(cycleFeature({ ...DEFAULT_AVATAR, face: OPTIONS.face[0] }, 'face', -1).face).toBe(last);
   });
 });
 
@@ -40,39 +60,39 @@ describe('randomAvatarConfig', () => {
   it('produces a valid config for every feature (deterministic with injected rand)', () => {
     const cfg = randomAvatarConfig(() => 0); // always first option
     for (const k of FEATURE_KEYS) expect(cfg[k]).toBe(OPTIONS[k][0]);
-    // and a real-ish random stays valid
-    let i = 0; const cfg2 = randomAvatarConfig(() => ((i++ * 0.37) % 1));
+    // and a real-ish random stays valid (normalize keeps it intact)
+    let i = 0;
+    const cfg2 = randomAvatarConfig(() => ((i++ * 0.37) % 1));
     expect(normalizeAvatarConfig(cfg2)).toEqual(cfg2);
   });
 });
 
-describe('toDiceBearOptions', () => {
-  it('emits single-value arrays + topProbability so output is deterministic', () => {
-    const o = toDiceBearOptions({ ...DEFAULT_AVATAR, top: 'fro', skinColor: 'edb98a' });
-    expect(o.top).toEqual(['fro']);
-    expect(o.skinColor).toEqual(['edb98a']);
-    expect(o.topProbability).toBe(100);
-  });
-
-  it('switches accessories/facial-hair probability OFF for the "none" sentinel', () => {
-    const o = toDiceBearOptions({ ...DEFAULT_AVATAR, accessories: 'none', facialHair: 'none' });
-    expect(o.accessoriesProbability).toBe(0);
-    expect(o.facialHairProbability).toBe(0);
-    expect(o.accessories).toBeUndefined();
-    expect(o.facialHair).toBeUndefined();
-  });
-
-  it('switches them ON (with value) when a real option is chosen', () => {
-    const o = toDiceBearOptions({ ...DEFAULT_AVATAR, accessories: 'round', facialHair: 'beardLight', hairColor: '2c1b18' });
-    expect(o.accessories).toEqual(['round']);
-    expect(o.accessoriesProbability).toBe(100);
-    expect(o.facialHair).toEqual(['beardLight']);
-    expect(o.facialHairProbability).toBe(100);
-    expect(o.facialHairColor).toEqual(['2c1b18']); // beard inherits hair color
+describe('toPeepProps', () => {
+  it('maps a config straight to react-peeps props (None passes through as a sentinel)', () => {
+    const o = toPeepProps({ ...DEFAULT_AVATAR, hair: 'Afro', facialHair: 'None', accessory: 'None' });
+    expect(o.hair).toBe('Afro');
+    expect(o.facialHair).toBe('None');
+    expect(o.accessory).toBe('None');
+    expect(o.body).toBe(DEFAULT_AVATAR.body);
   });
 
   it('falls back to defaults for an invalid/null config (never throws)', () => {
-    expect(() => toDiceBearOptions(null)).not.toThrow();
-    expect(toDiceBearOptions(null).top).toEqual([DEFAULT_AVATAR.top]);
+    expect(() => toPeepProps(null)).not.toThrow();
+    expect(toPeepProps(LEGACY_AVATAAARS).hair).toBe(DEFAULT_AVATAR.hair);
+  });
+});
+
+describe('botAvatarConfig', () => {
+  it('is deterministic for a given seed and always a valid config', () => {
+    const a = botAvatarConfig('faispaschier');
+    const b = botAvatarConfig('faispaschier');
+    expect(a).toEqual(b);
+    expect(normalizeAvatarConfig(a)).toEqual(a); // valid Open Peeps config
+  });
+
+  it('produces visibly different figures for different seeds', () => {
+    const seeds = ['Bot 1', 'Bot 2', 'Bot 3', 'AK7', 'Pacha'];
+    const sigs = new Set(seeds.map(s => JSON.stringify(botAvatarConfig(s))));
+    expect(sigs.size).toBeGreaterThan(1); // not all identical
   });
 });
