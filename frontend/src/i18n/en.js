@@ -233,6 +233,7 @@ export default {
     modeBelote:    'Belote',
     // Amis en ligne (presence)
     friends:       'Friends online',
+    friendsOffline:'Offline friends',
     onlineCount:   (n) => `${n} online`,
     noOneOnline:   'No one online',
     statusOnline:  'online',

@@ -569,6 +569,26 @@ a      { color: var(--accent); }
 }
 .friend-status { font-size: 0.66em; color: var(--muted); }
 
+/* Collapsible "Amis hors ligne" section */
+.friends-offline { display: flex; flex-direction: column; gap: 10px; }
+.friends-offline-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  padding: 0;
+  text-align: left;
+}
+.friends-chevron {
+  color: var(--muted);
+  font-size: 0.8em;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+.friends-chevron.open { transform: rotate(90deg); }
+.friends-offline-head:hover .friends-title,
+.friends-offline-head:hover .friends-chevron { color: var(--text); }
+
 /* ─── Game board ────────────────────────────────────────────────────────── */
 .game-board {
   flex: 1;
