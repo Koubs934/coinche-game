@@ -4,11 +4,14 @@ import { useLang } from '../context/LanguageContext';
 import AdminPanel from './AdminPanel';
 import ActiveGamesList from './ActiveGamesList';
 import OnlineFriends from './OnlineFriends';
+import Avatar from './Avatar';
+import ProfileScreen from './ProfileScreen';
 import { supabase } from '../lib/supabase';
 
 export default function Lobby({
   socket, roomState, myPosition, pendingRoom, onCancelPending,
   onOpenTraining, resumableCount = 0,
+  myAvatarConfig = null, onAvatarSaved,
 }) {
   const { user, username } = useAuth();
   const { t } = useLang();
@@ -53,7 +56,7 @@ export default function Lobby({
     let cancelled = false;
     supabase
       .from('profiles')
-      .select('id, username')
+      .select('id, username, avatar_config')
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error) { console.error('[friends] profiles fetch failed:', error.message); return; }
@@ -86,12 +89,12 @@ export default function Lobby({
   function joinActiveRoom(room) {
     if (!socket) return;
     setError('');
-    if (room.canRejoin) socket.emit('rejoinRoom', { code: room.code });
-    else                socket.emit('joinRoom',   { code: room.code });
+    if (room.canRejoin) socket.emit('rejoinRoom', { code: room.code, avatarConfig: myAvatarConfig });
+    else                socket.emit('joinRoom',   { code: room.code, avatarConfig: myAvatarConfig });
   }
 
   function createRoom() {
-    socket.emit('createRoom');
+    socket.emit('createRoom', { avatarConfig: myAvatarConfig });
     setView('create');
   }
 
@@ -106,7 +109,7 @@ export default function Lobby({
       return;
     }
     setError('');
-    socket.emit('joinRoom', { code: trimmedCode });
+    socket.emit('joinRoom', { code: trimmedCode, avatarConfig: myAvatarConfig });
   }
 
   function assignTeam(targetUserId, team) {
@@ -292,19 +295,31 @@ export default function Lobby({
   // presence map is offline.
   const friends = profiles
     .filter(p => p.id !== user?.id)
-    .map(p => ({ id: p.id, username: p.username || '?', status: presence[p.id] || 'offline' }));
+    .map(p => ({ id: p.id, username: p.username || '?', status: presence[p.id] || 'offline', avatarConfig: p.avatar_config }));
+
+  if (view === 'profile') {
+    return (
+      <ProfileScreen
+        username={username}
+        initialConfig={myAvatarConfig}
+        onSaved={(cfg) => { onAvatarSaved?.(cfg); setView('home'); }}
+        onBack={() => setView('home')}
+      />
+    );
+  }
 
   return (
     <div className="lobby lobby-home">
       <div className="home-wrap">
-        {/* Profile strip */}
-        <div className="home-profile">
-          <div className="home-avatar">{avatarInitial}</div>
+        {/* Profile strip — tap to open the profile / avatar builder */}
+        <button className="home-profile" onClick={() => setView('profile')}>
+          <Avatar config={myAvatarConfig} initial={avatarInitial} circleClassName="home-avatar" />
           <div className="home-profile-text">
             <span className="home-profile-name">{username}</span>
             <span className="home-profile-sub">{t.lobby.readyToPlay}</span>
           </div>
-        </div>
+          <span className="home-profile-chevron" aria-hidden="true">›</span>
+        </button>
 
         {/* Primary + secondary actions */}
         <div className="home-actions">

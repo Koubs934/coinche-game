@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLang } from '../context/LanguageContext';
 import { SUIT_SYM, displayName } from './gameBoardHelpers';
+import Avatar from './Avatar';
 
 // ─── Card primitives ───────────────────────────────────────────────────────
 
@@ -127,7 +128,7 @@ export function CoincheBadge({ type, t }) {
 export function PlayerSeat({ player, isActive, isDimmed, direction, isCreator, onRemove, bidHistory }) {
   const { t } = useLang();
   const name = displayName(player, t);
-  const initial = player?.isBot ? '🤖' : (name[0]?.toUpperCase() || '?');
+  const initial = name[0]?.toUpperCase() || '?';
   return (
     <div className={[
       'player-seat',
@@ -135,9 +136,12 @@ export function PlayerSeat({ player, isActive, isDimmed, direction, isCreator, o
       isActive  ? 'active-player' : '',
       isDimmed  ? 'seat-dimmed'   : '',
     ].filter(Boolean).join(' ')}>
-      <div className={`player-avatar team${player?.team ?? 0}-avatar`}>
-        {initial}
-      </div>
+      <Avatar
+        config={player?.avatarConfig}
+        isBot={player?.isBot}
+        initial={initial}
+        circleClassName={`player-avatar team${player?.team ?? 0}-avatar`}
+      />
       <div className="player-name">
         {name}
         {player && player.connected === false && !player.isScripted && <span className="dc-indicator"> ⚠</span>}

@@ -153,8 +153,8 @@ function publicRoom(room) {
   return {
     code: room.code,
     creatorId: room.creatorId,
-    players: room.players.map(({ userId, username, team, position, connected, isBot }) =>
-      ({ userId, username, team, position, connected, isBot: !!isBot })),
+    players: room.players.map(({ userId, username, team, position, connected, isBot, avatarConfig }) =>
+      ({ userId, username, team, position, connected, isBot: !!isBot, avatarConfig: avatarConfig ?? null })),
     targetScore: room.targetScore,
     phase: room.phase,
     scores: room.scores,
@@ -281,12 +281,12 @@ function publicGame(room, viewerPosition) {
 
 // ─── Room lifecycle ────────────────────────────────────────────────────────
 
-function createRoom({ userId, username, socketId }) {
+function createRoom({ userId, username, socketId, avatarConfig = null }) {
   const code = generateCode();
   rooms.set(code, {
     code,
     creatorId: userId,
-    players: [{ userId, username, socketId, team: 0, position: 0, connected: true }],
+    players: [{ userId, username, socketId, team: 0, position: 0, connected: true, avatarConfig }],
     targetScore: 2000,
     phase: 'LOBBY',
     scores: [0, 0],
@@ -301,7 +301,7 @@ function createRoom({ userId, username, socketId }) {
   return rooms.get(code);
 }
 
-function joinRoom(code, { userId, username, socketId }) {
+function joinRoom(code, { userId, username, socketId, avatarConfig = null }) {
   const room = rooms.get(code);
   if (!room) return { error: 'Room not found' };
   if (room.phase !== 'LOBBY') return { error: 'Game already in progress' };
@@ -312,7 +312,7 @@ function joinRoom(code, { userId, username, socketId }) {
   // so manual team moves are respected and we never form a 3v1.
   const position = _chooseSeat(room);
   if (position === -1) return { error: 'Room is full' };
-  room.players.push({ userId, username, socketId, team: position % 2, position, connected: true });
+  room.players.push({ userId, username, socketId, team: position % 2, position, connected: true, avatarConfig });
   noteRoomActivity(room);
   return { room };
 }
@@ -999,7 +999,7 @@ function leaveRoom(code, userId) {
 // ─── Pending join requests ─────────────────────────────────────────────────
 
 // Creator rejoining their own room bypasses the approval queue
-function creatorJoin(code, { userId, username, socketId }) {
+function creatorJoin(code, { userId, username, socketId, avatarConfig = null }) {
   const room = rooms.get(code);
   if (!room) return { error: 'Room not found' };
   if (room.creatorId !== userId) return { error: 'Not the room creator' };
@@ -1018,6 +1018,7 @@ function creatorJoin(code, { userId, username, socketId }) {
     position: openPosition,
     connected: true,
     isBot: false,
+    avatarConfig,
   });
 
   if (room.players.length === 4) room.paused = false;
@@ -1026,7 +1027,7 @@ function creatorJoin(code, { userId, username, socketId }) {
   return { room, position: openPosition };
 }
 
-function requestJoin(code, { userId, username, socketId }) {
+function requestJoin(code, { userId, username, socketId, avatarConfig = null }) {
   const room = rooms.get(code);
   if (!room) return { error: 'Room not found' };
   if (!['PLAYING', 'ROUND_OVER', 'GAME_OVER', 'SHUFFLE', 'CUT'].includes(room.phase)) {
@@ -1039,15 +1040,18 @@ function requestJoin(code, { userId, username, socketId }) {
   const hasOpenSeat = [0, 1, 2, 3].some(i => !takenPositions.has(i));
   if (!hasOpenSeat) return { error: 'Room is full' };
 
-  // Upsert: if already pending (e.g. after browser refresh), just update socketId
+  // Upsert: if already pending (e.g. after browser refresh), just update socketId.
+  // The avatar config rides along on the pending entry so acceptJoin (run from
+  // the CREATOR's socket) can stamp the requester's avatar, not the creator's.
   const existing = (room.pendingJoins || []).find(p => p.userId === userId);
   if (existing) {
     existing.socketId = socketId;
     existing.username = username;
+    existing.avatarConfig = avatarConfig;
     return { room, alreadyPending: true };
   }
 
-  room.pendingJoins.push({ userId, username, socketId });
+  room.pendingJoins.push({ userId, username, socketId, avatarConfig });
   return { room };
 }
 
@@ -1080,6 +1084,7 @@ function acceptJoin(code, creatorId, targetUserId) {
     position: openPosition,
     connected: true,
     isBot: false,
+    avatarConfig: request.avatarConfig ?? null,
   });
 
   if (room.players.length === 4) room.paused = false;
@@ -1135,7 +1140,7 @@ function handleDisconnect(socketId) {
   return null;
 }
 
-function handleReconnect(socketId, code, userId) {
+function handleReconnect(socketId, code, userId, avatarConfig) {
   const room = rooms.get(code);
   if (!room) return null;
 
@@ -1144,6 +1149,9 @@ function handleReconnect(socketId, code, userId) {
   if (player) {
     player.socketId = socketId;
     player.connected = true;
+    // Refresh their avatar in case they edited it since first joining (only when
+    // the client actually sent one — undefined means "no update").
+    if (avatarConfig !== undefined) player.avatarConfig = avatarConfig;
     if (room.paused && room.players.every(p => p.connected)) {
       room.paused = false;
     }

@@ -29,6 +29,8 @@
  * @property {0|1|2|3} position
  * @property {boolean} connected
  * @property {boolean} isBot
+ * @property {object|null} avatarConfig  // DiceBear avataaars options; cosmetic
+ *   blob relayed verbatim (backend never inspects it). null → letter fallback.
  */
 
 /**
@@ -77,8 +79,12 @@
 /** @typedef {{ room: PublicRoom, game: PublicGame|null, myPosition: 0|1|2|3 }} RoomSync */
 
 // ─── Handshake ─────────────────────────────────────────────────────────────
-// socket.handshake.auth: { userId: string, username: string }
-// Rejected with Error('Authentication required') when either is missing.
+// socket.handshake.auth: { userId: string, username: string, avatarConfig?: object }
+// Rejected with Error('Authentication required') when userId/username missing.
+// avatarConfig is an optional cosmetic blob (DiceBear options) the backend
+// relays per-seat; it's size/shape-capped (<2KB, plain object) and never
+// inspected. createRoom/joinRoom/rejoinRoom may also carry { avatarConfig } to
+// refresh it after the user edits their avatar mid-session.
 
 // ─── C→S events ────────────────────────────────────────────────────────────
 // Lobby:

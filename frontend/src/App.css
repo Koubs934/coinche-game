@@ -381,11 +381,18 @@ a      { color: var(--accent); }
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
   padding: 14px 16px;
   background: var(--ui-card);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 12px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
 }
+.home-profile:hover { border-color: rgba(255, 255, 255, 0.16); }
+.home-profile-chevron { margin-left: auto; color: var(--muted); font-size: 1.3em; }
 .home-avatar {
   width: 46px;
   height: 46px;
@@ -485,6 +492,90 @@ a      { color: var(--accent); }
   font-weight: bold;
 }
 .game-card-join.is-rejoin:hover { opacity: 0.88; }
+
+/* ─── Avatar (shared: DiceBear SVG or letter-circle fallback) ───────────────
+   Each call site keeps its own circle class (home-avatar / friend-avatar /
+   player-avatar …) for sizing, fallback bg + the colored backdrop behind the
+   SVG. These rules just add the SVG clip + fill. */
+.avatar { flex-shrink: 0; }
+.avatar-img { overflow: hidden; padding: 0; }
+.avatar-img > svg { width: 100%; height: 100%; display: block; }
+
+/* ─── Profile screen + avatar builder ───────────────────────────────────── */
+.profile-screen { align-items: flex-start; }
+.profile-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.profile-title { font-weight: bold; font-size: 1.05em; color: var(--text); }
+.profile-back { white-space: nowrap; }
+.profile-back-spacer { width: 1px; } /* balances the back button so title centers */
+
+.profile-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.profile-avatar {
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: bold;
+  font-size: 2.6em;
+  color: #1a1a1a;
+  background: linear-gradient(135deg, var(--accent), #f7c544);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+.profile-pseudo { font-weight: bold; font-size: 1.15em; color: var(--text); }
+
+.profile-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--ui-card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.builder-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+}
+.builder-label { font-size: 0.9em; color: var(--text); flex-shrink: 0; }
+.builder-swatches { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  padding: 0;
+  cursor: pointer;
+}
+.swatch.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(240, 165, 0, 0.35); }
+.builder-cycle { display: flex; align-items: center; gap: 10px; }
+.cycle-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 1.3em;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+.cycle-btn:hover { background: rgba(0, 0, 0, 0.5); }
+.cycle-pos { font-size: 0.8em; color: var(--muted); min-width: 38px; text-align: center; }
+
+.profile-actions { display: flex; gap: 10px; }
+.profile-error { text-align: center; }
 
 /* ─── Amis en ligne (presence) ──────────────────────────────────────────── */
 .friends-online { display: flex; flex-direction: column; gap: 10px; }

@@ -8,6 +8,7 @@ import SettingsModal from './components/SettingsModal';
 import ChatPanel from './components/ChatPanel';
 import ChatBubbles from './components/ChatBubbles';
 import Lobby from './components/Lobby';
+import ProfileScreen from './components/ProfileScreen';
 import GameBoard from './components/GameBoard';
 import GameErrorTaggerMock from './game/GameErrorTaggerMock';
 import TrainingTable from './training/TrainingTable';
@@ -17,6 +18,8 @@ import TrainingPickerMock from './training/TrainingPickerMock';
 import EnvBadge from './components/EnvBadge';
 import { useHandCardSize } from './components/HandSizeToggle';
 import { cleanupOldDrafts } from './training/noteDraft';
+import { supabase } from './lib/supabase';
+import { normalizeAvatarConfig } from './lib/avatar';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
@@ -56,6 +59,18 @@ export default function App() {
       </>
     );
   }
+  if (MOCK_MODE === 'profile') {
+    // Auth-free preview of the Profile screen + avatar builder (no socket, no DB
+    // save). Used for responsive self-eval; mirrors the other ?mock= flags.
+    return (
+      <>
+        <div className="app">
+          <ProfileScreen username="AK7" initialConfig={null} onSaved={() => {}} onBack={() => {}} />
+        </div>
+        <EnvBadge />
+      </>
+    );
+  }
   if (MOCK_MODE === 'game-error-tagger') {
     return (
       <>
@@ -80,6 +95,14 @@ export default function App() {
   const [myPosition, setMyPosition] = useState(null);
   const [pendingRoom, setPendingRoom] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+
+  // The signed-in user's own avatar config (DiceBear options) — fetched from
+  // their profile. Sent to the backend on join so in-game seats can render it;
+  // also drives the lobby strip + profile screen. A ref mirror lets the socket
+  // connect/rejoin closure read the latest value without re-subscribing.
+  const [myAvatarConfig, setMyAvatarConfig] = useState(null);
+  const myAvatarConfigRef = useRef(null);
+  useEffect(() => { myAvatarConfigRef.current = myAvatarConfig; }, [myAvatarConfig]);
 
   // ── Table chat state ──────────────────────────────────────────────────────
   // chatBubbles is a map: senderPosition → message. One bubble per seat (a new
@@ -119,12 +142,29 @@ export default function App() {
   // 24 h. Cheap, runs once per page load.
   useEffect(() => { cleanupOldDrafts(); }, []);
 
+  // Load the signed-in user's own avatar config from their profile (null until
+  // they build one → letter-circle fallback everywhere).
+  useEffect(() => {
+    if (!user) { setMyAvatarConfig(null); return; }
+    let cancelled = false;
+    supabase
+      .from('profiles')
+      .select('avatar_config')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        setMyAvatarConfig(normalizeAvatarConfig(data.avatar_config));
+      });
+    return () => { cancelled = true; };
+  }, [user]);
+
   // ── Socket setup ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
 
     const socket = io(SOCKET_URL, {
-      auth: { userId: user.id, username },
+      auth: { userId: user.id, username, avatarConfig: myAvatarConfigRef.current },
       reconnection: true,
       reconnectionAttempts: 20,
       reconnectionDelay: 1000,
@@ -139,7 +179,7 @@ export default function App() {
       // Attempt to rejoin if we have a room code stored
       const savedCode = sessionStorage.getItem('coinche_room');
       if (savedCode) {
-        socket.emit('rejoinRoom', { code: savedCode });
+        socket.emit('rejoinRoom', { code: savedCode, avatarConfig: myAvatarConfigRef.current });
       }
 
       // Reconnect toast (only on a non-initial connect)
@@ -557,6 +597,8 @@ export default function App() {
           }}
           onOpenTraining={goToPickerFromLobby}
           resumableCount={trainingResumable?.length || 0}
+          myAvatarConfig={myAvatarConfig}
+          onAvatarSaved={setMyAvatarConfig}
         />
       )}
 

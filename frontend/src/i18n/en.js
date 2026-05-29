@@ -241,6 +241,28 @@ export default {
     statusOffline: 'offline',
   },
 
+  // Profile screen + avatar builder
+  profile: {
+    title:     'Profile',
+    save:      'Save',
+    saving:    'Saving…',
+    saved:     'Saved ✓',
+    saveError: 'Could not save. Try again.',
+    randomize: 'Random',
+    back:      'Back',
+    features: {
+      skinColor:    'Skin',
+      top:          'Hair',
+      hairColor:    'Hair color',
+      eyes:         'Eyes',
+      mouth:        'Mouth',
+      clothing:     'Outfit',
+      clothesColor: 'Outfit color',
+      accessories:  'Glasses',
+      facialHair:   'Beard',
+    },
+  },
+
   training: {
     // Confirm + button label when the user leaves a training run
     abandonConfirm: 'Abandon this scenario? Your annotation will be discarded.',

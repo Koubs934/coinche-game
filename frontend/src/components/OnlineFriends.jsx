@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLang } from '../context/LanguageContext';
+import Avatar from './Avatar';
 
 // Friends presence in the lobby, split into two sections:
 //   • "Amis en ligne" — only en ligne / en partie friends (offline dropped).
@@ -42,12 +43,12 @@ export default function OnlineFriends({ friends }) {
     return (
       <li key={f.id} className={`friend${isOffline ? ' friend-offline' : ''}`}>
         <div className="friend-avatar-wrap">
-          <div
-            className="friend-avatar"
-            style={{ background: isOffline ? undefined : `hsl(${hueFor(f.id)} 45% 32%)` }}
-          >
-            {initial}
-          </div>
+          <Avatar
+            config={f.avatarConfig}
+            initial={initial}
+            circleClassName="friend-avatar"
+            circleStyle={isOffline ? undefined : { background: `hsl(${hueFor(f.id)} 45% 32%)` }}
+          />
           <span className={`friend-dot friend-dot-${f.status}`} aria-hidden="true" />
         </div>
         <span className="friend-name" title={f.username}>{f.username}</span>

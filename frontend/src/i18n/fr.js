@@ -241,6 +241,28 @@ export default {
     statusOffline: 'hors ligne',
   },
 
+  // Écran profil + créateur d'avatar
+  profile: {
+    title:     'Profil',
+    save:      'Enregistrer',
+    saving:    'Enregistrement…',
+    saved:     'Enregistré ✓',
+    saveError: "Échec de l'enregistrement. Réessayez.",
+    randomize: 'Aléatoire',
+    back:      'Retour',
+    features: {
+      skinColor:    'Peau',
+      top:          'Cheveux',
+      hairColor:    'Couleur cheveux',
+      eyes:         'Yeux',
+      mouth:        'Bouche',
+      clothing:     'Tenue',
+      clothesColor: 'Couleur tenue',
+      accessories:  'Lunettes',
+      facialHair:   'Barbe',
+    },
+  },
+
   training: {
     // Confirm + button label when the user leaves a training run
     abandonConfirm: "Abandonner ce scénario ? Votre annotation sera jetée.",

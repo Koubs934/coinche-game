@@ -495,12 +495,41 @@ app.post('/api/conversation/end', (req, res) => {
 // ─── Auth middleware ───────────────────────────────────────────────────────
 
 io.use((socket, next) => {
-  const { userId, username } = socket.handshake.auth;
+  const { userId, username, avatarConfig } = socket.handshake.auth;
   if (!userId || !username) return next(new Error('Authentication required'));
   socket.userId = userId;
   socket.username = username;
+  // Avatar config is an opaque cosmetic blob relayed to other clients. The
+  // backend never inspects its fields (it stays Supabase-free); it only caps
+  // size + shape so a client can't push something huge or non-object.
+  socket.avatarConfig = sanitizeAvatarConfig(avatarConfig);
   next();
 });
+
+// Accept only a plain object that serializes under a small cap; anything else
+// (oversized, array, string, etc.) → null (the client renders the letter
+// fallback). The FE clamps the actual field values on render, so we don't need
+// to know the avataaars schema here.
+const AVATAR_CONFIG_MAX_BYTES = 2048;
+function sanitizeAvatarConfig(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  try {
+    const json = JSON.stringify(raw);
+    if (json.length > AVATAR_CONFIG_MAX_BYTES) return null;
+    return JSON.parse(json); // strip any prototype tricks; plain data only
+  } catch {
+    return null;
+  }
+}
+
+// If a create/join/rejoin payload carries an avatarConfig, refresh the value the
+// socket relays so edits made since connect take effect on the next join. A
+// payload without the key leaves the handshake value untouched.
+function refreshAvatar(socket, data) {
+  if (data && 'avatarConfig' in data) {
+    socket.avatarConfig = sanitizeAvatarConfig(data.avatarConfig);
+  }
+}
 
 // ─── Broadcast helpers ─────────────────────────────────────────────────────
 
@@ -648,12 +677,13 @@ io.on('connection', socket => {
   });
 
   // ── Create room ──────────────────────────────────────────────────────────
-  socket.on('createRoom', () => {
+  socket.on('createRoom', (data = {}) => {
+    refreshAvatar(socket, data);
     // Leave any existing room
     const existing = rm.getRoomForSocket(socket.id);
     if (existing) socket.leave(existing.code);
 
-    const room = rm.createRoom({ userId, username, socketId: socket.id });
+    const room = rm.createRoom({ userId, username, socketId: socket.id, avatarConfig: socket.avatarConfig });
     socket.join(room.code);
     socket.emit('roomJoined', {
       room: rm.publicRoom(room),
@@ -667,7 +697,8 @@ io.on('connection', socket => {
   });
 
   // ── Join room ────────────────────────────────────────────────────────────
-  socket.on('joinRoom', ({ code }) => {
+  socket.on('joinRoom', ({ code, avatarConfig } = {}) => {
+    refreshAvatar(socket, { avatarConfig });
     const existing = rm.getRoomForSocket(socket.id);
     if (existing && existing.code !== code) socket.leave(existing.code);
 
@@ -676,7 +707,7 @@ io.on('connection', socket => {
     if (peek && peek.phase !== 'LOBBY') {
       if (peek.creatorId === userId) {
         // Creator bypasses approval — seats directly
-        const result = rm.creatorJoin(code, { userId, username, socketId: socket.id });
+        const result = rm.creatorJoin(code, { userId, username, socketId: socket.id, avatarConfig: socket.avatarConfig });
         if (result.error) return emitError(socket, result.error);
         socket.join(code);
         socket.emit('roomJoined', {
@@ -690,7 +721,7 @@ io.on('connection', socket => {
         broadcastPresenceChanged(); // joiner: online → in-game
       } else {
         // Non-admin: create a pending join request for the creator to approve
-        const result = rm.requestJoin(code, { userId, username, socketId: socket.id });
+        const result = rm.requestJoin(code, { userId, username, socketId: socket.id, avatarConfig: socket.avatarConfig });
         if (result.error) return emitError(socket, result.error);
         socket.join(code);
         socket.emit('joinPending', { code });
@@ -699,7 +730,7 @@ io.on('connection', socket => {
       return;
     }
 
-    const result = rm.joinRoom(code, { userId, username, socketId: socket.id });
+    const result = rm.joinRoom(code, { userId, username, socketId: socket.id, avatarConfig: socket.avatarConfig });
     if (result.error) return emitError(socket, result.error);
 
     socket.join(code);
@@ -718,8 +749,9 @@ io.on('connection', socket => {
   });
 
   // ── Rejoin after disconnect ──────────────────────────────────────────────
-  socket.on('rejoinRoom', ({ code }) => {
-    const result = rm.handleReconnect(socket.id, code, userId);
+  socket.on('rejoinRoom', ({ code, avatarConfig } = {}) => {
+    refreshAvatar(socket, { avatarConfig });
+    const result = rm.handleReconnect(socket.id, code, userId, socket.avatarConfig);
     if (!result) {
       // Not in room anymore (e.g. removed by admin) — clear client state
       socket.emit('leftRoom');

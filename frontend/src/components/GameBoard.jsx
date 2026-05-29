@@ -16,6 +16,7 @@ import {
   BelotePrompt, PauseBanner,
 } from './gameBoardParts';
 import GameErrorTagOverlay from '../game/GameErrorTagOverlay';
+import Avatar from './Avatar';
 
 // ─── Fanned-arc hand tuning ────────────────────────────────────────────────
 const HAND_ARCH = 2.2;   // px per off² — vertical arch depth (middle highest)
@@ -968,9 +969,12 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
 
         {/* Self player bar: avatar + name + bid status */}
         <div className="self-player-bar">
-          <div className={`player-avatar team${myTeam}-avatar`}>
-            {myPlayer?.isBot ? '🤖' : (displayName(myPlayer, t)[0]?.toUpperCase() || '?')}
-          </div>
+          <Avatar
+            config={myPlayer?.avatarConfig}
+            isBot={myPlayer?.isBot}
+            initial={displayName(myPlayer, t)[0]?.toUpperCase() || '?'}
+            circleClassName={`player-avatar team${myTeam}-avatar`}
+          />
           <span className="self-name">{displayName(myPlayer, t)}</span>
           {isBidding && perPlayerHistory[myPosition]?.length > 0 && (
             <BidStack history={perPlayerHistory[myPosition]} t={t} />
