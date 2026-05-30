@@ -230,6 +230,8 @@ export default {
   // Écran d'accueil (layout B)
   lobby: {
     readyToPlay:   'Prêt à jouer',
+    createAvatar:  'Créer mon avatar',
+    editAvatar:    'Modifier mon avatar',
     activeGames:   'Parties en cours',
     noActiveGames: 'Aucune partie en cours',
     refresh:       'Actualiser',

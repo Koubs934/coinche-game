@@ -476,6 +476,28 @@ a      { color: var(--accent); }
 .home-profile-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .home-profile-name { font-weight: bold; font-size: 1.05em; color: var(--text); }
 .home-profile-sub  { font-size: 0.82em; color: var(--muted); }
+/* Clear avatar CTA — accent-coloured so the card obviously invites building it. */
+.home-profile-cta {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--accent);
+}
+/* Pencil badge over the avatar circle reinforces it's editable. */
+.home-avatar-wrap { position: relative; flex-shrink: 0; display: inline-flex; }
+.home-avatar-edit {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--ui-card);
+  display: grid;
+  place-items: center;
+  font-size: 0.62em;
+  line-height: 1;
+}
 
 /* Actions */
 .home-actions { display: flex; flex-direction: column; gap: 10px; }

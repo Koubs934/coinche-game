@@ -230,6 +230,8 @@ export default {
   // Home / landing screen (layout B)
   lobby: {
     readyToPlay:   'Ready to play',
+    createAvatar:  'Create my avatar',
+    editAvatar:    'Edit my avatar',
     activeGames:   'Active games',
     noActiveGames: 'No active games',
     refresh:       'Refresh',

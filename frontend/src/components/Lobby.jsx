@@ -7,6 +7,7 @@ import OnlineFriends from './OnlineFriends';
 import Avatar from './Avatar';
 import ProfileScreen from './ProfileScreen';
 import { supabase } from '../lib/supabase';
+import { normalizeAvatarConfig } from '../lib/avatar';
 
 export default function Lobby({
   socket, roomState, myPosition, pendingRoom, onCancelPending,
@@ -324,6 +325,9 @@ export default function Lobby({
   }
 
   const avatarInitial = (username?.[0] || '?').toUpperCase();
+  // Same valid-config check that drives the letter fallback: null → no custom
+  // avatar yet, so the card invites creating one (else editing).
+  const hasCustomAvatar = !!normalizeAvatarConfig(myAvatarConfig);
 
   // Merge the roster with live presence, excluding self. Anyone not in the
   // presence map is offline.
@@ -345,12 +349,18 @@ export default function Lobby({
   return (
     <div className="lobby lobby-home">
       <div className="home-wrap">
-        {/* Profile strip — tap to open the profile / avatar builder */}
+        {/* Profile strip — tap to open the profile / avatar builder. The CTA +
+            pencil badge make it clear the card builds/customizes your avatar. */}
         <button className="home-profile" onClick={() => setView('profile')}>
-          <Avatar config={myAvatarConfig} initial={avatarInitial} variant="head" circleClassName="home-avatar" />
+          <span className="home-avatar-wrap">
+            <Avatar config={myAvatarConfig} initial={avatarInitial} variant="head" circleClassName="home-avatar" />
+            <span className="home-avatar-edit" aria-hidden="true">✏️</span>
+          </span>
           <div className="home-profile-text">
             <span className="home-profile-name">{username}</span>
-            <span className="home-profile-sub">{t.lobby.readyToPlay}</span>
+            <span className="home-profile-cta">
+              {hasCustomAvatar ? t.lobby.editAvatar : t.lobby.createAvatar}
+            </span>
           </div>
           <span className="home-profile-chevron" aria-hidden="true">›</span>
         </button>
