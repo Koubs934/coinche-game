@@ -14,34 +14,32 @@
 // so the config shape / serialization is unit-testable on its own. Avatar.jsx
 // does the actual <Peep> rendering and the head/full cropping.
 
-// ── Builder option sets (the values a user can cycle through) ────────────────
-// Curated subsets of the package's part enums — kept clean and recognizable.
-// `body` uses STANDING poses so the waiting-room figures read as true full-body.
+// ── Builder option sets ──────────────────────────────────────────────────────
+// The FULL part enums react-peeps ships (mirrors react-peeps@0.1.10) — every
+// option is exposed so avatars can be as varied / eccentric as the library
+// allows. `body` is the flat union of all three pose families (bust + sitting +
+// standing); in Open Peeps a body combines POSE + OUTFIT into one illustration
+// and can't be split, so we surface them all. The three families share no keys,
+// so react-peeps' lookup (BustPose[k] || SittingPose[k] || StandingPose[k])
+// resolves each unambiguously, and Avatar.jsx frames each figure by measuring
+// its own bounding box (poses differ wildly in size).
+const BODY_BUST = ['BlazerBlackTee', 'Shirt', 'ButtonShirt', 'Dress', 'Gaming', 'Geek', 'Hoodie', 'PointingUp', 'Selena', 'Thunder', 'Turtleneck', 'ArmsCrossed', 'Coffee', 'Device', 'DotJacket', 'Explaining', 'FurJacket', 'Killer', 'Paper', 'PocketShirt', 'PoloSweater', 'ShirtCoat', 'ShirtFilled', 'SportyShirt', 'StripedShirt', 'Sweater', 'SweaterDots', 'Whatever'];
+const BODY_SITTING = ['Bike', 'ClosedLegBW', 'ClosedLegWB', 'CrossedLegs', 'HandsBackBW', 'HandsBackWB', 'MediumBW', 'MediumWB', 'OneLegUpBW', 'OneLegUpWB', 'WheelChair'];
+const BODY_STANDING = ['BlazerBW', 'BlazerPantsBW', 'BlazerPantsWB', 'BlazerWB', 'CrossedArmsBW', 'CrossedArmsWB', 'EasingBW', 'EasingWB', 'PointingFingerBW', 'PointingFingerWB', 'PolkaDots', 'RestingBW', 'RestingWB', 'RoboDanceBW', 'RoboDanceOutline', 'RoboDanceWB', 'ShirtBW', 'ShirtPantsBW', 'ShirtPantsWB', 'ShirtWB', 'WalkingBW', 'WalkingFilled', 'WalkingWB', 'Doc', 'DocProtectiveClothe', 'DocStethoscope'];
+
 export const OPTIONS = {
-  body: [
-    'ShirtBW', 'ShirtWB', 'ShirtPantsBW', 'ShirtPantsWB',
-    'BlazerBW', 'BlazerWB', 'BlazerPantsBW', 'BlazerPantsWB',
-    'CrossedArmsBW', 'CrossedArmsWB', 'EasingBW', 'EasingWB',
-    'PointingFingerBW', 'RestingBW', 'RestingWB', 'WalkingBW', 'WalkingWB', 'PolkaDots',
-  ],
-  hair: [
-    'Short', 'ShortCurly', 'ShortMessy', 'ShortWavy', 'ShortVolumed',
-    'Medium', 'MediumLong', 'MediumStraight', 'Long', 'LongCurly',
-    'Bun', 'Buns', 'Afro', 'Bald', 'FlatTop', 'Pomp', 'Mohawk',
-    'CornRows', 'Twists', 'Hijab', 'Turban',
-  ],
-  face: [
-    'Smile', 'SmileBig', 'SmileTeeth', 'Calm', 'Cheeky', 'Cute', 'Serious',
-    'Solemn', 'Suspicious', 'Driven', 'EatingHappy', 'EyesClosed', 'LoveGrin',
-    'Awe', 'Concerned', 'Tired',
-  ],
+  body: [...BODY_BUST, ...BODY_SITTING, ...BODY_STANDING],
+  hair: ['Afro', 'Bald', 'BaldSides', 'BaldTop', 'Bangs', 'BangsFilled', 'Bear', 'Bun', 'BunCurly', 'Buns', 'FlatTop', 'FlatTopLong', 'HatHip', 'Long', 'LongAfro', 'LongBangs', 'LongCurly', 'Medium', 'MediumBangs', 'MediumBangsFilled', 'MediumLong', 'MediumShort', 'MediumStraight', 'Mohawk', 'MohawkDino', 'Pomp', 'ShavedRight', 'ShavedSides', 'ShavedWavy', 'Short', 'ShortCurly', 'ShortMessy', 'ShortScratch', 'ShortVolumed', 'ShortWavy', 'BantuKnots', 'Beanie', 'BunFancy', 'CornRows', 'CornRowsFilled', 'GrayBun', 'GrayMedium', 'GrayShort', 'Hijab', 'MediumShade', 'Turban', 'Twists', 'TwistsVolumed', 'DocBouffant', 'DocSurgery', 'DocShield'],
+  face: ['Angry', 'Blank', 'Calm', 'Cheeky', 'Concerned', 'Contempt', 'Cute', 'Driven', 'EatingHappy', 'EyesClosed', 'OldAged', 'Serious', 'Smile', 'Solemn', 'Suspicious', 'Tired', 'VeryAngry', 'Awe', 'ConcernedFear', 'Cyclops', 'Explaining', 'Fear', 'Hectic', 'LoveGrin', 'LoveGrinTeeth', 'Monster', 'Rage', 'SmileBig', 'SmileLol', 'SmileTeeth', 'CalmNM', 'SmileNM', 'CheersNM'],
   // 'None' is the package's own sentinel — it renders nothing for that part.
-  facialHair: ['None', 'Chin', 'Full', 'FullMedium', 'Goatee', 'GoateeCircle', 'Handlebars', 'MoustacheThin', 'Dali', 'Imperial'],
-  accessory:  ['None', 'GlassRound', 'GlassRoundThick', 'GlassAviator', 'SunglassWayfarer', 'SunglassClubmaster', 'GlassButterfly', 'GlassClubmaster', 'Eyepatch'],
+  facialHair: ['None', 'Chin', 'Full', 'FullMajestic', 'FullMedium', 'Goatee', 'GoateeCircle', 'Dali', 'Handlebars', 'Imperial', 'Painters', 'PaintersFilled', 'Swashbuckler', 'MoustacheThin', 'Yosemite', 'GrayFull', 'MajesticHandlebars'],
+  accessory:  ['None', 'Eyepatch', 'GlassRoundThick', 'SunglassClubmaster', 'SunglassWayfarer', 'GlassAviator', 'GlassButterfly', 'GlassButterflyOutline', 'GlassClubmaster', 'GlassRound'],
   // Colors take a hex string (with '#'); these map straight to react-peeps props.
-  // strokeColor = the ink/outline (reads as skin + line tone); backgroundColor = fill.
-  strokeColor:     ['#1a1a1a', '#3a2a1d', '#5b3a29', '#6b4f3a', '#8d5524', '#a55728', '#c68642', '#2c3e50'],
-  backgroundColor: ['#ffffff', '#f4d35e', '#ee964b', '#f95738', '#0d3b66', '#5199e4', '#a7ffc4', '#ff488e', '#b1e2ff', '#c9ced6'],
+  // strokeColor = the ink/outline (reads as skin + line tone); backgroundColor =
+  // fill. Open Peeps is line-art so there's no per-part / skin colour — just
+  // these two, with a wide range (incl. eccentric tones for wild characters).
+  strokeColor:     ['#000000', '#1a1a1a', '#2c1b18', '#3a2a1d', '#5b3a29', '#6b4f3a', '#7a4a23', '#8d5524', '#a55728', '#c68642', '#e0ac69', '#2c3e50', '#34495e', '#5d3fd3', '#b03a2e', '#1f6f54'],
+  backgroundColor: ['#ffffff', '#fde2c4', '#f4d35e', '#ffb703', '#ee964b', '#f95738', '#e63946', '#ff488e', '#c77dff', '#5199e4', '#0d3b66', '#1f6f54', '#a7ffc4', '#b1e2ff', '#c9ced6', '#2b2d42'],
 };
 
 // The fields the builder edits, in display order. Each maps to OPTIONS above.

@@ -621,45 +621,86 @@ a      { color: var(--accent); }
 .profile-builder {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   background: var(--ui-card);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 10px;
 }
-.builder-row {
+
+/* Category tabs — Corps / Visage / Cheveux / Barbe / Lunettes / Couleurs */
+.builder-tabs {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 40px;
+  flex-wrap: wrap;
+  gap: 6px;
 }
-.builder-label { font-size: 0.9em; color: var(--text); flex-shrink: 0; }
-.builder-swatches { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.builder-tab {
+  flex: 1 1 auto;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--muted);
+  border: 1px solid transparent;
+  font-size: 0.82em;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.builder-tab:hover { background: rgba(0, 0, 0, 0.4); color: var(--text); }
+.builder-tab.active {
+  background: rgba(240, 165, 0, 0.16);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Browsable strip — ALL options for the open category, horizontal scroll. Only
+   the open category's thumbnails are mounted, so it stays light. */
+.builder-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+}
+.builder-thumb {
+  flex: 0 0 auto;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 2px solid transparent;
+  cursor: pointer;
+  scroll-snap-align: start;
+  display: grid;
+  place-items: center;
+}
+.builder-thumb:hover { background: rgba(0, 0, 0, 0.4); }
+.builder-thumb.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(240, 165, 0, 0.3); }
+.builder-thumb-fig { display: grid; place-items: center; }
+.builder-thumb-head { width: 56px; height: 56px; border-radius: 50%; overflow: hidden; background: rgba(255, 255, 255, 0.04); }
+.builder-thumb-full { width: 60px; height: 88px; }
+
+/* Colours tab — two labelled swatch rows (Trait / Remplissage) */
+.builder-colors { display: flex; flex-direction: column; gap: 10px; padding: 2px; }
+.builder-color-row { display: flex; flex-direction: column; gap: 6px; }
+.builder-color-label {
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.builder-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
 .swatch {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.18);
   padding: 0;
   cursor: pointer;
 }
 .swatch.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(240, 165, 0, 0.35); }
-.builder-cycle { display: flex; align-items: center; gap: 10px; }
-.cycle-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.3);
-  color: var(--text);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  font-size: 1.3em;
-  line-height: 1;
-  display: grid;
-  place-items: center;
-}
-.cycle-btn:hover { background: rgba(0, 0, 0, 0.5); }
-.cycle-pos { font-size: 0.8em; color: var(--muted); min-width: 38px; text-align: center; }
 
 .profile-actions { display: flex; gap: 10px; }
 .profile-error { text-align: center; }

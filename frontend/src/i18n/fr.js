@@ -258,11 +258,12 @@ export default {
     randomize: 'Aléatoire',
     back:      'Retour',
     features: {
-      body:            'Pose',
+      body:            'Corps',
       hair:            'Cheveux',
       face:            'Visage',
       facialHair:      'Barbe',
       accessory:       'Lunettes',
+      colors:          'Couleurs',
       strokeColor:     'Trait',
       backgroundColor: 'Remplissage',
     },

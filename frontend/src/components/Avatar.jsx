@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import Peep from 'react-peeps';
 import { toPeepProps, normalizeAvatarConfig, botAvatarConfig } from '../lib/avatar';
 
@@ -10,7 +10,11 @@ import { toPeepProps, normalizeAvatarConfig, botAvatarConfig } from '../lib/avat
 //                    old avataaars blobs (normalizeAvatarConfig rejects those)
 //
 // Two variants share the SAME config:
-//   • variant="full" — the whole standing figure (Profile preview, waiting room)
+//   • variant="full" — the whole figure (Profile preview, waiting room, builder).
+//                      Poses span wildly different sizes (a seated WheelChair is
+//                      ~3× the width of a bust), so we MEASURE the rendered
+//                      figure's bbox and frame the viewBox to it — every pose
+//                      fills its box, nothing clipped, no hand-tuned per-pose box.
 //   • variant="head" — head-only crop (in-game seats, lobby strip, friends, throw
 //                      targets). We omit the body and zoom the viewBox to the head,
 //                      which sits at a fixed position regardless of pose.
@@ -20,13 +24,12 @@ import { toPeepProps, normalizeAvatarConfig, botAvatarConfig } from '../lib/avat
 // backdrop can show behind the figure. `size` (px) overrides the class size.
 
 // The head sits at a fixed spot in react-peeps' 850×1200 figure (the head <g> is
-// translate(225 0) independent of body pose), so one crop works for every figure.
-// FULL frames the whole standing figure head-to-feet (react-peeps' standing
-// poses are ~3000 user-units tall, far taller than its default 1200 frame).
-// HEAD zooms to the face; the head <g> is fixed regardless of pose, so the same
-// crop frames every figure (long hair / buns crop at the edge, as expected).
+// translate(225 0) independent of body pose), so one crop frames every face
+// (long hair / buns crop at the edge, as expected).
+const HEAD_VIEWBOX = { x: 240, y: 18, width: 470, height: 470 };
+// A safe initial frame for the full figure before the measured bbox lands; the
+// layout effect below replaces it (so first paint is never broken).
 const FULL_VIEWBOX = { x: -230, y: -50, width: 1320, height: 3080 };
-const HEAD_VIEWBOX = { x: 240,  y: 18,  width: 470,  height: 470 };
 
 export default function Avatar({
   config,
@@ -45,9 +48,26 @@ export default function Avatar({
     [isBot, botSeed, initial, config && JSON.stringify(config)],
   );
 
+  const isFull = variant === 'full';
+  const wrapRef = useRef(null);
+
+  // Full figure: frame the viewBox to the figure's own geometry so every pose
+  // fills its box. Runs before paint; re-measures when the figure changes.
+  useLayoutEffect(() => {
+    if (!isFull || !cfg) return;
+    const svg = wrapRef.current?.querySelector('svg');
+    const g = svg?.querySelector('g');
+    if (!g) return;
+    let bb;
+    try { bb = g.getBBox(); } catch { return; }
+    if (!bb || !bb.width || !bb.height) return;
+    const padX = bb.width * 0.06;
+    const padY = bb.height * 0.04;
+    svg.setAttribute('viewBox', `${bb.x - padX} ${bb.y - padY} ${bb.width + padX * 2} ${bb.height + padY * 2}`);
+  }, [isFull, cfg && JSON.stringify(cfg)]);
+
   const style = { ...(size ? { width: size, height: size } : null), ...circleStyle };
   const clickable = typeof onClick === 'function';
-  const isFull = variant === 'full';
   const base = [
     'avatar',
     circleClassName,
@@ -66,7 +86,7 @@ export default function Avatar({
       isBot ? 'avatar-bot' : '',
     ].filter(Boolean).join(' ');
     return (
-      <div className={cls} style={style} {...interactive}>
+      <div ref={wrapRef} className={cls} style={style} {...interactive}>
         <Peep
           {...props}
           body={isFull ? props.body : undefined}
