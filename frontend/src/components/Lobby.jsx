@@ -161,6 +161,14 @@ export default function Lobby({
     const team1 = players.filter(p => p.team === 1);
     const canStart = players.length === 4 && team0.length === 2 && team1.length === 2;
 
+    // Viewer-relative team labels: the current user's team reads "Nous", the
+    // other "Eux" (same keying as the in-game scoreboard). The viewer is always
+    // seated here, but guard gracefully if their team can't be resolved.
+    const myTeam = players.find(p => p.userId === user?.id)?.team;
+    const hasMyTeam = myTeam === 0 || myTeam === 1;
+    const teamLabel = (idx) =>
+      hasMyTeam ? (idx === myTeam ? t.us : t.them) : (idx === 0 ? t.team1 : t.team2);
+
     return (
       <div className="lobby">
         {showAdminPanel && isCreator && (
@@ -182,7 +190,7 @@ export default function Lobby({
               const emptyCount = Math.max(0, 2 - members.length);
               return (
                 <div key={teamIdx} className={`team-card team-card-${teamIdx}`}>
-                  <h3 className="team-card-title">{teamIdx === 0 ? t.team1 : t.team2}</h3>
+                  <h3 className="team-card-title">{teamLabel(teamIdx)}</h3>
                   <div className="team-slots">
                     {members.map(p => (
                       <div
@@ -207,7 +215,7 @@ export default function Lobby({
                             className="btn-small team-move"
                             onClick={() => assignTeam(p.userId, 1 - teamIdx)}
                           >
-                            → {teamIdx === 0 ? t.team2 : t.team1}
+                            → {teamLabel(1 - teamIdx)}
                           </button>
                         )}
                       </div>
