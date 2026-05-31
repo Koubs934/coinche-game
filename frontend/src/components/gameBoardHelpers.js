@@ -79,11 +79,13 @@ function bestNonTrumpOrder(suits, leftColor) {
   return bestPerm;
 }
 
-// Mode Sacha (sacha=true): arrange ALL present suits purely by color alternation —
-// trump is NOT forced leftmost, it lands wherever alternation places it. Within-suit
-// rank ordering is unchanged (the `trump` suit still uses TRUMP_ORDER), so Sacha only
-// moves suit POSITIONS. Default (sacha=false): trump/chosen suit leads, remaining suits
-// alternate — exactly as before.
+// The single auto-sort. `trump` may be null/undefined (e.g. during bidding, before a
+// contract is set) — then there is no trump to place and BOTH modes fall back to pure
+// colour alternation. Mode Sacha (sacha=true): arrange ALL present suits purely by
+// color alternation — trump is NOT forced leftmost, it lands wherever alternation
+// places it. Within-suit rank ordering is unchanged (the `trump` suit still uses
+// TRUMP_ORDER), so Sacha only moves suit POSITIONS. Default (sacha=false): trump/chosen
+// suit leads on the LEFT, remaining suits alternate; with no trump it is identical to Sacha.
 export function sortHand(hand, trump, sacha = false) {
   if (!hand?.length) return hand || [];
   const presentSuits  = [...new Set(hand.map(c => c.suit))];
@@ -112,15 +114,6 @@ export function winDir(winnerPos, myPos) {
   return ['bottom', 'right', 'top', 'left'][((winnerPos - myPos) + 4) % 4];
 }
 
-// Auto-sort mode for a freshly-dealt hand. A new deal means brand-new cards, so
-// any prior manual arrangement is meaningless — we ALWAYS return an auto-sort
-// mode (a suit), never 'manual'. During bidding there is no trump yet, so we
-// group by the hand's strongest suit; once trump is known it takes precedence.
-// This is what guarantees every round starts auto-sorted (grouped by suit).
-export function autoSortModeForHand(hand, trump) {
-  return trump || bestSuitForHand(hand);
-}
-
 // ─── Manual order helpers ──────────────────────────────────────────────────
 
 export function cardKey(c) { return `${c.suit}${c.value}`; }
@@ -138,6 +131,21 @@ export function reorderArr(arr, from, to) {
   const [item] = a.splice(from, 1);
   a.splice(to, 0, item);
   return a;
+}
+
+// ─── The single source of truth for the displayed hand order ────────────────
+// Pure function of the order state — there is no cached/imperative order anywhere
+// else. AUTO recomputes from {hand, trump, sacha} every call, so it re-sorts
+// reactively when any of those change (trump may be null during bidding ⇒ pure
+// colour-alternation in both modes). MANUAL returns the player's frozen
+// arrangement and NEVER auto-recomputes; an in-flight drag preview is applied on
+// top. Callers reset orderSource→'auto' on a new deal and on a Mode Sacha toggle.
+export function deriveHandOrder({ hand, trump, sacha, orderSource, manualOrder, dragVisual = null }) {
+  if (orderSource === 'manual') {
+    const base = applyManualOrder(hand, manualOrder);
+    return dragVisual ? reorderArr(base, dragVisual.fromIdx, dragVisual.toIdx) : base;
+  }
+  return sortHand(hand, trump, sacha);
 }
 
 // ─── Training-mode seat labels ─────────────────────────────────────────────

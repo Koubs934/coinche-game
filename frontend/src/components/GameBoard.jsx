@@ -6,7 +6,7 @@ import RoundSummary from './RoundSummary';
 import {
   SUIT_SYM,
   buildPerPlayerHistory,
-  bestSuitForHand, autoSortModeForHand,
+  bestSuitForHand, deriveHandOrder,
   sortHand, winDir, cardKey, applyManualOrder, reorderArr,
   displayName,
 } from './gameBoardHelpers';
@@ -83,29 +83,19 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   const { modeSacha } = useModeSacha();
 
   // ── State ──────────────────────────────────────────────────────────────────
-  // sortMode: 'S'|'H'|'D'|'C' = sort as if that suit were trump; 'manual' = drag order
-  const [sortMode, setSortMode] = useState(() => {
-    try {
-      // Only restore 'manual' if THIS deal still has a manual order saved.
-      // Manual order is keyed per-dealer, so a stale 'manual' from a prior deal
-      // (or a prior game reusing this room code) would otherwise leave the hand
-      // in raw deal order. Tie the two together so manual never outlives its deal.
-      const saved = localStorage.getItem(`coinche-sortmode-${roomCode}`);
-      const manualForDeal = localStorage.getItem(`coinche-hand-${roomCode}-${game.dealer}`);
-      if (saved === 'manual' && manualForDeal) return 'manual';
-    } catch {}
-    return autoSortModeForHand(game.hands?.[myPosition] || [], game.trumpSuit);
-  });
+  // Hand order is a single source of truth derived from these two fields:
+  //   orderSource: 'auto' (sorted) | 'manual' (player drag arrangement)
+  //   manualOrder: card-key array, only meaningful while orderSource === 'manual'
+  // AUTO is the default and recomputes reactively from {hand, trump, modeSacha}
+  // (see `displayHand` below). MANUAL is frozen to the player's arrangement and is
+  // RESET back to AUTO on every new deal and whenever Mode Sacha is toggled — so it
+  // never persists across hands and never silently disables sorting. Nothing here is
+  // persisted to localStorage: the order is pure, ephemeral, per-deal state.
+  const [orderSource, setOrderSource] = useState('auto');
+  const [manualOrder, setManualOrder] = useState(null);
   const [showLastTrick, setShowLastTrick] = useState(false);
   // trickOverlay = { cards, winnerPos, animate } | null
   const [trickOverlay, setTrickOverlay] = useState(null);
-  // manualOrderKeys: card-key array defining manual hand order; null = server order
-  const [manualOrderKeys, setManualOrderKeys] = useState(() => {
-    try {
-      const s = localStorage.getItem(`coinche-hand-${roomCode}-${game.dealer}`);
-      return s ? JSON.parse(s) : null;
-    } catch { return null; }
-  });
   // dragVisual: { fromIdx, toIdx } live during a drag gesture
   const [dragVisual, setDragVisual] = useState(null);
   // dragX: live pointer clientX while dragging, so the dragged card follows the finger
@@ -137,7 +127,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   // ── Refs ───────────────────────────────────────────────────────────────────
   const prevTricksLenRef = useRef(0);
   const prevDealerRef    = useRef(null);
-  const prevTrumpRef     = useRef(null);
   const timerRef         = useRef([]);
   // Dedicated ref for the belote/rebelote announce banner timer. Kept separate
   // from timerRef (used by trick-completion) because trick-completion clears
@@ -182,12 +171,15 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
 
   const isShortViewport = useMediaQuery(SHORT_VIEWPORT_QUERY);
 
-  const manualHand   = applyManualOrder(myHand, manualOrderKeys);
-  const displayHand  = sortMode !== 'manual'
-    ? sortHand(myHand, sortMode, modeSacha)
-    : dragVisual
-      ? reorderArr(manualHand, dragVisual.fromIdx, dragVisual.toIdx)
-      : manualHand;
+  // ── The single source of truth for the displayed hand order ────────────────
+  // One pure derivation (deriveHandOrder) computed every render — no cached order.
+  // It re-sorts reactively whenever {myHand, trumpSuit, modeSacha} change in AUTO,
+  // and stays frozen to the player's arrangement in MANUAL. `manualHand` is the
+  // pre-drag manual base, reused by the drag handlers below.
+  const manualHand   = applyManualOrder(myHand, manualOrder);
+  const displayHand  = deriveHandOrder({
+    hand: myHand, trump: trumpSuit, sacha: modeSacha, orderSource, manualOrder, dragVisual,
+  });
   const lastDoneTrick  = tricks?.length > 0 ? tricks[tricks.length - 1] : null;
   const animatedHand   = dealAnimCounts != null
     ? displayHand.slice(0, dealAnimCounts[myPosition])
@@ -303,33 +295,28 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   useEffect(() => () => timerRef.current.forEach(clearTimeout), []);
   useEffect(() => () => { if (beloteTimerRef.current) clearTimeout(beloteTimerRef.current); }, []);
 
-  // ── Effect: persist sortMode preference across rounds ─────────────────────
-  useEffect(() => {
-    try { localStorage.setItem(`coinche-sortmode-${roomCode}`, sortMode); } catch {}
-  }, [sortMode]);
-
-  // ── Effect: when trump is revealed, switch to it (unless in manual) ────────
-  useEffect(() => {
-    if (trumpSuit && trumpSuit !== prevTrumpRef.current) {
-      prevTrumpRef.current = trumpSuit;
-      setSortMode(prev => prev === 'manual' ? 'manual' : trumpSuit);
-    }
-    if (!trumpSuit) prevTrumpRef.current = null;
-  }, [trumpSuit]);
-
-  // ── Effect: reset to auto-sort on every new deal ──────────────────────────
-  // A new deal = brand-new cards, so any manual arrangement from the prior round
-  // is meaningless. We ALWAYS drop back to auto-sort (never carry 'manual'
-  // forward), otherwise a manual hand from last round leaves the new hand in raw
-  // deal order — the cards-not-sorting bug. Manual mode is therefore opt-in per
-  // deal only. No trump yet at deal time, so this groups by the strongest suit.
+  // ── Effect: per-deal reset → AUTO ─────────────────────────────────────────
+  // A new deal = brand-new cards, so any prior manual arrangement is meaningless.
+  // Drop back to AUTO every deal; manual is opt-in per deal only and never leaks
+  // across hands. (AUTO needs no trump bookkeeping here — `displayHand` reads the
+  // live trump directly, so the new hand sorts itself, trump or not.)
   useEffect(() => {
     if (game.dealer !== prevDealerMRef.current) {
       prevDealerMRef.current = game.dealer;
-      setManualOrderKeys(null);
-      setSortMode(autoSortModeForHand(myHand, game.trumpSuit));
+      setOrderSource('auto');
+      setManualOrder(null);
     }
   }, [game.dealer]);
+
+  // ── Effect: toggling Mode Sacha re-applies AUTO ───────────────────────────
+  // A soft "back to auto": flipping the global Sacha preference exits manual mode
+  // and lets the reactive AUTO sort recompute in the new mode (no dedicated
+  // button needed). When already AUTO these setState calls bail out (same value),
+  // so the only visible effect there is the re-sort from `displayHand`.
+  useEffect(() => {
+    setOrderSource('auto');
+    setManualOrder(null);
+  }, [modeSacha]);
 
   // ── Effect: 3-2-3 deal animation when CUT → PLAYING ────────────────────────
   useEffect(() => {
@@ -483,19 +470,10 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   }
 
   // ── Manual drag-to-reorder ────────────────────────────────────────────────
-  const lsKey = `coinche-hand-${roomCode}-${game.dealer}`;
-
-  function saveManualOrder(keys) {
-    setManualOrderKeys(keys);
-    try { localStorage.setItem(lsKey, JSON.stringify(keys)); } catch {}
-  }
-
-  // Explicit way back to auto-sort after a (possibly accidental) long-press into
-  // manual mode — otherwise the only escape would be the next deal.
-  function resetToAutoSort() {
-    setManualOrderKeys(null);
-    try { localStorage.removeItem(lsKey); } catch {}
-    setSortMode(autoSortModeForHand(myHand, trumpSuit));
+  // Enter MANUAL, seeding the frozen order from whatever is currently displayed.
+  function enterManual(keys) {
+    setManualOrder(keys);
+    setOrderSource('manual');
   }
 
   // Map a pointer X to a slot index in the arc, derived from the same geometry
@@ -539,13 +517,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     try { handElRef.current.setPointerCapture(e.pointerId); } catch {}
     startXYRef.current = { x: e.clientX, y: e.clientY };
     longPressRef.current = setTimeout(() => {
-      // There is no Trier button anymore, so a long-press-drag is the only way
-      // into manual mode. Seed the manual order from the CURRENT sorted display
-      // so the hand doesn't jump and the drag indices (computed against the shown
-      // cards) stay valid.
-      if (sortMode !== 'manual') {
-        saveManualOrder(displayHand.map(cardKey));
-        setSortMode('manual');
+      // A long-press-drag is the only way into manual mode. Seed the manual order
+      // from the CURRENT displayed order so the hand doesn't jump and the drag
+      // indices (computed against the shown cards) stay valid.
+      if (orderSource !== 'manual') {
+        enterManual(displayHand.map(cardKey));
       }
       dragRef.current = { fromIdx: idx, toIdx: idx };
       setLiftIdx(null);
@@ -586,7 +562,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     if (!dr) return;
     wasDragRef.current = true;
     if (dr.fromIdx !== dr.toIdx) {
-      saveManualOrder(reorderArr(manualHand, dr.fromIdx, dr.toIdx).map(cardKey));
+      setManualOrder(reorderArr(manualHand, dr.fromIdx, dr.toIdx).map(cardKey));
     }
   }
 
@@ -717,17 +693,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
       : (<>{icon} {caption}</>);
     return (
       <div className={`hand-toolbar${compact ? ' hand-toolbar-icons' : ''}`}>
-        {/* Back-to-auto-sort: only while in manual mode, so an accidental
-            long-press isn't a one-way trip until the next deal. */}
-        {!trainingMode && sortMode === 'manual' && (
-          <button
-            className="btn-undo"
-            onClick={resetToAutoSort}
-            title={t.sortHand}
-          >
-            {lbl('⇅', t.sortHand)}
-          </button>
-        )}
+        {/* Manual mode has no dedicated "back to auto" button: a new deal or a
+            Mode Sacha toggle both re-apply AUTO. */}
         {!trainingMode && isCreator && phase === 'PLAYING' && (
           <button
             className="btn-undo"
@@ -1078,7 +1045,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
               <BiddingPanel
                 socket={socket} roomCode={roomCode}
                 game={game} myPosition={myPosition} myTeam={myTeam}
-                sortMode={sortMode}
+                defaultBidSuit={bestSuitForHand(myHand)}
                 trainingMode={trainingMode}
                 isCreator={isCreator}
                 canUndo={room.canUndo}
@@ -1117,7 +1084,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
         )}
 
         <div
-          className={`my-hand${sortMode === 'manual' ? ' my-hand-manual' : ''}`}
+          className={`my-hand${orderSource === 'manual' ? ' my-hand-manual' : ''}`}
           ref={handElRef}
           style={handLift ? { transform: `translateY(${-handLift}px)` } : undefined}
           onPointerDown={handleHandPointerDown}

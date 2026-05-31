@@ -29,7 +29,7 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
 // Stable fallback used when game is null (SHUFFLE/CUT before first deal, or loading).
 // dealer: -1 so that any real dealer (0-3) is always different, ensuring the
-// dealer-change useEffect in GameBoard fires and re-evaluates the sort candidate.
+// dealer-change useEffect in GameBoard fires and resets the hand order to AUTO.
 const EMPTY_GAME = {
   dealer: -1, phase: null, currentBid: null, biddingTurn: null,
   consecutivePasses: 0, biddingActions: [null, null, null, null],
