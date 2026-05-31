@@ -6,7 +6,7 @@ import RoundSummary from './RoundSummary';
 import {
   SUIT_SYM,
   buildPerPlayerHistory,
-  bestSuitForHand,
+  bestSuitForHand, autoSortModeForHand,
   sortHand, winDir, cardKey, applyManualOrder, reorderArr,
   displayName,
 } from './gameBoardHelpers';
@@ -86,12 +86,15 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   // sortMode: 'S'|'H'|'D'|'C' = sort as if that suit were trump; 'manual' = drag order
   const [sortMode, setSortMode] = useState(() => {
     try {
+      // Only restore 'manual' if THIS deal still has a manual order saved.
+      // Manual order is keyed per-dealer, so a stale 'manual' from a prior deal
+      // (or a prior game reusing this room code) would otherwise leave the hand
+      // in raw deal order. Tie the two together so manual never outlives its deal.
       const saved = localStorage.getItem(`coinche-sortmode-${roomCode}`);
-      if (saved === 'manual') return 'manual';
+      const manualForDeal = localStorage.getItem(`coinche-hand-${roomCode}-${game.dealer}`);
+      if (saved === 'manual' && manualForDeal) return 'manual';
     } catch {}
-    if (game.trumpSuit) return game.trumpSuit;
-    const hand = game.hands?.[myPosition] || [];
-    return bestSuitForHand(hand);
+    return autoSortModeForHand(game.hands?.[myPosition] || [], game.trumpSuit);
   });
   const [showLastTrick, setShowLastTrick] = useState(false);
   // trickOverlay = { cards, winnerPos, animate } | null
@@ -314,13 +317,17 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     if (!trumpSuit) prevTrumpRef.current = null;
   }, [trumpSuit]);
 
-  // ── Effect: reset on new round; carry forward manual preference ───────────
+  // ── Effect: reset to auto-sort on every new deal ──────────────────────────
+  // A new deal = brand-new cards, so any manual arrangement from the prior round
+  // is meaningless. We ALWAYS drop back to auto-sort (never carry 'manual'
+  // forward), otherwise a manual hand from last round leaves the new hand in raw
+  // deal order — the cards-not-sorting bug. Manual mode is therefore opt-in per
+  // deal only. No trump yet at deal time, so this groups by the strongest suit.
   useEffect(() => {
     if (game.dealer !== prevDealerMRef.current) {
       prevDealerMRef.current = game.dealer;
       setManualOrderKeys(null);
-      // sortMode still holds previous round's value here
-      setSortMode(prev => prev === 'manual' ? 'manual' : bestSuitForHand(myHand));
+      setSortMode(autoSortModeForHand(myHand, game.trumpSuit));
     }
   }, [game.dealer]);
 
@@ -481,6 +488,14 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   function saveManualOrder(keys) {
     setManualOrderKeys(keys);
     try { localStorage.setItem(lsKey, JSON.stringify(keys)); } catch {}
+  }
+
+  // Explicit way back to auto-sort after a (possibly accidental) long-press into
+  // manual mode — otherwise the only escape would be the next deal.
+  function resetToAutoSort() {
+    setManualOrderKeys(null);
+    try { localStorage.removeItem(lsKey); } catch {}
+    setSortMode(autoSortModeForHand(myHand, trumpSuit));
   }
 
   // Map a pointer X to a slot index in the arc, derived from the same geometry
@@ -702,6 +717,17 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
       : (<>{icon} {caption}</>);
     return (
       <div className={`hand-toolbar${compact ? ' hand-toolbar-icons' : ''}`}>
+        {/* Back-to-auto-sort: only while in manual mode, so an accidental
+            long-press isn't a one-way trip until the next deal. */}
+        {!trainingMode && sortMode === 'manual' && (
+          <button
+            className="btn-undo"
+            onClick={resetToAutoSort}
+            title={t.sortHand}
+          >
+            {lbl('⇅', t.sortHand)}
+          </button>
+        )}
         {!trainingMode && isCreator && phase === 'PLAYING' && (
           <button
             className="btn-undo"

@@ -112,6 +112,15 @@ export function winDir(winnerPos, myPos) {
   return ['bottom', 'right', 'top', 'left'][((winnerPos - myPos) + 4) % 4];
 }
 
+// Auto-sort mode for a freshly-dealt hand. A new deal means brand-new cards, so
+// any prior manual arrangement is meaningless — we ALWAYS return an auto-sort
+// mode (a suit), never 'manual'. During bidding there is no trump yet, so we
+// group by the hand's strongest suit; once trump is known it takes precedence.
+// This is what guarantees every round starts auto-sorted (grouped by suit).
+export function autoSortModeForHand(hand, trump) {
+  return trump || bestSuitForHand(hand);
+}
+
 // ─── Manual order helpers ──────────────────────────────────────────────────
 
 export function cardKey(c) { return `${c.suit}${c.value}`; }
