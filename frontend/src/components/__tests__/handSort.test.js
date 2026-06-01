@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sortHand, deriveHandOrder, cardKey } from '../gameBoardHelpers';
+import { sortHand, deriveHandOrder, sortTrumpFor, cardKey } from '../gameBoardHelpers';
 
 // Helper: true when every suit forms a single contiguous block (i.e. grouped).
 function isGroupedBySuit(hand) {
@@ -92,6 +92,47 @@ describe('MANUAL is frozen — never auto-recomputes', () => {
     });
     expect(preview).toHaveLength(DEAL_ORDER.length);
     expect(keys(preview)).not.toEqual(manualOrder); // moved
+  });
+});
+
+describe('bidding sorts to the SELECTED bid suit (prospective trump)', () => {
+  // sortTrumpFor decides what trump the AUTO sort uses; the bid suit during
+  // bidding (Sacha OFF), null in Sacha, the real trump once playing.
+  it('Sacha OFF during bidding → the selected suit is the trump', () => {
+    expect(sortTrumpFor({ phase: 'BIDDING', modeSacha: false, effectiveBidSuit: 'D', trumpSuit: null })).toBe('D');
+    expect(sortTrumpFor({ phase: 'BIDDING', modeSacha: false, effectiveBidSuit: 'C', trumpSuit: null })).toBe('C');
+  });
+
+  it('Sacha ON during bidding → null (selected suit ignored entirely)', () => {
+    expect(sortTrumpFor({ phase: 'BIDDING', modeSacha: true, effectiveBidSuit: 'D', trumpSuit: null })).toBe(null);
+  });
+
+  it('PLAYING → always the real contract trump, never the bid suit', () => {
+    expect(sortTrumpFor({ phase: 'PLAYING', modeSacha: false, effectiveBidSuit: 'D', trumpSuit: 'S' })).toBe('S');
+    expect(sortTrumpFor({ phase: 'PLAYING', modeSacha: true,  effectiveBidSuit: 'D', trumpSuit: 'S' })).toBe('S');
+  });
+
+  // End-to-end through the order derivation, with the bidding trump resolved.
+  const bidSorted = (suit, sacha) => deriveHandOrder({
+    hand: DEAL_ORDER,
+    trump: sortTrumpFor({ phase: 'BIDDING', modeSacha: sacha, effectiveBidSuit: suit, trumpSuit: null }),
+    sacha, orderSource: 'auto', manualOrder: null,
+  });
+
+  it('Sacha OFF: the selected suit lands on the left', () => {
+    expect(bidSorted('D', false)[0].suit).toBe('D');
+    expect(bidSorted('C', false)[0].suit).toBe('C');
+  });
+
+  it('Sacha OFF: changing the selected suit re-sorts the hand', () => {
+    expect(keys(bidSorted('D', false))).not.toEqual(keys(bidSorted('C', false)));
+  });
+
+  it('Sacha ON: pure colour-alternation regardless of the selected suit', () => {
+    const pure = keys(sortHand(DEAL_ORDER, null, true));
+    expect(keys(bidSorted('D', true))).toEqual(pure);
+    expect(keys(bidSorted('C', true))).toEqual(pure); // selected suit makes no difference
+    expect(bidSorted('D', true)[0].suit).not.toBe('D'); // trump not forced left
   });
 });
 

@@ -6,7 +6,7 @@ import RoundSummary from './RoundSummary';
 import {
   SUIT_SYM,
   buildPerPlayerHistory,
-  bestSuitForHand, deriveHandOrder,
+  bestSuitForHand, deriveHandOrder, sortTrumpFor,
   sortHand, winDir, cardKey, applyManualOrder, reorderArr,
   displayName,
 } from './gameBoardHelpers';
@@ -93,6 +93,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   // persisted to localStorage: the order is pure, ephemeral, per-deal state.
   const [orderSource, setOrderSource] = useState('auto');
   const [manualOrder, setManualOrder] = useState(null);
+  // selectedBidSuit: the suit highlighted in the bidding suit-picker, lifted here
+  // so the AUTO sort can treat it as the prospective trump during bidding. null =
+  // fall back to the hand's strongest suit (so bidding opens sorted to it). Reset
+  // to null each deal; only meaningful during the BIDDING phase.
+  const [selectedBidSuit, setSelectedBidSuit] = useState(null);
   const [showLastTrick, setShowLastTrick] = useState(false);
   // trickOverlay = { cards, winnerPos, animate } | null
   const [trickOverlay, setTrickOverlay] = useState(null);
@@ -171,14 +176,22 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
 
   const isShortViewport = useMediaQuery(SHORT_VIEWPORT_QUERY);
 
+  // Suit highlighted in the bid picker (defaults to the hand's strongest suit).
+  // During bidding (Sacha OFF) this is the PROSPECTIVE trump fed to the AUTO sort;
+  // tapping a different suit re-sorts the hand live.
+  const effectiveBidSuit = selectedBidSuit ?? bestSuitForHand(myHand);
+  // The trump the AUTO sort places on the left: real contract trump once one
+  // exists, else the prospective bid suit during bidding (null in Sacha — see helper).
+  const sortTrump = sortTrumpFor({ phase, modeSacha, effectiveBidSuit, trumpSuit });
+
   // ── The single source of truth for the displayed hand order ────────────────
   // One pure derivation (deriveHandOrder) computed every render — no cached order.
-  // It re-sorts reactively whenever {myHand, trumpSuit, modeSacha} change in AUTO,
+  // It re-sorts reactively whenever {myHand, sortTrump, modeSacha} change in AUTO,
   // and stays frozen to the player's arrangement in MANUAL. `manualHand` is the
   // pre-drag manual base, reused by the drag handlers below.
   const manualHand   = applyManualOrder(myHand, manualOrder);
   const displayHand  = deriveHandOrder({
-    hand: myHand, trump: trumpSuit, sacha: modeSacha, orderSource, manualOrder, dragVisual,
+    hand: myHand, trump: sortTrump, sacha: modeSacha, orderSource, manualOrder, dragVisual,
   });
   const lastDoneTrick  = tricks?.length > 0 ? tricks[tricks.length - 1] : null;
   const animatedHand   = dealAnimCounts != null
@@ -299,12 +312,14 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   // A new deal = brand-new cards, so any prior manual arrangement is meaningless.
   // Drop back to AUTO every deal; manual is opt-in per deal only and never leaks
   // across hands. (AUTO needs no trump bookkeeping here — `displayHand` reads the
-  // live trump directly, so the new hand sorts itself, trump or not.)
+  // live trump directly, so the new hand sorts itself, trump or not.) Also clear
+  // the picked bid suit so the new hand opens sorted to ITS strongest suit.
   useEffect(() => {
     if (game.dealer !== prevDealerMRef.current) {
       prevDealerMRef.current = game.dealer;
       setOrderSource('auto');
       setManualOrder(null);
+      setSelectedBidSuit(null);
     }
   }, [game.dealer]);
 
@@ -1045,7 +1060,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
               <BiddingPanel
                 socket={socket} roomCode={roomCode}
                 game={game} myPosition={myPosition} myTeam={myTeam}
-                defaultBidSuit={bestSuitForHand(myHand)}
+                selectedSuit={effectiveBidSuit}
+                onSelectSuit={setSelectedBidSuit}
                 trainingMode={trainingMode}
                 isCreator={isCreator}
                 canUndo={room.canUndo}

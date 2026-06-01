@@ -4,13 +4,12 @@ import { useLang } from '../context/LanguageContext';
 const BID_VALUES = [80, 90, 100, 110, 120, 130, 140, 150, 160, 'capot'];
 const SUITS = ['S', 'H', 'D', 'C'];
 
-export default function BiddingPanel({ socket, roomCode, game, myPosition, myTeam, defaultBidSuit, trainingMode, isCreator, canUndo }) {
+export default function BiddingPanel({ socket, roomCode, game, myPosition, myTeam, selectedSuit, onSelectSuit, trainingMode, isCreator, canUndo }) {
   const { t } = useLang();
   const [selectedValue, setSelectedValue] = useState(null);
-  // Pre-select the hand's strongest suit (a convenience for the bidder); 'H' fallback.
-  const [selectedSuit, setSelectedSuit] = useState(
-    SUITS.includes(defaultBidSuit) ? defaultBidSuit : 'H'
-  );
+  // selectedSuit is owned by GameBoard (it doubles as the prospective trump the
+  // hand sorts to during bidding); tapping a chip lifts the change up via
+  // onSelectSuit so the hand re-sorts live.
 
   const isMyTurn = game.biddingTurn === myPosition;
   const currentBid = game.currentBid;
@@ -141,7 +140,7 @@ export default function BiddingPanel({ socket, roomCode, game, myPosition, myTea
                 <button
                   key={s}
                   className={`suit-btn ${s === 'H' || s === 'D' ? 'red' : 'black'}${selectedSuit === s ? ' selected' : ''}`}
-                  onClick={() => setSelectedSuit(s)}
+                  onClick={() => onSelectSuit(s)}
                 >
                   {t.suitSymbol[s]}
                 </button>

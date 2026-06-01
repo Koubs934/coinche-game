@@ -133,6 +133,17 @@ export function reorderArr(arr, from, to) {
   return a;
 }
 
+// Which suit the AUTO sort should treat as trump (place on the left, in trump
+// order), given the game phase and Mode Sacha. During bidding there is no real
+// contract yet, so the picker's selected suit acts as the PROSPECTIVE trump — but
+// only with Sacha OFF; Sacha stays pure colour-alternation and ignores it
+// entirely (returns null, so not even the trump suit's within-suit rank changes).
+// Once a contract exists we always sort to the real game.trumpSuit.
+export function sortTrumpFor({ phase, modeSacha, effectiveBidSuit, trumpSuit }) {
+  if (phase === 'BIDDING') return modeSacha ? null : (effectiveBidSuit ?? null);
+  return trumpSuit ?? null;
+}
+
 // ─── The single source of truth for the displayed hand order ────────────────
 // Pure function of the order state — there is no cached/imperative order anywhere
 // else. AUTO recomputes from {hand, trump, sacha} every call, so it re-sorts
