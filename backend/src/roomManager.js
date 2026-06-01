@@ -49,9 +49,42 @@ function getTeamByPosition(position) {
   return position % 2;
 }
 
+// Next position clockwise from `fromPos` that belongs to `team` (skips the other team).
+function _nextSameTeamPosition(fromPos, team) {
+  let p = (fromPos + 1) % 4;
+  for (let i = 0; i < 4; i++) {
+    if (getTeamByPosition(p) === team) return p;
+    p = (p + 1) % 4;
+  }
+  return (fromPos + 1) % 4; // unreachable with the 2-per-team layout
+}
+
 function getTeamByUserId(room, userId) {
   const p = room.players.find(p => p.userId === userId);
   return p ? p.team : -1;
+}
+
+// Choose the seat for a NEW occupant (human or bot): the lowest free seat on the
+// team with FEWER players. With 4 seats / 2 per team (team0 = seats 0,2; team1 =
+// 1,3) this always fills the open spots toward 2v2 — never a 3rd on a team while
+// the other still has a free seat. Returns -1 when the room is full.
+//
+// This (plus assignTeam relocating into a real free seat) keeps team strictly
+// derived from position, so the lobby team a player shows on is the same thing
+// that determines their in-game seat + partner (partner = position + 2 mod 4).
+function _chooseSeat(room) {
+  const taken = new Set(room.players.map(p => p.position));
+  const free = [[], []]; // free[0] = open even seats (team0); free[1] = open odd seats (team1)
+  for (let s = 0; s < 4; s++) if (!taken.has(s)) free[s % 2].push(s);
+  if (free[0].length === 0 && free[1].length === 0) return -1;
+
+  const count = [0, 0];
+  for (const p of room.players) count[p.position % 2]++;
+
+  let team;
+  if (free[0].length && free[1].length) team = count[0] <= count[1] ? 0 : 1;
+  else                                  team = free[0].length ? 0 : 1;
+  return free[team][0];
 }
 
 // ─── Guard helpers (reduce repetition in public API functions) ─────────────
@@ -120,8 +153,8 @@ function publicRoom(room) {
   return {
     code: room.code,
     creatorId: room.creatorId,
-    players: room.players.map(({ userId, username, team, position, connected, isBot }) =>
-      ({ userId, username, team, position, connected, isBot: !!isBot })),
+    players: room.players.map(({ userId, username, team, position, connected, isBot, avatarConfig }) =>
+      ({ userId, username, team, position, connected, isBot: !!isBot, avatarConfig: avatarConfig ?? null })),
     targetScore: room.targetScore,
     phase: room.phase,
     scores: room.scores,
@@ -136,6 +169,69 @@ function publicRoom(room) {
   };
 }
 
+// ─── Partner peek (private inside-joke feature) ─────────────────────────────
+// A toggle that lets two SPECIFIC partnered users see each other's hands. Gated
+// hard to these two user IDs, only when both are present AND on the same team
+// AND a third specific user ("Pacha") is also seated in the room as an opponent.
+// Self-contained: one flag (room.partnerPeek), one toggle fn, one branch in
+// publicGame. The reveal is injected PER RECIPIENT in publicGame, so it never
+// reaches any other player. Hardcoding the IDs is intentional. IDs resolved once
+// from the profiles table (usernames AK7 / faispaschier / Pacha) — easy to remove.
+const PARTNER_PEEK_IDS = [
+  '7f35ed6a-8e9a-421e-8e79-1086fa663478', // AK7 (Aaron)
+  '507f441f-a481-4269-9d18-356b9ba76f43', // faispaschier (Sacha's current account)
+];
+// The peek only arms when this opponent is at the table (Jerem's "Pacha" account).
+const PARTNER_PEEK_OPPONENT_ID = 'b1b3041f-48fa-4fe0-9dbe-48f334b51bce'; // Pacha
+
+// Returns { a, b } when both gated users are present and partnered (same team);
+// null otherwise. Same team in the 2v2 fixed layout ⟺ partners (positions ±2).
+function partnerPeekPair(room) {
+  const a = room.players.find(p => p.userId === PARTNER_PEEK_IDS[0]);
+  const b = room.players.find(p => p.userId === PARTNER_PEEK_IDS[1]);
+  if (a && b && a.team === b.team) return { a, b };
+  return null;
+}
+
+// True only when "Pacha" is a seated player in the room (the required opponent).
+function partnerPeekOpponentPresent(room) {
+  return room.players.some(p => p.userId === PARTNER_PEEK_OPPONENT_ID);
+}
+
+// Full eligibility: the pair is present-and-partnered AND Pacha is seated.
+// Returns the pair when eligible, null otherwise.
+function partnerPeekEligiblePair(room) {
+  const pair = partnerPeekPair(room);
+  if (!pair) return null;
+  if (!partnerPeekOpponentPresent(room)) return null;
+  return pair;
+}
+
+// Per-viewer peek result. canPeek = this viewer is one of the two gated users and
+// the full eligibility holds (pair partnered + Pacha seated) → show the toggle.
+// peekHand = the partner's actual cards, present ONLY when the flag is also ON.
+// Returns {canPeek:false} for anyone who isn't one of the two gated users — so
+// opponents/bots get no peek fields.
+function computePartnerPeek(room, viewerPosition) {
+  const viewer = room.players.find(p => p.position === viewerPosition);
+  if (!viewer || !PARTNER_PEEK_IDS.includes(viewer.userId)) return { canPeek: false };
+  const pair = partnerPeekEligiblePair(room);
+  if (!pair) return { canPeek: false };
+  const partner = viewer.userId === PARTNER_PEEK_IDS[0] ? pair.b : pair.a;
+  const out = { canPeek: true, peekOn: !!room.partnerPeek, partnerPosition: partner.position };
+  if (room.partnerPeek && room.game) out.peekHand = room.game.hands[partner.position];
+  return out;
+}
+
+function togglePartnerPeek(code, userId) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+  if (!PARTNER_PEEK_IDS.includes(userId)) return { error: 'Not allowed' };
+  if (!partnerPeekEligiblePair(room)) return { error: 'Partner peek not available' };
+  room.partnerPeek = !room.partnerPeek;
+  return { room };
+}
+
 // Game state filtered for a specific viewer (hides other hands)
 function publicGame(room, viewerPosition) {
   const g = room.game;
@@ -144,7 +240,14 @@ function publicGame(room, viewerPosition) {
   // During BIDDING/PLAYING/SHUFFLE/CUT this stays undefined to prevent leaking
   // opponents' hands mid-round.
   const isRoundOver = room.phase === 'ROUND_OVER' || room.phase === 'GAME_OVER';
+  const peek = computePartnerPeek(room, viewerPosition);
   return {
+    // Partner peek — present ONLY for the two gated users (canPeek:false otherwise
+    // means these keys are simply false/undefined, never the partner's cards).
+    canPeek: peek.canPeek,
+    peekOn: peek.canPeek ? peek.peekOn : undefined,
+    peekPartnerPosition: peek.canPeek ? peek.partnerPosition : undefined,
+    peekHand: peek.peekHand,
     gameId: g.gameId || null,
     errorAnnotations: g.errorAnnotations || [],
     dealer: g.dealer,
@@ -178,12 +281,12 @@ function publicGame(room, viewerPosition) {
 
 // ─── Room lifecycle ────────────────────────────────────────────────────────
 
-function createRoom({ userId, username, socketId }) {
+function createRoom({ userId, username, socketId, avatarConfig = null }) {
   const code = generateCode();
   rooms.set(code, {
     code,
     creatorId: userId,
-    players: [{ userId, username, socketId, team: 0, position: 0, connected: true }],
+    players: [{ userId, username, socketId, team: 0, position: 0, connected: true, avatarConfig }],
     targetScore: 2000,
     phase: 'LOBBY',
     scores: [0, 0],
@@ -192,31 +295,50 @@ function createRoom({ userId, username, socketId }) {
     pendingJoins: [],
     history: [],
     actionNonce: 0,
+    chatMessages: [],
+    lastHumanSeenAt: Date.now(), // abandoned-room cleanup anchor
   });
   return rooms.get(code);
 }
 
-function joinRoom(code, { userId, username, socketId }) {
+function joinRoom(code, { userId, username, socketId, avatarConfig = null }) {
   const room = rooms.get(code);
   if (!room) return { error: 'Room not found' };
   if (room.phase !== 'LOBBY') return { error: 'Game already in progress' };
   if (room.players.length >= 4) return { error: 'Room is full' };
   if (room.players.find(p => p.userId === userId)) return { error: 'Already in room' };
 
-  const position = room.players.length;
-  room.players.push({ userId, username, socketId, team: position % 2, position, connected: true });
+  // Seat into a free seat on the underfull team (team is derived from the seat),
+  // so manual team moves are respected and we never form a 3v1.
+  const position = _chooseSeat(room);
+  if (position === -1) return { error: 'Room is full' };
+  room.players.push({ userId, username, socketId, team: position % 2, position, connected: true, avatarConfig });
+  noteRoomActivity(room);
   return { room };
 }
 
+// "Move to other team" = a real SEAT change into a free seat of the target team,
+// so team never decouples from position. If the target team has no free seat the
+// move is unavailable (which is what structurally prevents a 3v1).
 function assignTeam(code, creatorId, targetUserId, team) {
   const room = rooms.get(code);
   if (!room) return { error: 'Room not found' };
   if (room.creatorId !== creatorId) return { error: 'Only the room creator can assign teams' };
   if (room.phase !== 'LOBBY') return { error: 'Game already in progress' };
+  if (team !== 0 && team !== 1) return { error: 'Invalid team' };
 
   const player = room.players.find(p => p.userId === targetUserId);
   if (!player) return { error: 'Player not found' };
-  player.team = team;
+  if (player.position % 2 === team) return { room }; // already on that team — no-op
+
+  // Find a free seat belonging to the target team (team0 = seats 0,2; team1 = 1,3).
+  const taken = new Set(room.players.map(p => p.position));
+  let target = -1;
+  for (let s = team; s < 4; s += 2) { if (!taken.has(s)) { target = s; break; } }
+  if (target === -1) return { error: 'That team has no free seat' };
+
+  player.position = target;
+  player.team = target % 2;
   return { room };
 }
 
@@ -235,7 +357,10 @@ function fillWithBots(code, creatorId) {
 
   while (room.players.length < 4) {
     while (existingBotNums.has(botNum)) botNum++;
-    const position = room.players.length;
+    // Seat each bot into a free seat on the underfull team (respecting manual
+    // moves) so they balance the table to 2v2 instead of filling by array index.
+    const position = _chooseSeat(room);
+    if (position === -1) break;
     room.players.push({
       userId: `bot-${botNum}`,
       username: `Bot ${botNum}`,
@@ -403,8 +528,23 @@ function passBid(code, userId) {
   room.game.biddingActions[position] = { type: 'pass' };
   room.game.biddingHistory.push({ position, type: 'pass' });
   room.game.consecutivePasses++;
-  room.game.biddingTurn = (position + 1) % 4;
 
+  const bid = room.game.currentBid;
+
+  // Surcoinche window: bid is coinched but not yet surcoinched. Only the contracting team is
+  // prompted here (the coinching team is skipped), so every pass = a contracting player
+  // declining to surcoinche. Two contracting players → close once both have declined.
+  if (bid && bid.coinched && !bid.surcoinched) {
+    if (room.game.consecutivePasses >= 2) {
+      _startPlaying(room);
+    } else {
+      room.game.biddingTurn = _nextSameTeamPosition(position, bid.team);
+    }
+    return { room };
+  }
+
+  // Normal (pre-coinche) flow — unchanged:
+  room.game.biddingTurn = (position + 1) % 4;
   if (room.game.consecutivePasses >= 3 && room.game.currentBid) {
     _startPlaying(room);
   } else if (room.game.consecutivePasses >= 4 && !room.game.currentBid) {
@@ -432,9 +572,10 @@ function coinche(code, userId) {
   bid.coinched = true;
   room.game.biddingActions[position] = { type: 'coinche' };
   room.game.biddingHistory.push({ position, type: 'coinche' });
-  // Bidding continues — 3 consecutive passes needed to end (no new bids allowed)
   room.game.consecutivePasses = 0;
-  room.game.biddingTurn = (position + 1) % 4;
+  // Only the contracting team may respond (Surcoinche / Pass). Skip the coinching team so
+  // the coincher's partner is never asked to pass.
+  room.game.biddingTurn = _nextSameTeamPosition(position, bid.team);
   return { room };
 }
 
@@ -456,9 +597,8 @@ function surcoinche(code, userId) {
   bid.surcoinched = true;
   room.game.biddingActions[position] = { type: 'surcoinche' };
   room.game.biddingHistory.push({ position, type: 'surcoinche' });
-  // Bidding continues — 3 consecutive passes needed to end
-  room.game.consecutivePasses = 0;
-  room.game.biddingTurn = (position + 1) % 4;
+  // Surcoinche is the ceiling — nothing can follow. Close bidding now.
+  _startPlaying(room);
   return { room };
 }
 
@@ -859,7 +999,7 @@ function leaveRoom(code, userId) {
 // ─── Pending join requests ─────────────────────────────────────────────────
 
 // Creator rejoining their own room bypasses the approval queue
-function creatorJoin(code, { userId, username, socketId }) {
+function creatorJoin(code, { userId, username, socketId, avatarConfig = null }) {
   const room = rooms.get(code);
   if (!room) return { error: 'Room not found' };
   if (room.creatorId !== userId) return { error: 'Not the room creator' };
@@ -878,14 +1018,16 @@ function creatorJoin(code, { userId, username, socketId }) {
     position: openPosition,
     connected: true,
     isBot: false,
+    avatarConfig,
   });
 
   if (room.players.length === 4) room.paused = false;
 
+  noteRoomActivity(room);
   return { room, position: openPosition };
 }
 
-function requestJoin(code, { userId, username, socketId }) {
+function requestJoin(code, { userId, username, socketId, avatarConfig = null }) {
   const room = rooms.get(code);
   if (!room) return { error: 'Room not found' };
   if (!['PLAYING', 'ROUND_OVER', 'GAME_OVER', 'SHUFFLE', 'CUT'].includes(room.phase)) {
@@ -898,15 +1040,18 @@ function requestJoin(code, { userId, username, socketId }) {
   const hasOpenSeat = [0, 1, 2, 3].some(i => !takenPositions.has(i));
   if (!hasOpenSeat) return { error: 'Room is full' };
 
-  // Upsert: if already pending (e.g. after browser refresh), just update socketId
+  // Upsert: if already pending (e.g. after browser refresh), just update socketId.
+  // The avatar config rides along on the pending entry so acceptJoin (run from
+  // the CREATOR's socket) can stamp the requester's avatar, not the creator's.
   const existing = (room.pendingJoins || []).find(p => p.userId === userId);
   if (existing) {
     existing.socketId = socketId;
     existing.username = username;
+    existing.avatarConfig = avatarConfig;
     return { room, alreadyPending: true };
   }
 
-  room.pendingJoins.push({ userId, username, socketId });
+  room.pendingJoins.push({ userId, username, socketId, avatarConfig });
   return { room };
 }
 
@@ -939,10 +1084,12 @@ function acceptJoin(code, creatorId, targetUserId) {
     position: openPosition,
     connected: true,
     isBot: false,
+    avatarConfig: request.avatarConfig ?? null,
   });
 
   if (room.players.length === 4) room.paused = false;
 
+  noteRoomActivity(room);
   return { room, acceptedSocketId: request.socketId, acceptedPosition: openPosition };
 }
 
@@ -993,7 +1140,7 @@ function handleDisconnect(socketId) {
   return null;
 }
 
-function handleReconnect(socketId, code, userId) {
+function handleReconnect(socketId, code, userId, avatarConfig) {
   const room = rooms.get(code);
   if (!room) return null;
 
@@ -1002,9 +1149,13 @@ function handleReconnect(socketId, code, userId) {
   if (player) {
     player.socketId = socketId;
     player.connected = true;
+    // Refresh their avatar in case they edited it since first joining (only when
+    // the client actually sent one — undefined means "no update").
+    if (avatarConfig !== undefined) player.avatarConfig = avatarConfig;
     if (room.paused && room.players.every(p => p.connected)) {
       room.paused = false;
     }
+    noteRoomActivity(room); // a human is back — cancel any pending grace timer
     return { room, player };
   }
 
@@ -1029,13 +1180,271 @@ function getRoom(code) {
   return rooms.get(code) || null;
 }
 
+// True if this user holds a (non-bot) seat in any room — used by presence to
+// distinguish EN PARTIE from EN LIGNE. A room in LOBBY counts: the user is
+// seated and occupied setting a game up.
+function isUserSeated(userId) {
+  for (const room of rooms.values()) {
+    if (room.players.some(p => p.userId === userId && !p.isBot)) return true;
+  }
+  return false;
+}
+
+// ─── Abandoned-room cleanup ──────────────────────────────────────────────────
+//
+// "Parties en cours" was flooding with dead rooms — abandoned solo-vs-bots games
+// and old partials nobody is in. A room is DEAD when no real human keeps it alive:
+//   • 0 human MEMBERS (only bots / empty)        → delete immediately.
+//   • members but 0 CONNECTED                    → arm a grace timer, then delete;
+//                                                   cancelled if a human reconnects.
+//   • ≥1 connected human                         → ALIVE, never delete.
+//
+// Two triggers cooperate: per-event evaluation (on disconnect/leave) arms/cancels
+// the grace timer; a periodic sweep also catches rooms that never got a timer
+// (e.g. hydrated from Redis on restart) using room.lastHumanSeenAt as the anchor.
+//
+// Deletion side-effects (cancel pending bot setTimeouts, drop from Redis, refresh
+// lobbies) live in server.js — injected here via onRoomDeleted to avoid a
+// circular dependency on botProcessor.
+
+const DEFAULT_DEAD_ROOM_GRACE_MS = 4 * 60 * 1000; // 4 min (in the 3–5 min range)
+
+let _deadRoomGraceMs = DEFAULT_DEAD_ROOM_GRACE_MS;
+let _onRoomDeleted = null;
+const cleanupTimers = new Map(); // code -> grace timeout id
+
+function configureCleanup({ graceMs, onRoomDeleted } = {}) {
+  if (typeof graceMs === 'number' && graceMs >= 0) _deadRoomGraceMs = graceMs;
+  if (typeof onRoomDeleted === 'function') _onRoomDeleted = onRoomDeleted;
+}
+
+function _humanMembers(room)    { return room.players.filter(p => !p.isBot); }
+function _connectedHumans(room) { return room.players.filter(p => !p.isBot && p.connected !== false); }
+
+function _clearCleanupTimer(code) {
+  const t = cleanupTimers.get(code);
+  if (t) { clearTimeout(t); cleanupTimers.delete(code); }
+}
+
+// Remove a room from the Map and fire the deletion side-effects exactly once.
+function _destroyRoom(code) {
+  _clearCleanupTimer(code);
+  const existed = rooms.delete(code);
+  if (existed && _onRoomDeleted) {
+    try { _onRoomDeleted(code); } catch (err) {
+      console.error(`[cleanup] onRoomDeleted failed for ${code}: ${err.message}`);
+    }
+  }
+  return existed;
+}
+
+// Mark a room as kept-alive by a present human: refresh the activity stamp and
+// cancel any pending grace timer. Call when a human creates/joins/reconnects.
+function noteRoomActivity(room) {
+  if (!room) return;
+  room.lastHumanSeenAt = Date.now();
+  _clearCleanupTimer(room.code);
+}
+
+// Re-evaluate a room's liveness after a human disconnect or leave. Returns one
+// of { deleted } / { armed } / { alive }.
+function evaluateRoomForCleanup(code) {
+  const room = rooms.get(code);
+  if (!room) return { deleted: false };
+
+  if (_humanMembers(room).length === 0) {
+    // Nobody human will ever rejoin (only bots, or empty) — delete now.
+    _destroyRoom(code);
+    return { deleted: true };
+  }
+
+  if (_connectedHumans(room).length > 0) {
+    room.lastHumanSeenAt = Date.now();
+    _clearCleanupTimer(code);
+    return { alive: true };
+  }
+
+  // Members but none connected — arm the grace timer (idempotent).
+  if (!cleanupTimers.has(code)) {
+    const t = setTimeout(() => {
+      cleanupTimers.delete(code);
+      const r = rooms.get(code);
+      if (r && _connectedHumans(r).length === 0) _destroyRoom(code);
+    }, _deadRoomGraceMs);
+    if (typeof t.unref === 'function') t.unref(); // don't hold the event loop open
+    cleanupTimers.set(code, t);
+  }
+  return { armed: true };
+}
+
+// Periodic sweep: delete every DEAD room. Catches rooms that never got a per-event
+// timer (hydrated on restart, or armed before a crash). `now` is injectable for tests.
+function sweepDeadRooms(now = Date.now()) {
+  const dead = [];
+  for (const [code, room] of rooms) {
+    const humans = _humanMembers(room);
+    if (humans.length === 0) { dead.push(code); continue; }
+    if (humans.some(h => h.connected !== false)) {
+      room.lastHumanSeenAt = now; // still alive — refresh anchor
+      continue;
+    }
+    // Members but none connected — dead once the grace window has elapsed.
+    if (now - (room.lastHumanSeenAt || 0) >= _deadRoomGraceMs) dead.push(code);
+  }
+  for (const code of dead) _destroyRoom(code);
+  return dead;
+}
+
+// Test-only: wipe all rooms + timers + cleanup config back to defaults so each
+// test file starts clean (the rooms Map is module-global).
+function _resetForTests() {
+  for (const t of cleanupTimers.values()) clearTimeout(t);
+  cleanupTimers.clear();
+  rooms.clear();
+  lastThrowAt.clear();
+  _deadRoomGraceMs = DEFAULT_DEAD_ROOM_GRACE_MS;
+  _onRoomDeleted = null;
+}
+
+// ─── Lobby: active-rooms listing ─────────────────────────────────────────────
+//
+// Powers the home screen's "Parties en cours" list. Returns the rooms this user
+// can interact with, each tagged with whether they can JOIN (a free seat, not a
+// member) or REJOIN (already hold a seat). Rooms that are full AND that the user
+// isn't part of are omitted — there is no spectator mode. Hands/cards are never
+// exposed here; only public lobby metadata.
+//
+// NOTE: there is no distinct Coinche/Belote game-mode setting in the codebase —
+// the game is always Coinche-Belote — so `mode` is reported as room.mode when
+// present (future-proofing) and otherwise the 'coinche' default.
+function listJoinableRooms(userId) {
+  const out = [];
+  for (const room of rooms.values()) {
+    const seated = room.players.length; // counts bots too (they hold seats)
+    if (seated === 0) continue;         // defensive: empty rooms are normally deleted
+    const isMember = room.players.some(p => p.userId === userId && !p.isBot);
+    const isFull   = seated >= 4;
+    // No spectating: hide full rooms the user has no seat in.
+    if (isFull && !isMember) continue;
+
+    out.push({
+      code:        room.code,
+      phase:       room.phase,
+      playerCount: seated,
+      maxPlayers:  4,
+      mode:        room.mode || 'coinche',
+      players: room.players.map(p => ({
+        username:  p.username,
+        isBot:     !!p.isBot,
+        connected: p.connected !== false,
+      })),
+      canRejoin: isMember,
+      canJoin:   !isMember && !isFull,
+    });
+  }
+  // Rooms the user already holds a seat in float to the top, then fuller rooms,
+  // then a stable alphabetical tiebreak.
+  out.sort((a, b) =>
+    (Number(b.canRejoin) - Number(a.canRejoin)) ||
+    (b.playerCount - a.playerCount) ||
+    a.code.localeCompare(b.code));
+  return out;
+}
+
+// ─── Table chat ──────────────────────────────────────────────────────────────
+//
+// Per-room, ephemeral, text-only chat shared by all four seats. Lives entirely
+// in room.chatMessages (in-memory, capped at CHAT_HISTORY_LIMIT). It rides along
+// in the persisted room snapshot so a server restart re-hydrates recent history,
+// but there is no dedicated DB/Supabase storage — it's intentionally throwaway.
+// Bots never call this (they have no socket); the handler in server.js is only
+// reachable from a real player socket.
+
+const CHAT_HISTORY_LIMIT = 50;
+const CHAT_TEXT_MAX = 500;
+
+function addChatMessage(code, userId, text) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+
+  const player = room.players.find(p => p.userId === userId);
+  if (!player || player.isBot) return { error: 'Not a player in this room' };
+
+  if (typeof text !== 'string') return { error: 'Invalid message' };
+  const trimmed = text.trim();
+  if (!trimmed) return { error: 'Empty message' };
+  const capped = trimmed.slice(0, CHAT_TEXT_MAX);
+
+  if (!Array.isArray(room.chatMessages)) room.chatMessages = [];
+  const message = {
+    id:       crypto.randomUUID(),
+    userId,
+    username: player.username,
+    position: player.position, // FE anchors the seat bubble off this
+    text:     capped,
+    ts:       Date.now(),
+  };
+  room.chatMessages.push(message);
+  if (room.chatMessages.length > CHAT_HISTORY_LIMIT) {
+    room.chatMessages.splice(0, room.chatMessages.length - CHAT_HISTORY_LIMIT);
+  }
+  return { room, message };
+}
+
+// ─── Throw projectiles (transient cosmetic gesture) ──────────────────────────
+//
+// A purely cosmetic "throw stuff at a player" reaction, networked like chat but
+// NOT persisted (it's a momentary animation). The sender is resolved from the
+// socket's own membership (never client-trusted). Bots never throw. A small
+// per-sender cooldown throttles spam. The allowed item set is the single source
+// of truth shared with the FE catalog.
+const THROW_ITEMS = new Set([
+  'tomato', 'egg', 'banana', 'pie', 'shoe', 'poop',
+  'lemon', 'watermelon', 'apple', 'orange', 'fish', 'baguette',
+  'hand', 'train',
+]);
+const THROW_COOLDOWN_MS = 1000;
+const lastThrowAt = new Map(); // `${code}:${userId}` -> ts
+
+// Validate a throw and return { room, throw:{fromPosition,toPosition,item} } or
+// { error }. `now` is injectable for deterministic cooldown tests.
+function throwItem(code, userId, targetPosition, item, now = Date.now()) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+
+  const sender = room.players.find(p => p.userId === userId);
+  if (!sender || sender.isBot) return { error: 'Not a player in this room' };
+
+  if (!THROW_ITEMS.has(item)) return { error: 'Invalid item' };
+  if (!Number.isInteger(targetPosition) || targetPosition < 0 || targetPosition > 3) {
+    return { error: 'Invalid target position' };
+  }
+  if (targetPosition === sender.position) return { error: 'Cannot throw at yourself' };
+  const target = room.players.find(p => p.position === targetPosition);
+  if (!target) return { error: 'No player at that seat' };
+
+  // Per-sender cooldown — drop throws fired faster than THROW_COOLDOWN_MS.
+  const key = `${code}:${userId}`;
+  if (now - (lastThrowAt.get(key) || 0) < THROW_COOLDOWN_MS) return { error: 'Too fast' };
+  lastThrowAt.set(key, now);
+
+  return { room, throw: { fromPosition: sender.position, toPosition: targetPosition, item } };
+}
+
 // ─── Persistence integration ───────────────────────────────────────────────
 
 // Seed the in-memory Map from a previously-persisted snapshot array.
 // Called once at server startup, before the socket server accepts connections.
 function hydrateRooms(roomsArray) {
   for (const room of roomsArray) {
-    if (room && room.code) rooms.set(room.code, room);
+    if (room && room.code) {
+      // Give hydrated rooms a fresh grace window from startup: their players are
+      // all connected:false until they rejoin, so without this the first sweep
+      // would delete a legitimate game before anyone could reconnect after a
+      // deploy. Human-less hydrated rooms are still deleted immediately.
+      room.lastHumanSeenAt = Date.now();
+      rooms.set(room.code, room);
+    }
   }
 }
 
@@ -1069,9 +1478,19 @@ module.exports = {
   getRoom,
   publicRoom,
   publicGame,
+  togglePartnerPeek,
+  addChatMessage,
+  throwItem,
+  listJoinableRooms,
+  isUserSeated,
+  configureCleanup,
+  noteRoomActivity,
+  evaluateRoomForCleanup,
+  sweepDeadRooms,
   getPosition,
   hydrateRooms,
   getRoomByGameId,
   createGameErrorAnnotation,
   buildGameRecord,
+  _resetForTests,
 };

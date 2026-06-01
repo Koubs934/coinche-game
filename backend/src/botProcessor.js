@@ -6,6 +6,33 @@ const { getBotCardAction } = require('./game/botPlay');
 const BOT_DELAY_MS = 700;
 const BOT_CONFIRM_DELAY_MS = 2000;
 
+// ─── Bot schedule tracking ───────────────────────────────────────────────────
+// Pending setTimeout handles per room code, so a room being deleted (abandoned
+// cleanup) can cancel its in-flight bot turns. Each callback removes its own
+// handle when it fires. Bot callbacks already bail when rm.getRoom(code) is
+// gone, so this is defence-in-depth — but it also stops needless wake-ups.
+const botTimers = new Map(); // code -> Set<timeoutId>
+
+function _schedule(code, fn, delay) {
+  const id = setTimeout(() => {
+    const set = botTimers.get(code);
+    if (set) { set.delete(id); if (set.size === 0) botTimers.delete(code); }
+    fn();
+  }, delay);
+  let set = botTimers.get(code);
+  if (!set) { set = new Set(); botTimers.set(code, set); }
+  set.add(id);
+  return id;
+}
+
+// Cancel every pending bot schedule for a room. Called on room deletion.
+function cancelBotSchedules(code) {
+  const set = botTimers.get(code);
+  if (!set) return;
+  for (const id of set) clearTimeout(id);
+  botTimers.delete(code);
+}
+
 function isBotPosition(room, position) {
   return room.players.some(p => p.position === position && p.isBot);
 }
@@ -28,7 +55,7 @@ function isBotTurn(room) {
 function scheduleBotTurns(code, broadcastFn) {
   const room0 = rm.getRoom(code);
   const nonce = room0 ? (room0.actionNonce || 0) : 0;
-  setTimeout(() => {
+  _schedule(code, () => {
     const room = rm.getRoom(code);
     if (!room || room.paused || !isBotTurn(room)) return;
     if ((room.actionNonce || 0) !== nonce) {
@@ -89,7 +116,7 @@ function _execute(room, scheduledNonce, broadcastFn) {
  * ready count.
  */
 function scheduleBotConfirms(code, broadcastFn) {
-  setTimeout(() => {
+  _schedule(code, () => {
     const room = rm.getRoom(code);
     if (!room || room.phase !== 'ROUND_OVER' || room.paused) return;
 
@@ -119,7 +146,7 @@ function scheduleBotConfirms(code, broadcastFn) {
  * Dealer bots always shuffle; cut bots pick a random value 1–31.
  */
 function scheduleBotShuffleCut(code, broadcastFn) {
-  setTimeout(() => {
+  _schedule(code, () => {
     const room = rm.getRoom(code);
     if (!room || room.paused) return;
     if (room.phase === 'SHUFFLE') {
@@ -137,4 +164,4 @@ function scheduleBotShuffleCut(code, broadcastFn) {
   }, 1500);
 }
 
-module.exports = { scheduleBotTurns, isBotTurn, scheduleBotConfirms, scheduleBotShuffleCut };
+module.exports = { scheduleBotTurns, isBotTurn, scheduleBotConfirms, scheduleBotShuffleCut, cancelBotSchedules };

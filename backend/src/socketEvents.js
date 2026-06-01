@@ -29,6 +29,8 @@
  * @property {0|1|2|3} position
  * @property {boolean} connected
  * @property {boolean} isBot
+ * @property {object|null} avatarConfig  // DiceBear avataaars options; cosmetic
+ *   blob relayed verbatim (backend never inspects it). null → letter fallback.
  */
 
 /**
@@ -77,8 +79,12 @@
 /** @typedef {{ room: PublicRoom, game: PublicGame|null, myPosition: 0|1|2|3 }} RoomSync */
 
 // ─── Handshake ─────────────────────────────────────────────────────────────
-// socket.handshake.auth: { userId: string, username: string }
-// Rejected with Error('Authentication required') when either is missing.
+// socket.handshake.auth: { userId: string, username: string, avatarConfig?: object }
+// Rejected with Error('Authentication required') when userId/username missing.
+// avatarConfig is an optional cosmetic blob (DiceBear options) the backend
+// relays per-seat; it's size/shape-capped (<2KB, plain object) and never
+// inspected. createRoom/joinRoom/rejoinRoom may also carry { avatarConfig } to
+// refresh it after the user edits their avatar mid-session.
 
 // ─── C→S events ────────────────────────────────────────────────────────────
 // Lobby:
@@ -137,6 +143,50 @@
 //     reconnection. Responds on 'roomUpdate' (filtered to the requester).
 //     Errors: UNKNOWN_GAME.
 //
+// Lobby / home screen:
+//   'lobby:getRooms' ()
+//     Read-only request for the active-rooms list ("Parties en cours"). The
+//     sender is taken from the socket auth; no payload. Returns only rooms the
+//     user can JOIN (a free seat, not a member) or REJOIN (already seated).
+//     Rooms that are full AND that the user has no seat in are omitted (no
+//     spectating). Never exposes hands/cards.
+//       → S→C 'lobby:rooms' { rooms: Array<{
+//             code, phase, playerCount, maxPlayers,
+//             mode: 'coinche',  // no distinct Coinche/Belote mode exists yet
+//             players: Array<{username, isBot, connected}>,
+//             canJoin: boolean, canRejoin: boolean }> }
+//
+//   'lobby:getFriends' ()
+//     Read-only request for online-friends presence ("Amis en ligne"). The
+//     sender is taken from socket auth; no payload. Returns a presence map for
+//     every currently-online user EXCEPT the requester. Any userId not in the
+//     map is offline. The full registered-user roster is fetched separately by
+//     the client from Supabase (public.profiles) and merged with this map — the
+//     backend has no Supabase access, so it owns presence only.
+//       → S→C 'lobby:friends' { presence: { [userId]: 'online' | 'in-game' } }
+//     'in-game' = online AND seated in a room (roomManager); else 'online'.
+//
+// Table chat (ephemeral per-room text chat, all 4 seats):
+//   'chat:message' ({ text })
+//     Sender is resolved from the socket's own room membership — no client
+//     code/userId is trusted. text is trimmed, capped at 500 chars; empty or
+//     non-string payloads are silently dropped (never surfaced as an error).
+//     Bots never emit. On success, the built message is broadcast to ALL room
+//     sockets (sender included):
+//       → S→C 'chat:message' { id, userId, username, position, text, ts }
+//     `position` is the sender's seat (0-3); the FE maps it to a viewer-relative
+//     seat slot to anchor a notification bubble.
+//
+// Throw projectiles (cosmetic gesture, NOT persisted):
+//   'throw:item' ({ targetPosition: 0-3, item: string })
+//     Sender resolved from the socket (not client-trusted). Validated: sender is
+//     a seated non-bot player; targetPosition is another occupied seat (≠ self);
+//     item ∈ {tomato,egg,banana,pie,shoe,poop,lemon,watermelon,apple,orange,
+//     fish,baguette,hand,train}. Per-sender ~1s cooldown; faster
+//     throws are silently dropped. Bots never throw. On success:
+//       → S→C 'throw:thrown' { fromPosition, toPosition, item } to ALL room
+//         sockets (sender included); each client animates it from its own view.
+//
 // All C→S events are rate-limited by server.js middleware (30/sec per socket).
 
 // ─── S→C events ────────────────────────────────────────────────────────────
@@ -150,6 +200,26 @@
 //     and useful for diagnostic logging only — do NOT show it in the UI.
 //   'gameErrorAnnotationCreated': { gameId, annotation:{annotationId,cardRef,note,createdAt,createdByUserId} }
 //     Emitted to the creator's socket after a successful createGameErrorAnnotation.
+//   'chat:history' : { messages: Array<{id,userId,username,position,text,ts}> }
+//     Sent to a single socket on every (re)join — replays the room's recent
+//     table-chat (capped at 50). May be an empty list.
+//   'chat:message' : { id, userId, username, position, text, ts }
+//     Broadcast to every room socket when any player sends a chat message.
+//   'lobby:rooms'  : { rooms: [...] }  (see lobby:getRooms for shape)
+//     Sent in reply to 'lobby:getRooms'.
+//   'lobby:roomsChanged' : ()
+//     Tiny fan-out ping to ALL sockets when the active-room set changes
+//     (create / join / leave / start / membership). Home-screen clients
+//     re-request 'lobby:getRooms'; everyone else ignores it. Never fired on
+//     per-card / per-bid mutations.
+//   'lobby:friends' : { presence: { [userId]: 'online' | 'in-game' } }
+//     Sent in reply to 'lobby:getFriends' (excludes the requester).
+//   'lobby:presenceChanged' : ()
+//     Tiny fan-out ping to ALL sockets on a real presence transition only: a
+//     user's FIRST socket connecting, their LAST socket disconnecting (after a
+//     short grace window), or a user entering/leaving a room (online↔in-game).
+//     Home-screen clients re-request 'lobby:getFriends'. Never fired on
+//     per-card / per-bid mutations or on extra tabs of an already-online user.
 //   'error'      : { message, code? }
 //                     code is an optional machine-readable sentinel — UI uses
 //                     it to drive recovery flows without string-matching.

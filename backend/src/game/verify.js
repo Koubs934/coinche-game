@@ -100,8 +100,10 @@ console.log('\n=== Card Play Rules ===\n');
   assert(valid[0].value === 'J' && valid[0].suit === 'H', 'R3: JH is the only legal card');
 }
 
-// Scenario R4: no lead suit + opponent already trumped + cannot overtrump but has lower trump
-// Player 1 cut with JH (best trump). Player 2 has only Q and 8 of trump — both lower. Any trump legal.
+// Scenario R4: no lead suit + opponent already trumped + cannot overtrump
+// Player 1 cut with JH (best trump). Player 2 has only Q and 8 of trump — both lower.
+// This group does NOT play forced "pisser": when you can't overcut you are FREE to
+// discard any card (no obligation to throw a lower trump).
 {
   const trumpSuit = 'H';
   const trick = [
@@ -115,8 +117,8 @@ console.log('\n=== Card Play Rules ===\n');
     card('A', 'D'), // non-trump
   ];
   const valid = getValidCards(hand, trick, trumpSuit, 2);
-  assert(valid.length === 2, 'R4: cannot overtrump — any trump allowed (pisser)', cardIds(valid));
-  assert(valid.every(c => c.suit === 'H'), 'R4: only trumps, not non-trump');
+  assert(valid.length === 3, 'R4: can\'t overtrump — free to discard (no forced pisser)', cardIds(valid));
+  assert(valid.some(c => c.suit === 'D'), 'R4: non-trump discard IS allowed');
 }
 
 // Scenario R5: no lead suit + no trump
@@ -171,35 +173,26 @@ console.log('\n=== Card Play Rules ===\n');
   assert(valid.every(c => c.suit === 'H'), 'R7: only trumps allowed');
 }
 
-// Scenario R8: non-trump led + no suit + trump in trick + partner winning the trump
-// Player 1 cut with 9H. Player 2's partner (player 0) played the winning AH later.
-// No exception for partner winning when trump is already in trick — must overtrump or play any trump.
+// Scenario R8: non-trump led + no suit + partner winning + trump already in trick
+// Player 1 cut with 9H, then partner (player 0) overtrumped with JH and is now master.
+// The partner-master exception is NOT suspended by trump being in the trick — player 2
+// is FREE to discard any card.
 {
   const trumpSuit = 'H';
   const trick = [
-    play(card('A', 'S'), 3), // player 3 leads AS (non-trump)
-    play(card('9', 'H'), 1), // player 1 cuts with 9H (TRUMP_RANK=7)
-    play(card('A', 'H'), 0), // player 0 (partner of 2) plays AH (TRUMP_RANK=6 — lower than 9H!)
-    // player 2 to play — partner (0) is NOT currently winning (9H beats AH in trump rank)
-  ];
-  // Actually let's use a case where partner IS winning the trump to test the rule.
-  // Player 0 (partner) plays JH (TRUMP_RANK=8, highest trump). Player 2 has QH and non-trump.
-  const trick2 = [
     play(card('A', 'S'), 3), // player 3 leads AS
     play(card('9', 'H'), 1), // player 1 cuts with 9H
     play(card('J', 'H'), 0), // player 0 (partner) overtrumps with JH — now winning
-    // player 2 to play — partner (0) IS currently winning, BUT trump is in trick
+    // player 2 to play — partner (0) IS currently winning, with trump in the trick
   ];
   const hand = [
     card('Q', 'H'), // TRUMP_RANK 3 — lower than JH
     card('8', 'H'), // TRUMP_RANK 2 — lower than JH
     card('A', 'D'), // non-trump
   ];
-  const valid = getValidCards(hand, trick2, trumpSuit, 2);
-  // Trump is already in trick — partner-maître exception does NOT apply.
-  // Cannot overtrump (no trump higher than JH). Must play any trump.
-  assert(valid.length === 2, 'R8: trump in trick + partner winning — still must play trump', cardIds(valid));
-  assert(valid.every(c => c.suit === 'H'), 'R8: only trumps, not non-trump discard');
+  const valid = getValidCards(hand, trick, trumpSuit, 2);
+  assert(valid.length === 3, 'R8: partner master with trump in trick — still free to discard', cardIds(valid));
+  assert(valid.some(c => c.suit === 'D'), 'R8: non-trump discard IS allowed');
 }
 
 // ─── SCORING SCENARIOS ───────────────────────────────────────────────────────
@@ -497,12 +490,13 @@ function makeTricks(winner0count, winner1count, trumpSuit) {
   assert(scores[1] === (160 + 120) * 1, `S9: failed contract — defenders get (160+120)×1=280 (belote not added), got ${scores[1]}`);
 }
 
-// Scenario S10: coinched success — only contract value is multiplied, not tricks
+// Scenario S10: coinched success — FLAT score, trick points ignored, defenders 0
 {
   const trumpSuit = 'H';
   const contract = { value: 80, team: 0, coinched: true, surcoinched: false };
 
-  // Same trick layout as S1: team 0 wins 5 tricks (105 pts), team 1 wins 3 (73 pts incl. dix de der)
+  // Team 0 wins 5 tricks (105 pts) — clears 80 — but trick points are irrelevant
+  // to the flat coinche convention.
   const tricks = [];
   for (let i = 0; i < 8; i++) {
     const winnerTeam = i < 5 ? 0 : 1;
@@ -518,18 +512,16 @@ function makeTricks(winner0count, winner1count, trumpSuit) {
     });
   }
 
-  const { scores, contractMade, trickPoints } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: null });
-  // trickPoints[0]=105, trickPoints[1]=73. Contract 80 coinched:
-  //   contract team: round((105 + 80×2) / 10) × 10 = round(265/10)×10 = 270
-  //   defending team: round(73/10)×10 = 70
-  const expectedContractTeam = Math.round((trickPoints[0] + contract.value * 2) / 10) * 10;
-  const expectedDefending    = Math.round(trickPoints[1] / 10) * 10;
+  const { scores, contractMade } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: null });
+  // Coinche made — FLAT score, trick points ignored, defenders get 0.
+  //   contract team: 80×2 + 160 = 320
+  //   defending team: 0
   assert(contractMade === true, 'S10: coinched success — contractMade is true');
-  assert(scores[0] === expectedContractTeam, `S10: coinched success — contract team gets tricks + contract×2 = ${expectedContractTeam}, got ${scores[0]}`);
-  assert(scores[1] === expectedDefending,    `S10: coinched success — defending team gets tricks only = ${expectedDefending}, got ${scores[1]}`);
+  assert(scores[0] === 320, `S10: coinched success — contract team gets 80×2+160=320, got ${scores[0]}`);
+  assert(scores[1] === 0,   `S10: coinched success — defenders get 0, got ${scores[1]}`);
 }
 
-// Scenario S11: surcoinched success — only contract value is multiplied ×4
+// Scenario S11: surcoinched success — FLAT score ×4, trick points ignored, defenders 0
 {
   const trumpSuit = 'H';
   const contract = { value: 80, team: 0, coinched: true, surcoinched: true };
@@ -549,15 +541,43 @@ function makeTricks(winner0count, winner1count, trumpSuit) {
     });
   }
 
-  const { scores, contractMade, trickPoints } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: null });
-  // trickPoints[0]=105, trickPoints[1]=73. Contract 80 surcoinched:
-  //   contract team: round((105 + 80×4) / 10) × 10 = round(425/10)×10 = 430
-  //   defending team: round(73/10)×10 = 70
-  const expectedContractTeam = Math.round((trickPoints[0] + contract.value * 4) / 10) * 10;
-  const expectedDefending    = Math.round(trickPoints[1] / 10) * 10;
+  const { scores, contractMade } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: null });
+  // Surcoinche made — FLAT score, trick points ignored, defenders get 0.
+  //   contract team: 80×4 + 160 = 480
+  //   defending team: 0
   assert(contractMade === true, 'S11: surcoinched success — contractMade is true');
-  assert(scores[0] === expectedContractTeam, `S11: surcoinched success — contract team gets tricks + contract×4 = ${expectedContractTeam}, got ${scores[0]}`);
-  assert(scores[1] === expectedDefending,    `S11: surcoinched success — defending team gets tricks only = ${expectedDefending}, got ${scores[1]}`);
+  assert(scores[0] === 480, `S11: surcoinched success — contract team gets 80×4+160=480, got ${scores[0]}`);
+  assert(scores[1] === 0,   `S11: surcoinched success — defenders get 0, got ${scores[1]}`);
+}
+
+// Scenario S12: Rod's exact bug — 80 ♦ coinché made must pay 320 / 0 (not 260 / 60).
+// Rod's repro had trickPoints [64, 98] (contract team 98) and previously paid
+// contract team 260 (= 98 + 80×2 rounded) and defenders 60 (= 64 rounded). The flat
+// convention ignores trick points entirely: contract team = 80×2 + 160 = 320,
+// defenders = 0. The trick layout below only needs the contract team to clear 80.
+{
+  const trumpSuit = 'D';
+  const contract = { value: 80, team: 0, coinched: true, surcoinched: false };
+
+  const tricks = [];
+  for (let i = 0; i < 8; i++) {
+    const winnerTeam = i < 5 ? 0 : 1; // team 0 clears 80 in trick points
+    const winnerPlayer = winnerTeam;
+    tricks.push({
+      cards: [
+        { card: card('A', 'S'), playerIndex: winnerPlayer },
+        { card: card('10', 'S'), playerIndex: winnerPlayer },
+        { card: card('7', 'S'), playerIndex: 1 - winnerPlayer },
+        { card: card('8', 'S'), playerIndex: 1 - winnerPlayer },
+      ],
+      winner: winnerPlayer,
+    });
+  }
+
+  const { scores, contractMade } = calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam: null });
+  assert(contractMade === true, 'S12: Rod-repro 80♦ coinché made — contractMade is true');
+  assert(scores[0] === 320, `S12: Rod-repro — contract team gets 80×2+160=320 (was buggy 260), got ${scores[0]}`);
+  assert(scores[1] === 0,   `S12: Rod-repro — defenders get 0 (was buggy 60), got ${scores[1]}`);
 }
 
 // ─── BOT OPENING BIDS — La Feuille V2.1 ─────────────────────────────────────

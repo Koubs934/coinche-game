@@ -34,16 +34,6 @@ export function cardPts(card, trump) {
   return ((card.suit === trump) ? TRUMP_PTS : NON_TRUMP_PTS)[card.value] || 0;
 }
 
-export function computeLivePoints(tricks, trump) {
-  const pts = [0, 0];
-  if (!tricks?.length || !trump) return pts;
-  for (const trick of tricks) {
-    const team = trick.winner % 2;
-    for (const { card } of trick.cards) pts[team] += cardPts(card, trump);
-  }
-  return pts;
-}
-
 // Return the suit with the highest trump potential in the hand.
 // Tie-break 1: more cards in the suit. Tie-break 2: canonical order S→H→D→C.
 export function bestSuitForHand(hand) {
@@ -89,16 +79,28 @@ function bestNonTrumpOrder(suits, leftColor) {
   return bestPerm;
 }
 
-export function sortHand(hand, trump) {
+// The single auto-sort. `trump` may be null/undefined (e.g. during bidding, before a
+// contract is set) — then there is no trump to place and BOTH modes fall back to pure
+// colour alternation. Mode Sacha (sacha=true): arrange ALL present suits purely by
+// color alternation — trump is NOT forced leftmost, it lands wherever alternation
+// places it. Within-suit rank ordering is unchanged (the `trump` suit still uses
+// TRUMP_ORDER), so Sacha only moves suit POSITIONS. Default (sacha=false): trump/chosen
+// suit leads on the LEFT, remaining suits alternate; with no trump it is identical to Sacha.
+export function sortHand(hand, trump, sacha = false) {
   if (!hand?.length) return hand || [];
   const presentSuits  = [...new Set(hand.map(c => c.suit))];
-  const trumpInHand   = trump && presentSuits.includes(trump);
-  const nonTrumpSuits = presentSuits.filter(s => s !== trump);
-  const leftColor     = trumpInHand ? SUIT_COLOR[trump] : null;
-  const suitOrder     = [
-    ...(trumpInHand ? [trump] : []),
-    ...bestNonTrumpOrder(nonTrumpSuits, leftColor),
-  ];
+  let suitOrder;
+  if (sacha) {
+    suitOrder = bestNonTrumpOrder(presentSuits, null);
+  } else {
+    const trumpInHand   = trump && presentSuits.includes(trump);
+    const nonTrumpSuits = presentSuits.filter(s => s !== trump);
+    const leftColor     = trumpInHand ? SUIT_COLOR[trump] : null;
+    suitOrder = [
+      ...(trumpInHand ? [trump] : []),
+      ...bestNonTrumpOrder(nonTrumpSuits, leftColor),
+    ];
+  }
   return [...hand].sort((a, b) => {
     const ai = suitOrder.indexOf(a.suit), bi = suitOrder.indexOf(b.suit);
     if (ai !== bi) return ai - bi;
@@ -129,6 +131,32 @@ export function reorderArr(arr, from, to) {
   const [item] = a.splice(from, 1);
   a.splice(to, 0, item);
   return a;
+}
+
+// Which suit the AUTO sort should treat as trump (place on the left, in trump
+// order), given the game phase and Mode Sacha. During bidding there is no real
+// contract yet, so the picker's selected suit acts as the PROSPECTIVE trump — but
+// only with Sacha OFF; Sacha stays pure colour-alternation and ignores it
+// entirely (returns null, so not even the trump suit's within-suit rank changes).
+// Once a contract exists we always sort to the real game.trumpSuit.
+export function sortTrumpFor({ phase, modeSacha, effectiveBidSuit, trumpSuit }) {
+  if (phase === 'BIDDING') return modeSacha ? null : (effectiveBidSuit ?? null);
+  return trumpSuit ?? null;
+}
+
+// ─── The single source of truth for the displayed hand order ────────────────
+// Pure function of the order state — there is no cached/imperative order anywhere
+// else. AUTO recomputes from {hand, trump, sacha} every call, so it re-sorts
+// reactively when any of those change (trump may be null during bidding ⇒ pure
+// colour-alternation in both modes). MANUAL returns the player's frozen
+// arrangement and NEVER auto-recomputes; an in-flight drag preview is applied on
+// top. Callers reset orderSource→'auto' on a new deal and on a Mode Sacha toggle.
+export function deriveHandOrder({ hand, trump, sacha, orderSource, manualOrder, dragVisual = null }) {
+  if (orderSource === 'manual') {
+    const base = applyManualOrder(hand, manualOrder);
+    return dragVisual ? reorderArr(base, dragVisual.fromIdx, dragVisual.toIdx) : base;
+  }
+  return sortHand(hand, trump, sacha);
 }
 
 // ─── Training-mode seat labels ─────────────────────────────────────────────

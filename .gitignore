@@ -28,3 +28,9 @@ frontend/tests/shots/
 # ── OS / editor noise ─────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+
+.claude/settings.local.json
+
+# ── QA / scratch artifacts (kept on disk, not tracked) ───────────────────────
+verification-screenshots/
+COMPLETION.md

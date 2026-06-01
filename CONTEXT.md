@@ -51,7 +51,7 @@ coinche-game/
 │   │       ├── rules.js            (79 lines)
 │   │       ├── scoring.js          (73 lines)
 │   │       ├── botLogic.js         (90 lines)
-│   │       └── verify.js           (562 lines)  ← test suite
+│   │       └── verify.js           (1470 lines) ← test suite
 │   └── package.json
 │
 ├── frontend/
@@ -257,7 +257,7 @@ multiplier = surcoinched ? 4 : coinched ? 2 : 1
 | `backend/src/game/rules.js` | Card play validation, trick winner detection, point values | `cardPoints`, `getTrickWinner`, `getValidCards`, `TRUMP_RANK` | 79 | Medium |
 | `backend/src/game/scoring.js` | Round score calculation | `calculateRoundScore` | 73 | Low |
 | `backend/src/game/botLogic.js` | Bot bid and card strategies | `getBotBidAction`, `getBotCardAction` | 90 | Low |
-| `backend/src/game/verify.js` | Test suite (not loaded by server) | run directly with `node` | 562 | N/A |
+| `backend/src/game/verify.js` | Test suite (not loaded by server) | run directly with `node` | 1470 | N/A |
 | `frontend/src/App.jsx` | Socket lifecycle, top-level state, route to Lobby/GameBoard | `EMPTY_GAME` constant | 169 | Low |
 | `frontend/src/components/GameBoard.jsx` | Main in-game UI: hand, trick, bidding, animations, sorting, belote prompt | `CardFace`, `CardBack`, `TrickDisplay`, `BidStack`, `sortHand`, `bestSuitForHand` | 1092 | **HIGH — largest frontend file** |
 | `frontend/src/components/RoundSummary.jsx` | Score display, auction recap, trick replay, all-tricks view | `AllTricksView`, `TopArea`, `ScoreCard` | 474 | Medium |
@@ -527,41 +527,88 @@ fde2146 feat: show Coinche/Surcoinche as explicit bonus row on round summary
 ## 11. Testing
 
 ### Test File
-`backend/src/game/verify.js` (562 lines)
+`backend/src/game/verify.js` (1470 lines) — the comprehensive standalone assertion
+suite. Covers card-play rules, scoring, and the full bot-bidding/bot-play logic.
 
 ### How to Run
 ```bash
 node backend/src/game/verify.js
 ```
-Exit code 0 if all pass. Prints `[PASS]`/`[FAIL]` per assertion plus a summary.
+Exit code 0 if all pass (1 on any failure). Prints `PASS`/`FAIL` per assertion plus a
+summary line. Current run: **140 passed, 0 failed.**
 
 ### What It Covers
-**Card play rule scenarios (R1–R8+):**
-- R1: Leading — all cards valid
-- R2: Follow trump when trump is led; overtrump if possible
-- R3: Follow led non-trump suit
-- R4: Can't follow suit + opponent winning → must play trump (any)
-- R5: Can't follow suit + partner winning → play anything (no trump obligation)
-- R6: Can't follow + opponent winning + trump already in trick → overtrump if possible; else free
-- R7: No trump at all → play any card when can't follow
-- R8: Various edge cases for trump vs non-trump winner detection
 
-**Scoring scenarios (S1–S11):**
-- S1: Contract made, no special bonuses
-- S2: Contract failed
-- S3: Coinche, contract made
-- S4: Coinche, contract failed
-- S5: Surcoinche, contract made
-- S6: Surcoinche, contract failed
-- S7: Capot made
-- S8: Capot failed
-- S9: Contract made with belote (contracting team)
-- S10: Contract made with belote (opposing team)
-- S11: Failed contract + belote
+**Card-play rules — `getValidCards` (R1–R8):**
+- R1: no lead suit + partner winning + holds trump → free (all cards legal, incl. discard)
+- R2: no lead suit + opponent winning + no trump down yet → must play a trump
+- R3: no lead suit + opponent already cut + can overtrump → must overtrump (only the higher trump)
+- R4: no lead suit + opponent already cut + can't overtrump → free to discard (no forced *pisser*)
+- R5: no lead suit + no trump at all → all cards legal
+- R6: trump led + can overtrump → must overtrump (only the higher trump legal)
+- R7: trump led + can't overtrump → any trump legal (no non-trump discard)
+- R8: no lead suit + partner master *with trump already in the trick* → still free to discard (partner-master exception is not suspended by trump)
 
-Total: 64+ assertions.
+**Scoring — `calculateRoundScore` (S1–S12):**
+- S1: uncoinched made → contract team = trick pts + value (rounded to 10), defenders = trick pts (rounded)
+- S2: uncoinched failed → defenders = 160 + value, contract team 0
+- S3: coinche failed → defenders = 160 + value×2, contract team 0
+- S4: surcoinche failed → defenders = 160 + value×4, contract team 0
+- S5: capot made → 500 flat (no belote added), defenders 0
+- S6: capot failed → defenders 500 flat (not 160)
+- S7: coinched capot failed → defenders 1000 (500×2)
+- S8: non-announced capot (all tricks on a numeric bid) → normal scoring, defenders 0
+- S9: failed contract with belote → belote does not rescue; contract team 0
+- S10: coinche made → FLAT value×2 + 160 (+belote if held), defenders 0 — trick points ignored
+- S11: surcoinche made → FLAT value×4 + 160 (+belote if held), defenders 0
+- S12: Rod's repro — 80♦ coinché made = 320 / 0 (regression guard; was buggy 260 / 60)
 
-**No frontend tests.** No integration tests. No CI pipeline found in codebase.
+**Bot opening bids — `bestOpeningBid`, La Feuille V2.1 (B1–B16):**
+- B1–B4: pass cases (0/1 Ace no piece; 2 Aces no petit-jeu; 3 Aces — 80 needs exactly 2)
+- B5–B7: 80 via petit-jeu (piece+2 trumps / 4 trumps+belote / 5 trumps)
+- B8–B10: 90 (piece-4th+1 As ext / V-3rd+belote+1 As / V+9+1+1 As)
+- B11: 100 (maître, 0 outside Aces); B12: 110 (maître + 1 outside Ace)
+- B13: 120 bicolore (maître + ≥1 other trump, strictly 2 suits); B14: 110 not 120 when a 3rd suit breaks bicolore
+- B15: 80 wins over 90 (hierarchy); B16: 110 wins over 80 (100+ > 80)
+
+**Bot partner-response bids — `partnerResponseBid` / `getBotBidAction` (labelled R1–R21 in verify.js):**
+- R1–R6: on 80 — piece + 0/1/2 Aces → null / 90 / 120 / 100 / 130 / 140
+- R7–R11: on 90 — V2.1 piecewise table → 100 / 110 / 120 (incl. 3 Aces) / 130
+- R12–R14: on 100 — +10 per outside Ace, 0 Aces → null
+- R15–R16: on 110 — +10 per outside Ace (no cap)
+- R17–R19: on 120 bicolore — 130 on 3 Aces or piece d'atout, else pass
+- R20: any coinched bid → always pass
+- R21: helper spot-checks (`isPetitJeu`, `qualifiesFor90`, `isStrictBicolore`)
+
+**Bot V2.2 anti-double-comptage — `getBotBidAction` re-raise (T1–T5):**
+After my own opening + a partner raise, I only re-raise with aces NOT already promised
+by my opening (asPromised: 80=2, 90=1, 100=1, 110=2, 120=1).
+- T1: open 80 / 3 As, partner→100 ⇒ 110; T2: open 90 / 2 As ext, partner→110 ⇒ 120; T3: open 110 / 3 As, partner→120 ⇒ 130
+- T4: open 80 / exactly 2 As (all promised) ⇒ pass; T5: open 90 / exactly 1 As ext (promised) ⇒ pass
+
+**Bot V2.2 chiquer — `getBotBidAction` overcall defense (T6–T10):**
+When an opponent overcalls partner's solid opening and I hold ≥1 ace, I chiquer +10 in
+partner's suit, hard-capped at 160.
+- T6: partner 90♠, opp 100, 1 As → 110♠; T7: same but 0 aces → pass
+- T8: partner 90♠, opp 150 → 160♠ (at the cap); T9: opp 160 → would be 170 > cap → pass
+- T10: only opponents bid (no partner opening) → pass
+
+**Bot card play — `getBotCardAction` (C1–C8):**
+- C1: can't win → dump cheapest (7♠ not A♠); C2: partner winning → SUPPORT, dump cheapest loser (8♣)
+- C3: attacking with J+9 trump, early → lead highest trump (J); C4: no J+9 combo → lead a non-trump Ace
+- C5: two trumps both win → play the cheaper winner (Q not J); C6: 0-pt trick, cheapest win costs ≥10 → abandon
+- C7: dumpScore ordering (non-trump 7 < non-trump 9 < trump 8 < non-trump J); C8: partner winning → dump 8♣, protect trump A
+
+### Vitest suites
+`cd backend && npm run test:vitest` — **207 tests across 11 suites** (Vitest), the
+incremental migration target. Game: `smoke.test.js` (deck/rules/scoring/bot smoke),
+`cardFeatures.test.js` (suit-feature computation), `gameRecordStorage.test.js`,
+`gameReviewFlow.test.js`. Training: `scenarioLoader`, `validateScenarios`,
+`trainingFlow`, `divergence`, `exhaustionStorage`. Services:
+`claudeService.regression.test.js` (V2.2 prompt-hardening regressions),
+`personalFeuille.test.js` (Phase 3 passive capture).
+
+**No frontend tests. No CI pipeline found in codebase.**
 
 ---
 

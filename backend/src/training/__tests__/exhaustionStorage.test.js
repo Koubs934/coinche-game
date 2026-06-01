@@ -129,4 +129,37 @@ describe('exhaustionStorage', () => {
       expect(ids.size).toBe(0);
     });
   });
+
+  // V2.2 Phase 2D — back-button retraction. The user backs out of the
+  // completion flow to re-bid the same scenario; the just-recorded entry
+  // must be retracted so the picker shows the scenario as available.
+  describe('removeExhausted', () => {
+    it('removes a matching entry and returns true', () => {
+      exhaustionStorage.addExhausted(USER_ID, { scenarioId: 'a', sessionId: 's1', alternativesRecorded: 1 });
+      exhaustionStorage.addExhausted(USER_ID, { scenarioId: 'b', sessionId: 's2', alternativesRecorded: 1 });
+      expect(exhaustionStorage.removeExhausted(USER_ID, 'a')).toBe(true);
+      const ids = exhaustionStorage.listExhaustedScenarioIds(USER_ID);
+      expect(ids.has('a')).toBe(false);
+      expect(ids.has('b')).toBe(true);
+    });
+
+    it('returns false when the scenarioId is not in the list', () => {
+      exhaustionStorage.addExhausted(USER_ID, { scenarioId: 'a', sessionId: 's1', alternativesRecorded: 1 });
+      expect(exhaustionStorage.removeExhausted(USER_ID, 'unknown')).toBe(false);
+      // Existing entries untouched
+      expect(exhaustionStorage.listExhaustedScenarioIds(USER_ID).has('a')).toBe(true);
+    });
+
+    it('returns false (no-op) when the file does not exist yet', () => {
+      expect(exhaustionStorage.removeExhausted(USER_ID, 'a')).toBe(false);
+    });
+
+    it('persists the change atomically (no .tmp residue)', () => {
+      exhaustionStorage.addExhausted(USER_ID, { scenarioId: 'a', sessionId: 's1', alternativesRecorded: 1 });
+      exhaustionStorage.removeExhausted(USER_ID, 'a');
+      const dir = path.dirname(userFilePath(USER_ID));
+      const tmpFiles = fs.readdirSync(dir).filter(f => f.endsWith('.tmp'));
+      expect(tmpFiles).toEqual([]);
+    });
+  });
 });

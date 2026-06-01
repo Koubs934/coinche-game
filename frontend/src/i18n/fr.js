@@ -13,6 +13,15 @@ export default {
   haveAccount: 'Déjà un compte ?',
   noAccount: 'Pas encore de compte ?',
   signOut: 'Se déconnecter',
+  settings: 'Réglages',
+  language: 'Langue',
+  preferences: 'Préférences',
+  modeSacha: 'Mode Sacha',
+  sachaOff: 'Couleurs alternées · atout à gauche',
+  sachaOn: 'Couleurs alternées · atout libre',
+  delfinoOff: 'Cartes en taille normale',
+  delfinoOn: 'Cartes agrandies',
+  partnerPeek: 'Mode partenaire',
 
   // Lobby
   createRoom: 'Créer une salle',
@@ -26,6 +35,10 @@ export default {
   targetScore: 'Score cible',
   team1: 'Équipe 1',
   team2: 'Équipe 2',
+  emptySeat: 'Place libre',
+  botLabel: 'robot',
+  us: 'Nous',
+  them: 'Eux',
   assignTeams: 'Assigner les équipes',
   moveToTeam1: "Mettre en Équipe 1",
   moveToTeam2: "Mettre en Équipe 2",
@@ -46,6 +59,8 @@ export default {
   waitingFor: (name) => `En attente de ${name}...`,
   biddingPhase: 'Annonces',
   playingPhase: 'Jeu',
+  highestBid: 'Enchère la plus haute',
+  bidSheetCta: 'Enchérir',
   capot: 'Capot',
   belote: 'Belote',
   rebelote: 'Rebelote',
@@ -58,6 +73,8 @@ export default {
   announcedPoints: 'Points annoncés',
   roundScore: 'Score de la manche',
   totalScore: 'Total',
+  showDetail: 'Voir le détail ▾',
+  hideDetail: 'Masquer le détail ▴',
   team: 'Équipe',
   contractMade: 'Contrat réussi !',
   contractFailed: 'Contrat chuté',
@@ -74,6 +91,7 @@ export default {
 
   // Leave / remove
   leaveTable: 'Quitter la table',
+  leaveShort: 'Quitter',   // libellé court pour la barre compacte (le title complet reste « Quitter la table »)
   leaveConfirmLobby: 'Quitter cette salle ?',
   leaveConfirmGame: 'Quitter la table ? La partie sera mise en pause jusqu\'à ce qu\'un joueur prenne votre place.',
   removePlayer: 'Retirer',
@@ -116,6 +134,7 @@ export default {
   coincheBonus: 'Coinche',
   surcoinchBonus: 'Surcoinche',
   chutePenalty: 'Base de chute',
+  contractBase: 'Base du contrat',
   replayBtn: 'Rejouer',
   replayPrev: 'Précédent',
   replayNext: 'Suivant',
@@ -148,6 +167,20 @@ export default {
 
   // Annuler
   undoAction: 'Annuler',
+
+  // Lancer des projectiles
+  throw: {
+    aim: 'Balancer un truc',
+  },
+
+  // Chat de table
+  chat: {
+    title:       'Chat',
+    open:        'Ouvrir le chat',
+    placeholder: 'Écrire un message…',
+    send:        'Envoyer',
+    empty:       'Aucun message — dites bonjour !',
+  },
 
   // Validation
   invalidRoomCode: 'Le code doit comporter 6 lettres ou chiffres',
@@ -194,6 +227,50 @@ export default {
   // Indication sous le bouton Entraînement quand un partiel est en attente
   lobbyResumableHint: (n) => n === 1 ? '1 scénario à terminer' : `${n} scénarios à terminer`,
 
+  // Écran d'accueil (layout B)
+  lobby: {
+    readyToPlay:   'Prêt à jouer',
+    createAvatar:  'Créer mon avatar',
+    editAvatar:    'Modifier mon avatar',
+    activeGames:   'Parties en cours',
+    noActiveGames: 'Aucune partie en cours',
+    refresh:       'Actualiser',
+    rejoin:        'Reprendre',
+    join:          'Rejoindre',
+    roomLine:      (count, mode) => `${count}/4 · ${mode}`,
+    modeCoinche:   'Coinche',
+    modeBelote:    'Belote',
+    // Amis en ligne (présence)
+    friends:       'Amis en ligne',
+    friendsOffline:'Amis hors ligne',
+    onlineCount:   (n) => `${n} en ligne`,
+    noOneOnline:   'Personne en ligne',
+    statusOnline:  'en ligne',
+    statusInGame:  'en partie',
+    statusOffline: 'hors ligne',
+  },
+
+  // Écran profil + créateur d'avatar
+  profile: {
+    title:     'Profil',
+    save:      'Enregistrer',
+    saving:    'Enregistrement…',
+    saved:     'Enregistré ✓',
+    saveError: "Échec de l'enregistrement. Réessayez.",
+    randomize: 'Aléatoire',
+    back:      'Retour',
+    features: {
+      body:            'Corps',
+      hair:            'Cheveux',
+      face:            'Visage',
+      facialHair:      'Barbe',
+      accessory:       'Lunettes',
+      colors:          'Couleurs',
+      strokeColor:     'Trait',
+      backgroundColor: 'Remplissage',
+    },
+  },
+
   training: {
     // Confirm + button label when the user leaves a training run
     abandonConfirm: "Abandonner ce scénario ? Votre annotation sera jetée.",
@@ -223,7 +300,7 @@ export default {
       actionLabel:  'Votre action',
       noteLabel:    'Votre note',
       noNote:       '(aucune note)',
-      backToPicker: 'Retour aux scénarios',
+      back:         'Back',
       nextScenario: 'Scénario suivant',
     },
 

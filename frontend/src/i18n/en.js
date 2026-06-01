@@ -13,6 +13,15 @@ export default {
   haveAccount: 'Already have an account?',
   noAccount: "Don't have an account?",
   signOut: 'Sign Out',
+  settings: 'Settings',
+  language: 'Language',
+  preferences: 'Preferences',
+  modeSacha: 'Mode Sacha',
+  sachaOff: 'Alternating colors · trump on left',
+  sachaOn: 'Alternating colors · trump anywhere',
+  delfinoOff: 'Normal card size',
+  delfinoOn: 'Enlarged cards',
+  partnerPeek: 'Partner mode',
 
   // Lobby
   createRoom: 'Create Room',
@@ -26,6 +35,10 @@ export default {
   targetScore: 'Target Score',
   team1: 'Team 1',
   team2: 'Team 2',
+  emptySeat: 'Open seat',
+  botLabel: 'bot',
+  us: 'Us',
+  them: 'Them',
   assignTeams: 'Assign Teams',
   moveToTeam1: 'Move to Team 1',
   moveToTeam2: 'Move to Team 2',
@@ -46,6 +59,8 @@ export default {
   waitingFor: (name) => `Waiting for ${name}...`,
   biddingPhase: 'Bidding',
   playingPhase: 'Playing',
+  highestBid: 'Highest bid',
+  bidSheetCta: 'Bid',
   capot: 'Capot',
   belote: 'Belote',
   rebelote: 'Rebelote',
@@ -58,6 +73,8 @@ export default {
   announcedPoints: 'Contract value',
   roundScore: 'Round score',
   totalScore: 'Total',
+  showDetail: 'Show detail ▾',
+  hideDetail: 'Hide detail ▴',
   team: 'Team',
   contractMade: 'Contract made!',
   contractFailed: 'Contract failed',
@@ -74,6 +91,7 @@ export default {
 
   // Leave / remove
   leaveTable: 'Leave table',
+  leaveShort: 'Leave',   // single-word caption for the compact toolbar (full title stays "Leave table")
   leaveConfirmLobby: 'Leave this room?',
   leaveConfirmGame: 'Leave the table? The game will be paused until someone takes your seat.',
   removePlayer: 'Remove',
@@ -116,6 +134,7 @@ export default {
   coincheBonus: 'Coinche',
   surcoinchBonus: 'Surcoinche',
   chutePenalty: 'Penalty base',
+  contractBase: 'Contract base',
   replayBtn: 'Replay',
   replayPrev: 'Previous',
   replayNext: 'Next',
@@ -148,6 +167,20 @@ export default {
 
   // Undo
   undoAction: 'Undo',
+
+  // Throw projectiles
+  throw: {
+    aim: 'Throw something',
+  },
+
+  // Table chat
+  chat: {
+    title:       'Chat',
+    open:        'Open chat',
+    placeholder: 'Write a message…',
+    send:        'Send',
+    empty:       'No messages yet — say hello!',
+  },
 
   // Input validation
   invalidRoomCode: 'Room code must be 6 letters or digits',
@@ -194,6 +227,50 @@ export default {
   // Hint below the Lobby Training button when the user has in-progress partials
   lobbyResumableHint: (n) => n === 1 ? '1 scenario to finish' : `${n} scenarios to finish`,
 
+  // Home / landing screen (layout B)
+  lobby: {
+    readyToPlay:   'Ready to play',
+    createAvatar:  'Create my avatar',
+    editAvatar:    'Edit my avatar',
+    activeGames:   'Active games',
+    noActiveGames: 'No active games',
+    refresh:       'Refresh',
+    rejoin:        'Rejoin',
+    join:          'Join',
+    roomLine:      (count, mode) => `${count}/4 · ${mode}`,
+    modeCoinche:   'Coinche',
+    modeBelote:    'Belote',
+    // Amis en ligne (presence)
+    friends:       'Friends online',
+    friendsOffline:'Offline friends',
+    onlineCount:   (n) => `${n} online`,
+    noOneOnline:   'No one online',
+    statusOnline:  'online',
+    statusInGame:  'in game',
+    statusOffline: 'offline',
+  },
+
+  // Profile screen + avatar builder
+  profile: {
+    title:     'Profile',
+    save:      'Save',
+    saving:    'Saving…',
+    saved:     'Saved ✓',
+    saveError: 'Could not save. Try again.',
+    randomize: 'Random',
+    back:      'Back',
+    features: {
+      body:            'Body',
+      hair:            'Hair',
+      face:            'Face',
+      facialHair:      'Beard',
+      accessory:       'Glasses',
+      colors:          'Colors',
+      strokeColor:     'Ink',
+      backgroundColor: 'Fill',
+    },
+  },
+
   training: {
     // Confirm + button label when the user leaves a training run
     abandonConfirm: 'Abandon this scenario? Your annotation will be discarded.',
@@ -223,7 +300,7 @@ export default {
       actionLabel:  'Your action',
       noteLabel:    'Your note',
       noNote:       '(no note)',
-      backToPicker: 'Back to scenarios',
+      back:         'Back',
       nextScenario: 'Next scenario',
     },
 

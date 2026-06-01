@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
-const { pickClientScenarioFields, scenarioOrderKey, listScenarios } = require('../scenarioLoader.js');
+const { pickClientScenarioFields, scenarioOrderKey, listScenarios, getScenarioNumber } = require('../scenarioLoader.js');
 
 function fixtureScenario(overrides = {}) {
   return {
@@ -169,5 +169,46 @@ describe('scenarioOrderKey — deterministic picker shuffle', () => {
     // shuffle should mix categories within the head of the list.
     const firstPrefixes = new Set(ids.slice(0, 20).map(id => id.split('-')[0]));
     expect(firstPrefixes.size).toBeGreaterThan(1);
+  });
+});
+
+// V2.2 Phase 2D — stable 1..N scenario number derived from alphabetical
+// filename sort. Used by the FE as a "Scénario #N" badge so users can
+// refer to scenarios by number in conversation.
+describe('getScenarioNumber — stable 1..N badge', () => {
+  it('returns null for an unknown id', () => {
+    expect(getScenarioNumber('does-not-exist-fixture')).toBeNull();
+  });
+  it('returns a positive integer for a known id', () => {
+    const sample = listScenarios()[0]?.id;
+    if (!sample) return; // empty scenarios dir; skip
+    const n = getScenarioNumber(sample);
+    expect(typeof n).toBe('number');
+    expect(n).toBeGreaterThanOrEqual(1);
+  });
+  it('matches the number embedded in listScenarios()', () => {
+    const list = listScenarios();
+    if (list.length === 0) return;
+    for (const s of list) {
+      expect(getScenarioNumber(s.id)).toBe(s.number);
+    }
+  });
+  it('produces a contiguous 1..N sequence covering every scenario', () => {
+    const list = listScenarios();
+    if (list.length === 0) return;
+    const numbers = list.map(s => s.number).sort((a, b) => a - b);
+    expect(numbers[0]).toBe(1);
+    expect(numbers[numbers.length - 1]).toBe(list.length);
+    // No gaps and no duplicates
+    expect(new Set(numbers).size).toBe(list.length);
+  });
+  it('embeds the number in pickClientScenarioFields output', () => {
+    const list = listScenarios();
+    if (list.length === 0) return;
+    const sampleId = list[0].id;
+    // Use a real scenario from disk so the number lookup actually fires.
+    const { getScenario } = require('../scenarioLoader.js');
+    const out = pickClientScenarioFields(getScenario(sampleId));
+    expect(out.number).toBe(getScenarioNumber(sampleId));
   });
 });

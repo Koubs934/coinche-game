@@ -79,6 +79,31 @@ describe('scoring', () => {
     expect(result.contractMade).toBe(true);
     expect(result.scores[0]).toBeGreaterThan(0);
   });
+
+  it('coinche made: flat score (value×2 + 160), defenders get 0', () => {
+    // Rod's repro: 80 coinché made previously paid 260/60; flat convention is 320/0.
+    const tricks = Array.from({ length: 8 }, (_, i) => {
+      const w = i < 5 ? 0 : 1; // team 0 clears 80 in trick points
+      return {
+        cards: [
+          { card: card('A', 'S'), playerIndex: w },
+          { card: card('10', 'S'), playerIndex: w },
+          { card: card('7', 'S'), playerIndex: 1 - w },
+          { card: card('8', 'S'), playerIndex: 1 - w },
+        ],
+        winner: w,
+      };
+    });
+    const result = calculateRoundScore({
+      tricks,
+      trumpSuit: 'D',
+      contract: { team: 0, value: 80, coinched: true, surcoinched: false },
+      beloteTeam: null,
+    });
+    expect(result.contractMade).toBe(true);
+    expect(result.scores[0]).toBe(320); // 80×2 + 160
+    expect(result.scores[1]).toBe(0);
+  });
 });
 
 describe('bots', () => {

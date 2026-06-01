@@ -7,6 +7,7 @@
 // `kind` discriminator in roomManager.
 
 const crypto = require('crypto');
+const scenarioLoader = require('./scenarioLoader');
 
 /** @type {Map<string, TrainingRoom>} */
 const runs = new Map();
@@ -214,6 +215,10 @@ function publicView(run) {
     trainingState: {
       runId:         run.runId,
       scenarioId:    run.scenarioId,
+      // V2.2 UI affordance — stable 1..N number so the client can render a
+      // "Scénario #N" badge. Computed at scenario load time from the
+      // alphabetical filename sort.
+      scenarioNumber: scenarioLoader.getScenarioNumber(run.scenarioId),
       runState:      run.runState,
       timelineCursor: run.timelineCursor,
       totalSteps:    run.timeline.length,

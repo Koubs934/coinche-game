@@ -392,6 +392,50 @@ function registerTrainingHandlers(socket) {
     ownedRunIds.delete(runId);
   });
 
+  // V2.2 Phase 2D — back-button retraction from the completion flow.
+  // Client invokes this when the user backs out of the CardSelector phase
+  // and wants to re-bid the same scenario. We:
+  //   1. Delete the just-written annotation file (status='complete' on disk)
+  //   2. Roll back the _exhausted.json sidecar entry so the picker treats
+  //      the scenario as available again and duplicate-bid detection in
+  //      the new run starts fresh
+  //   3. Spin up a fresh run on the same scenario and emit trainingStarted
+  //      just like the regular start path
+  //
+  // Payload uses scenarioId + annotationFilename (NOT runId) because the
+  // server GCs the in-memory run as soon as submitTrainingReason completes
+  // (see writeComplete handler above). By the time the user clicks back
+  // through CardSelector, the runId is stale on the client. The Claude
+  // conversation (if any) was already torn down by ClaudeConversation's
+  // unmount cleanup with reason='navigation' before this fires.
+  socket.on('restartTrainingScenario', ({ scenarioId, annotationFilename } = {}) => {
+    if (!scenarioId || typeof scenarioId !== 'string') {
+      return emitError(socket, 'restartTrainingScenario requires scenarioId');
+    }
+    const scenario = scenarioLoader.getScenario(scenarioId);
+    if (!scenario) return emitError(socket, `Unknown scenario: ${scenarioId}`);
+
+    // Best-effort cleanup. Failures here shouldn't block the restart —
+    // the new run is the user's intent; orphaned bytes on disk are a
+    // janitor problem for later.
+    if (annotationFilename && typeof annotationFilename === 'string') {
+      const partialId = annotationFilename.replace(/\.json$/, '');
+      try { annotationStorage.discardPartial(socket.userId, partialId); }
+      catch (err) { console.error(`[training] restart discardPartial failed: ${err.message}`); }
+    }
+    try { exhaustionStorage.removeExhausted(socket.userId, scenarioId); }
+    catch (err) { console.error(`[training] restart removeExhausted failed: ${err.message}`); }
+
+    const newRun = trainingRooms.createRun({
+      userId:   socket.userId,
+      username: socket.username,
+      scenario,
+    });
+    ownedRunIds.add(newRun.runId);
+    socket.emit('trainingStarted', trainingRooms.publicView(newRun));
+    trainingProcessor.advance(newRun.runId, broadcastForRun);
+  });
+
   // ── Resume flow ─────────────────────────────────────────────────────────
 
   socket.on('resumeTrainingScenario', ({ partialId } = {}) => {

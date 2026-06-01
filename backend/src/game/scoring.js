@@ -53,14 +53,22 @@ function calculateRoundScore({ tricks, trumpSuit, contract, beloteTeam }) {
   if (contractTeamTotal >= contract.value) {
     contractMade = true;
 
-    // Contract team: trick points + (announced value × multiplier). Only the
-    // announced value is multiplied — trick points are always added as-is.
-    scores[contractTeam] = trickPoints[contractTeam] + contractTeamBelote + contract.value * multiplier;
-    scores[opposingTeam] = trickPoints[opposingTeam] + (beloteTeam === opposingTeam ? 20 : 0);
+    if (multiplier > 1) {
+      // Coinche/Surcoinche made — flat score, winner takes all. Trick points are
+      // NOT added: contract value × multiplier + 160, plus belote ONLY if the
+      // contract team holds it. Defenders get a strict 0 (no defender belote).
+      // Already a multiple of 10 — no rounding.
+      scores[contractTeam] = contract.value * multiplier + 160 + contractTeamBelote;
+      scores[opposingTeam] = 0;
+    } else {
+      // Uncoinched — standard belote scoring: trick points + announced value.
+      scores[contractTeam] = trickPoints[contractTeam] + contractTeamBelote + contract.value;
+      scores[opposingTeam] = trickPoints[opposingTeam] + (beloteTeam === opposingTeam ? 20 : 0);
 
-    // Round both scores to nearest 10
-    scores[0] = Math.round(scores[0] / 10) * 10;
-    scores[1] = Math.round(scores[1] / 10) * 10;
+      // Round both scores to nearest 10
+      scores[0] = Math.round(scores[0] / 10) * 10;
+      scores[1] = Math.round(scores[1] / 10) * 10;
+    }
   } else {
     // Contract failed — defending team scores 160 + (contract × multiplier)
     scores[opposingTeam] = 160 + contract.value * multiplier;

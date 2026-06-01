@@ -83,6 +83,7 @@ export default function CompletionSummary({
   scenarioSnapshot,
   onBackToPicker,
   onNextScenario,
+  onRestartScenario,
   hasNextScenario,
 }) {
   const { t } = useLang();
@@ -109,6 +110,40 @@ export default function CompletionSummary({
   // is empty.
   const [selectedCards,       setSelectedCards]       = useState(null); // null = not yet decided
   const [conversationClosed,  setConversationClosed]  = useState(false);
+
+  // V2.2 Phase 2D — single phase-aware Back button (bottom of the card,
+  // replaces the prior "Retour aux scénarios" + small ← arrow combo).
+  // Dispatches based on what's currently mounted:
+  //
+  //   Phase C (chat visible)  → unmount the chat by clearing selectedCards.
+  //                              ClaudeConversation's existing unmount
+  //                              cleanup fires /api/conversation/end with
+  //                              reason='navigation' (idempotent backend).
+  //                              The CardSelector remounts with a fresh
+  //                              empty selection — we do NOT preserve the
+  //                              previous selection (per spec).
+  //
+  //   Phase B (cards visible) → ask App.jsx to restart the scenario:
+  //                              server discards the completed annotation,
+  //                              rolls back the _exhausted entry, spins up
+  //                              a fresh run on the same scenario. App.jsx
+  //                              flips back to 'run' on trainingStarted.
+  //
+  //   Else (chat closed, no chat path) → fall back to the picker. This
+  //                              preserves the original button's behavior
+  //                              for the "I'm done with this scenario,
+  //                              take me out" case.
+  function handleBack() {
+    if (showConversation && selectedCards !== null && !conversationClosed) {
+      setSelectedCards(null);
+      return;
+    }
+    if (showConversation && selectedCards === null && onRestartScenario) {
+      onRestartScenario();
+      return;
+    }
+    onBackToPicker?.();
+  }
 
   // The user's hand sits in trainingRun.game.hands[userSeat] (only the
   // user's seat is populated; other seats are masked). Pull it for the
@@ -185,8 +220,8 @@ export default function CompletionSummary({
         )}
 
         <div className="tc-actions">
-          <button className="btn-secondary" onClick={onBackToPicker}>
-            {c.backToPicker}
+          <button className="btn-secondary" onClick={handleBack}>
+            {c.back}
           </button>
           {hasNextScenario && (
             <button className="btn-primary" onClick={onNextScenario}>

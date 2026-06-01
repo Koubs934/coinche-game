@@ -16,10 +16,12 @@ export function computeDivergenceType(expectedAnswerOrScenario, userAction) {
       expected = expectedAnswerOrScenario;
     }
   }
-  if (!expected) return 'rule-silent';
+  // Exception: pass on a rule-silent scenario is treated as match (no
+  // divergence, skip the Claude V2.2 chat). Mirrors the backend logic.
+  if (!expected) return userAction.type === 'pass' ? null : 'rule-silent';
 
   const e = expected.action;
-  if (!e) return 'rule-silent';
+  if (!e) return userAction.type === 'pass' ? null : 'rule-silent';
   if (userAction.type !== e.type) return 'action-type-different';
   if (e.type !== 'bid') return null;
 

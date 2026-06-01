@@ -1,11 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import AdminPanel from './AdminPanel';
+import ActiveGamesList from './ActiveGamesList';
+import OnlineFriends from './OnlineFriends';
+import Avatar from './Avatar';
+import ProfileScreen from './ProfileScreen';
+import { supabase } from '../lib/supabase';
+import { normalizeAvatarConfig } from '../lib/avatar';
 
 export default function Lobby({
   socket, roomState, myPosition, pendingRoom, onCancelPending,
   onOpenTraining, resumableCount = 0,
+  myAvatarConfig = null, onAvatarSaved,
 }) {
   const { user, username } = useAuth();
   const { t } = useLang();
@@ -14,9 +21,81 @@ export default function Lobby({
   const [error, setError] = useState('');
   const [view, setView] = useState('home'); // 'home' | 'create' | 'join'
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [activeRooms, setActiveRooms] = useState([]);
+  const [profiles, setProfiles] = useState([]);   // all registered users (Supabase)
+  const [presence, setPresence] = useState({});   // userId → 'online' | 'in-game'
+
+  // Whether the home/landing screen is showing (not in a room, not pending).
+  const onHome = !roomState && !pendingRoom;
+
+  // Active-rooms list ("Parties en cours"): fetch on mount + window focus, and
+  // re-fetch whenever the server pings 'lobby:roomsChanged'. Only runs on the
+  // home screen so we don't poll while inside a room. Listeners are scoped here
+  // (App.jsx owns the room-state events; this owns the lobby-list events).
+  useEffect(() => {
+    if (!socket || !onHome) return;
+    const fetchRooms = () => socket.emit('lobby:getRooms');
+    const onRooms    = ({ rooms }) => setActiveRooms(Array.isArray(rooms) ? rooms : []);
+    const onChanged  = () => fetchRooms();
+    socket.on('lobby:rooms', onRooms);
+    socket.on('lobby:roomsChanged', onChanged);
+    window.addEventListener('focus', fetchRooms);
+    fetchRooms();
+    return () => {
+      socket.off('lobby:rooms', onRooms);
+      socket.off('lobby:roomsChanged', onChanged);
+      window.removeEventListener('focus', fetchRooms);
+    };
+  }, [socket, onHome]);
+
+  // Full registered-user roster ("Amis en ligne"). The backend has no Supabase
+  // access, so the roster is read here from public.profiles (RLS allows any
+  // authenticated user to select); presence (online/in-game) comes from the
+  // backend below and is merged in render. Fetched once per home visit.
+  useEffect(() => {
+    if (!onHome || !user) return;
+    let cancelled = false;
+    supabase
+      .from('profiles')
+      .select('id, username, avatar_config')
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) { console.error('[friends] profiles fetch failed:', error.message); return; }
+        if (Array.isArray(data)) setProfiles(data);
+      });
+    return () => { cancelled = true; };
+  }, [onHome, user]);
+
+  // Presence map from the backend: fetch on mount + window focus, re-fetch on
+  // the 'lobby:presenceChanged' ping. Mirrors the active-rooms effect above.
+  useEffect(() => {
+    if (!socket || !onHome) return;
+    const fetchFriends = () => socket.emit('lobby:getFriends');
+    const onFriends    = ({ presence: p }) => setPresence(p && typeof p === 'object' ? p : {});
+    const onChanged    = () => fetchFriends();
+    socket.on('lobby:friends', onFriends);
+    socket.on('lobby:presenceChanged', onChanged);
+    window.addEventListener('focus', fetchFriends);
+    fetchFriends();
+    return () => {
+      socket.off('lobby:friends', onFriends);
+      socket.off('lobby:presenceChanged', onChanged);
+      window.removeEventListener('focus', fetchFriends);
+    };
+  }, [socket, onHome]);
+
+  // Reuse the existing flows: REJOIN (user holds a seat) goes through rejoinRoom
+  // / handleReconnect; JOIN (free seat) goes through joinRoom (which itself
+  // routes lobby vs in-game / creator vs pending-approval server-side).
+  function joinActiveRoom(room) {
+    if (!socket) return;
+    setError('');
+    if (room.canRejoin) socket.emit('rejoinRoom', { code: room.code, avatarConfig: myAvatarConfig });
+    else                socket.emit('joinRoom',   { code: room.code, avatarConfig: myAvatarConfig });
+  }
 
   function createRoom() {
-    socket.emit('createRoom');
+    socket.emit('createRoom', { avatarConfig: myAvatarConfig });
     setView('create');
   }
 
@@ -31,7 +110,7 @@ export default function Lobby({
       return;
     }
     setError('');
-    socket.emit('joinRoom', { code: trimmedCode });
+    socket.emit('joinRoom', { code: trimmedCode, avatarConfig: myAvatarConfig });
   }
 
   function assignTeam(targetUserId, team) {
@@ -83,6 +162,14 @@ export default function Lobby({
     const team1 = players.filter(p => p.team === 1);
     const canStart = players.length === 4 && team0.length === 2 && team1.length === 2;
 
+    // Viewer-relative team labels: the current user's team reads "Nous", the
+    // other "Eux" (same keying as the in-game scoreboard). The viewer is always
+    // seated here, but guard gracefully if their team can't be resolved.
+    const myTeam = players.find(p => p.userId === user?.id)?.team;
+    const hasMyTeam = myTeam === 0 || myTeam === 1;
+    const teamLabel = (idx) =>
+      hasMyTeam ? (idx === myTeam ? t.us : t.them) : (idx === 0 ? t.team1 : t.team2);
+
     return (
       <div className="lobby">
         {showAdminPanel && isCreator && (
@@ -99,30 +186,56 @@ export default function Lobby({
           <p className="player-count">{t.playersJoined(players.length)}</p>
 
           <div className="teams-container">
-            {[0, 1].map(teamIdx => (
-              <div key={teamIdx} className="team-column">
-                <h3>{teamIdx === 0 ? t.team1 : t.team2}</h3>
-                {players.filter(p => p.team === teamIdx).map(p => (
-                  <div key={p.userId} className="team-player">
-                    <span className={p.connected ? '' : 'disconnected'}>
-                      {p.isBot ? '🤖 ' : ''}{p.username}{p.userId === user?.id ? ' ★' : ''}
-                    </span>
-                    {isCreator && p.userId !== user?.id && (
-                      <button
-                        className="btn-small"
-                        onClick={() => assignTeam(p.userId, 1 - teamIdx)}
+            {[0, 1].map(teamIdx => {
+              const members = players.filter(p => p.team === teamIdx);
+              const emptyCount = Math.max(0, 2 - members.length);
+              return (
+                <div key={teamIdx} className={`team-card team-card-${teamIdx}`}>
+                  <h3 className="team-card-title">{teamLabel(teamIdx)}</h3>
+                  <div className="team-slots">
+                    {members.map(p => (
+                      <div
+                        key={p.userId}
+                        className={`team-slot occupied${p.connected ? '' : ' disconnected'}`}
                       >
-                        → {teamIdx === 0 ? t.team2 : t.team1}
-                      </button>
-                    )}
+                        <Avatar
+                          config={p.avatarConfig}
+                          isBot={p.isBot}
+                          botSeed={p.username ?? p.userId}
+                          initial={(p.username?.[0] || '?').toUpperCase()}
+                          variant="full"
+                          circleClassName={`team-figure team${teamIdx}-figure`}
+                        />
+                        <span className="team-slot-name">
+                          {p.username}
+                          {p.userId === creatorId && <span className="team-slot-star"> ★</span>}
+                        </span>
+                        {p.isBot && <span className="team-slot-bot">{t.botLabel}</span>}
+                        {isCreator && p.userId !== user?.id && (
+                          <button
+                            className="btn-small team-move"
+                            onClick={() => assignTeam(p.userId, 1 - teamIdx)}
+                          >
+                            → {teamLabel(1 - teamIdx)}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {Array.from({ length: emptyCount }).map((_, i) => (
+                      <div key={`empty-${i}`} className="team-slot empty">
+                        <div className="team-slot-silhouette" aria-hidden="true">
+                          <svg viewBox="0 0 24 30" width="100%" height="100%">
+                            <circle cx="12" cy="8" r="5" />
+                            <path d="M3 30c0-6 4-11 9-11s9 5 9 11" />
+                          </svg>
+                        </div>
+                        <span className="team-slot-name empty-name">{t.emptySeat}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-                {/* Empty slots */}
-                {Array.from({ length: 2 - players.filter(p => p.team === teamIdx).length }).map((_, i) => (
-                  <div key={`empty-${i}`} className="team-player empty">—</div>
-                ))}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
 
           {isCreator && (
@@ -211,25 +324,76 @@ export default function Lobby({
     );
   }
 
+  const avatarInitial = (username?.[0] || '?').toUpperCase();
+  // Same valid-config check that drives the letter fallback: null → no custom
+  // avatar yet, so the card invites creating one (else editing).
+  const hasCustomAvatar = !!normalizeAvatarConfig(myAvatarConfig);
+
+  // Merge the roster with live presence, excluding self. Anyone not in the
+  // presence map is offline.
+  const friends = profiles
+    .filter(p => p.id !== user?.id)
+    .map(p => ({ id: p.id, username: p.username || '?', status: presence[p.id] || 'offline', avatarConfig: p.avatar_config }));
+
+  if (view === 'profile') {
+    return (
+      <ProfileScreen
+        username={username}
+        initialConfig={myAvatarConfig}
+        onSaved={(cfg) => { onAvatarSaved?.(cfg); setView('home'); }}
+        onBack={() => setView('home')}
+      />
+    );
+  }
+
   return (
     <div className="lobby lobby-home">
-      <div className="lobby-card">
-        <h1 className="lobby-title">♦ Belote ♣</h1>
-        <p className="lobby-welcome">👋 {username}</p>
-        <button className="btn-primary btn-large" onClick={createRoom}>{t.createRoom}</button>
-        <button className="btn-secondary btn-large" onClick={() => setView('join')}>{t.joinRoom}</button>
-        {onOpenTraining && (
-          <>
-            <button className="btn-secondary btn-large" onClick={onOpenTraining}>
-              {t.lobbyTrainingBtn}
+      <div className="home-wrap">
+        {/* Profile strip — tap to open the profile / avatar builder. The CTA +
+            pencil badge make it clear the card builds/customizes your avatar. */}
+        <button className="home-profile" onClick={() => setView('profile')}>
+          <span className="home-avatar-wrap">
+            <Avatar config={myAvatarConfig} initial={avatarInitial} variant="head" circleClassName="home-avatar" />
+            <span className="home-avatar-edit" aria-hidden="true">✏️</span>
+          </span>
+          <div className="home-profile-text">
+            <span className="home-profile-name">{username}</span>
+            <span className="home-profile-cta">
+              {hasCustomAvatar ? t.lobby.editAvatar : t.lobby.createAvatar}
+            </span>
+          </div>
+          <span className="home-profile-chevron" aria-hidden="true">›</span>
+        </button>
+
+        {/* Primary + secondary actions */}
+        <div className="home-actions">
+          <button className="btn-primary home-create" onClick={createRoom}>
+            {t.createRoom}
+          </button>
+          <div className="home-actions-row">
+            <button className="btn-secondary home-action-sm" onClick={() => setView('join')}>
+              {t.joinRoom}
             </button>
-            {resumableCount > 0 && (
-              <p className="lobby-training-hint">
-                {t.lobbyResumableHint(resumableCount)}
-              </p>
+            {onOpenTraining && (
+              <button className="btn-secondary home-action-sm" onClick={onOpenTraining}>
+                {t.lobbyTrainingBtn}
+              </button>
             )}
-          </>
-        )}
+          </div>
+          {onOpenTraining && resumableCount > 0 && (
+            <p className="lobby-training-hint">{t.lobbyResumableHint(resumableCount)}</p>
+          )}
+        </div>
+
+        {/* Parties en cours */}
+        <ActiveGamesList
+          rooms={activeRooms}
+          onJoin={joinActiveRoom}
+          onRefresh={() => socket?.emit('lobby:getRooms')}
+        />
+
+        {/* Amis en ligne */}
+        <OnlineFriends friends={friends} />
       </div>
     </div>
   );

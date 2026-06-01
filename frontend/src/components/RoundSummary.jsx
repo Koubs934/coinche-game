@@ -205,6 +205,7 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
   const { t } = useLang();
   const [replayStep, setReplayStep] = useState(-1);
   const [showAllTricks, setShowAllTricks] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
 
   function leaveGame() {
     if (!window.confirm(t.leaveConfirmGame)) return;
@@ -221,6 +222,10 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
     const members = players.filter(p => p.team === teamIdx).map(p => p.username);
     return members.join(' & ');
   }
+
+  // Subjective, per-viewer team label: the viewer's own team is "Us", the other "Them".
+  const myTeam    = players.find(p => p.position === myPosition)?.team ?? 0;
+  const teamLabel = (team) => team === myTeam ? t.us : t.them;
 
   const isCapot      = currentBid?.value === 'capot';
   const contractTeam = currentBid != null ? currentBid.playerIndex % 2 : null;
@@ -272,27 +277,56 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
 
       {/* ── Score card ──────────────────────────────────────────────────────── */}
       <div className="summary-card">
-        <h2>{t.roundOver}</h2>
 
-        <div className={`contract-result ${contractMade ? 'made' : 'failed'}`}>
-          {contractMade ? t.contractMade : t.contractFailed}
+        {/* 1. Slim result line: ✓/✗ + contract value + suit + coinche badge */}
+        <div className={`result-line ${contractMade ? 'made' : 'failed'}`}>
+          <span className="result-mark">{contractMade ? '✓' : '✗'}</span>
+          <span className="result-text">{contractMade ? t.contractMade : t.contractFailed}</span>
+          {currentBid && (
+            <span className="result-contract">
+              {isCapot ? t.capot : currentBid.value} {t.suitSymbol[currentBid.suit]}
+              {currentBid.surcoinched && <span className="badge badge-sur"> {t.surcoinched}</span>}
+              {currentBid.coinched && !currentBid.surcoinched && <span className="badge badge-coin"> {t.coinched}</span>}
+            </span>
+          )}
         </div>
 
-        {currentBid && (
-          <div className="summary-contract">
-            {t.contract}: {isCapot ? t.capot : currentBid.value}
-            {' '}{t.suitSymbol[currentBid.suit]}
-            {currentBid.surcoinched && <span className="badge badge-sur"> — {t.surcoinched}</span>}
-            {currentBid.coinched && !currentBid.surcoinched && <span className="badge badge-coin"> — {t.coinched}</span>}
+        {/* 2. Hero — score de la manche (this round), large + color-coded */}
+        <div className="manche-score">
+          <div className="manche-label">{t.roundScore}</div>
+          <div className="manche-values">
+            <span className="ms-team ms-nous">{t.us} {roundScores[myTeam]}</span>
+            <span className="ms-sep">—</span>
+            <span className="ms-team ms-eux">{t.them} {roundScores[1 - myTeam]}</span>
           </div>
-        )}
+        </div>
 
+        {/* 3. Secondary — cumulative total, smaller + muted */}
+        <div className="total-line">
+          <span className="total-line-label">{t.totalScore}</span>
+          <span className="total-line-values">
+            <span className="ms-nous">{t.us} {scores[myTeam]}</span>
+            <span className="tl-sep">—</span>
+            <span className="ms-eux">{t.them} {scores[1 - myTeam]}</span>
+          </span>
+        </div>
+
+        {/* 4. Collapsible detail — the breakdown rows, minus the manche/total lines above */}
+        <button
+          className="detail-toggle"
+          onClick={() => setShowDetail(v => !v)}
+          aria-expanded={showDetail}
+        >
+          {showDetail ? t.hideDetail : t.showDetail}
+        </button>
+
+        {showDetail && (
         <table className="score-table">
           <thead>
             <tr>
               <th></th>
-              <th>{t.team1}</th>
-              <th>{t.team2}</th>
+              <th>{teamLabel(0)}</th>
+              <th>{teamLabel(1)}</th>
             </tr>
           </thead>
           <tbody>
@@ -321,7 +355,7 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
               );
             })()}
 
-            {!isCapot && contractMade && currentBid && (
+            {!isCapot && contractMade && currentBid && multiplier === 1 && (
               <>
                 {trickPoints && (
                   <tr>
@@ -342,15 +376,38 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
                   <td>{contractTeam === 0 ? currentBid.value : 0}</td>
                   <td>{contractTeam === 1 ? currentBid.value : 0}</td>
                 </tr>
-                {multiplier > 1 && (
+              </>
+            )}
+
+            {/* Coinche/Surcoinche made — flat score: contract value × multiplier + 160
+                (+belote only if contract team holds it), defenders get a strict 0.
+                Rows sum to the backend total for the contract team and 0 for defenders. */}
+            {!isCapot && contractMade && currentBid && multiplier > 1 && (
+              <>
+                <tr>
+                  <td className="score-label">{t.contractBase} (160)</td>
+                  <td>{contractTeam === 0 ? 160 : 0}</td>
+                  <td>{contractTeam === 1 ? 160 : 0}</td>
+                </tr>
+                {beloteInfo?.complete && beloteInfo.team === contractTeam && (
                   <tr>
-                    <td className="score-label">
-                      {multiplier === 4 ? t.surcoinchBonus : t.coincheBonus} (+{currentBid.value * (multiplier - 1)})
-                    </td>
-                    <td>{contractTeam === 0 ? currentBid.value * (multiplier - 1) : 0}</td>
-                    <td>{contractTeam === 1 ? currentBid.value * (multiplier - 1) : 0}</td>
+                    <td className="score-label">{t.belote}/{t.rebelote} (+20)</td>
+                    <td>{contractTeam === 0 ? 20 : 0}</td>
+                    <td>{contractTeam === 1 ? 20 : 0}</td>
                   </tr>
                 )}
+                <tr>
+                  <td className="score-label">{t.announcedPoints}</td>
+                  <td>{contractTeam === 0 ? currentBid.value : 0}</td>
+                  <td>{contractTeam === 1 ? currentBid.value : 0}</td>
+                </tr>
+                <tr>
+                  <td className="score-label">
+                    {multiplier === 4 ? t.surcoinchBonus : t.coincheBonus} (+{currentBid.value * (multiplier - 1)})
+                  </td>
+                  <td>{contractTeam === 0 ? currentBid.value * (multiplier - 1) : 0}</td>
+                  <td>{contractTeam === 1 ? currentBid.value * (multiplier - 1) : 0}</td>
+                </tr>
               </>
             )}
 
@@ -382,18 +439,9 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
               </>
             )}
 
-            <tr className="round-final">
-              <td className="score-label">{t.roundScore}</td>
-              <td className={roundScores[0] > roundScores[1] ? 'winner-score' : ''}>{roundScores[0]}</td>
-              <td className={roundScores[1] > roundScores[0] ? 'winner-score' : ''}>{roundScores[1]}</td>
-            </tr>
-            <tr className="total-row">
-              <td className="score-label">{t.totalScore}</td>
-              <td className={scores[0] >= scores[1] ? 'leader-score' : ''}>{scores[0]}</td>
-              <td className={scores[1] > scores[0] ? 'leader-score' : ''}>{scores[1]}</td>
-            </tr>
           </tbody>
         </table>
+        )}
 
         <div className="team-names-row">
           <span>{getTeamLabel(0)}</span>
@@ -409,7 +457,7 @@ export default function RoundSummary({ socket, roomCode, room, game, myPosition 
         {room.phase === 'GAME_OVER' ? (
           <div className="game-over-section">
             <h3>{t.gameOver}</h3>
-            <p>{scores[0] > scores[1] ? getTeamLabel(0) : getTeamLabel(1)} {t.wins}</p>
+            <p>{scores[0] > scores[1] ? teamLabel(0) : teamLabel(1)} {t.wins}</p>
           </div>
         ) : (
           myConfirmed ? (

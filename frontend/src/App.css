@@ -10,6 +10,7 @@
   --black: #111;
   --ui-bg: #1e2a38;
   --ui-card: #28374a;
+  --sheet: #1e2a38;   /* opaque navy for the collapsible bid sheet + bar */
   --accent: #f0a500;
   --accent2: #e05050;
   --text: #f0f0f0;
@@ -18,10 +19,17 @@
   --radius: 6px;
   --card-w: 42px;
   --card-h: 62px;
+  /* iOS bottom safe-area (home indicator / rounded corners). Non-zero only with
+     viewport-fit=cover in index.html; falls back to 0px elsewhere. */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
   font-size: 15px;
 }
 
-html, body { height: 100%; overflow: hidden; }
+html, body {
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
 body {
   font-family: system-ui, -apple-system, sans-serif;
   background: var(--table);
@@ -30,7 +38,10 @@ body {
   overscroll-behavior: none;
 }
 
-#root { height: 100%; }
+#root {
+  height: 100%;
+  height: 100dvh;
+}
 
 button { cursor: pointer; font-family: inherit; font-size: inherit; border: none; }
 input  { font-family: inherit; font-size: max(1em, 16px); } /* ≥16px prevents iOS Safari auto-zoom on focus */
@@ -40,9 +51,11 @@ a      { color: var(--accent); }
 
 /* ─── App shell ────────────────────────────────────────────────────────── */
 .app {
+  position: relative;   /* positioning context for the absolute bid sheet / bar */
   display: flex;
   flex-direction: column;
   height: 100%;
+  height: 100dvh;
   max-width: 600px;
   margin: 0 auto;
 }
@@ -98,6 +111,15 @@ a      { color: var(--accent); }
 .btn-lang:hover { background: #3a4f65; }
 .btn-signout { background: none; color: var(--muted); font-size: 1.2em; padding: 2px 4px; }
 .btn-signout:hover { color: #e05050; }
+.btn-settings {
+  background: none;
+  color: var(--muted);
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.btn-settings:hover { color: var(--accent); }
 
 /* ─── Toasts ────────────────────────────────────────────────────────────── */
 .toast-error, .toast-info {
@@ -294,24 +316,92 @@ a      { color: var(--accent); }
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
-.team-column {
+.team-card {
   background: #1e2a38;
   border-radius: var(--radius);
-  padding: 10px;
+  padding: 10px 5px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  border-top: 3px solid transparent;
+  min-width: 0;
 }
-.team-column h3 { font-size: 0.9em; color: var(--accent); margin-bottom: 4px; }
-.team-player {
+.team-card-0 { border-top-color: #7ec8e3; }
+.team-card-1 { border-top-color: #f4a261; }
+.team-card-title {
+  font-size: 0.82em;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.team-card-0 .team-card-title { color: #7ec8e3; }
+.team-card-1 .team-card-title { color: #f4a261; }
+.team-slots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+.team-slot {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  font-size: 0.9em;
-  min-height: 28px;
+  gap: 3px;
+  padding: 6px 2px 6px;
+  border-radius: 10px;
+  min-height: 188px;
+  background: rgba(0, 0, 0, 0.18);
+  min-width: 0;
 }
-.team-player.empty { color: var(--muted); }
+.team-slot.disconnected { opacity: 0.5; }
+.team-figure {
+  width: 100%;
+  max-width: 58px;
+  height: 120px;
+  display: grid;
+  place-items: center;
+}
+.team0-figure { background: none; }
+.team1-figure { background: none; }
+.team-slot-name {
+  font-size: 0.82em;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.15;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.team-slot-star { color: var(--accent); }
+.team-slot-bot {
+  font-size: 0.62em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: #21d4b4;
+  background: rgba(33, 212, 180, 0.14);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+.team-move {
+  margin-top: 2px;
+  font-size: 0.72em !important;
+  padding: 3px 8px !important;
+}
+/* Empty seat — clean dashed silhouette placeholder */
+.team-slot.empty {
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.1);
+  justify-content: center;
+}
+.team-slot-silhouette {
+  width: 56px;
+  height: 70px;
+  opacity: 0.3;
+}
+.team-slot-silhouette svg { fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; }
+.team-slot-name.empty-name { color: var(--muted); font-weight: 500; font-size: 0.76em; }
 .disconnected { opacity: 0.5; }
 .dc-indicator { color: #f0a500; }
 
@@ -340,6 +430,406 @@ a      { color: var(--accent); }
   margin-top: -6px;
 }
 
+/* ─── Home / landing screen (layout B) ──────────────────────────────────────
+   Clean, top-aligned column: profile strip → primary/secondary actions →
+   "Parties en cours". Keeps the green+gold identity, elevated with subtly
+   bordered cards. */
+.lobby-home { align-items: flex-start; }
+.home-wrap {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Profile strip */
+.home-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--ui-card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.home-profile:hover { border-color: rgba(255, 255, 255, 0.16); }
+.home-profile-chevron { margin-left: auto; color: var(--muted); font-size: 1.3em; }
+.home-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: bold;
+  font-size: 1.25em;
+  color: #1a1a1a;
+  background: linear-gradient(135deg, var(--accent), #f7c544);
+  flex-shrink: 0;
+}
+.home-profile-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.home-profile-name { font-weight: bold; font-size: 1.05em; color: var(--text); }
+.home-profile-sub  { font-size: 0.82em; color: var(--muted); }
+/* Clear avatar CTA — accent-coloured so the card obviously invites building it. */
+.home-profile-cta {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--accent);
+}
+/* Pencil badge over the avatar circle reinforces it's editable. */
+.home-avatar-wrap { position: relative; flex-shrink: 0; display: inline-flex; }
+.home-avatar-edit {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--ui-card);
+  display: grid;
+  place-items: center;
+  font-size: 0.62em;
+  line-height: 1;
+}
+
+/* Actions */
+.home-actions { display: flex; flex-direction: column; gap: 10px; }
+.home-create  { width: 100%; font-size: 1.05em; padding: 14px; border-radius: 10px; }
+.home-actions-row { display: flex; gap: 10px; }
+.home-action-sm   { flex: 1; padding: 11px; border-radius: 10px; font-size: 0.95em; }
+
+/* Parties en cours */
+.active-games { display: flex; flex-direction: column; gap: 10px; }
+.active-games-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.active-games-title {
+  font-size: 0.78em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.active-games-refresh {
+  background: none;
+  color: var(--muted);
+  font-size: 1.1em;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.active-games-refresh:hover { color: var(--accent); }
+.active-games-empty {
+  color: var(--muted);
+  font-size: 0.88em;
+  text-align: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+.active-games-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.game-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--ui-card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+}
+.game-card-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.game-card-top  { display: flex; align-items: baseline; gap: 10px; }
+.game-card-code {
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: var(--accent);
+  font-size: 1.05em;
+}
+.game-card-meta { font-size: 0.82em; color: var(--muted); }
+.game-card-players {
+  font-size: 0.8em;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.game-card-join {
+  flex-shrink: 0;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 0.9em;
+}
+.game-card-join.is-rejoin {
+  background: var(--accent);
+  color: #1a1a1a;
+  font-weight: bold;
+}
+.game-card-join.is-rejoin:hover { opacity: 0.88; }
+
+/* ─── Avatar (shared: Open Peeps figure or letter-circle fallback) ──────────
+   Each call site keeps its own circle class (home-avatar / friend-avatar /
+   player-avatar …) for sizing, fallback bg + the colored backdrop behind the
+   figure. These rules add the figure fit + head crop + bot ring.
+     • head variant → clipped to the circle, head fills it
+     • full variant → whole figure, letterboxed inside its box (no clip)
+     • bot          → a shared distinct ring marks it as a bot (human avatars
+                      have none), in both variants */
+.avatar { flex-shrink: 0; }
+.avatar-peep { padding: 0; }
+.avatar-peep > svg { width: 100%; height: 100%; display: block; }
+.avatar-peep-head { overflow: hidden; }            /* circle class supplies the radius */
+.avatar-peep-full { overflow: visible; }
+.avatar-bot { box-shadow: 0 0 0 3px #21d4b4, 0 0 0 5px rgba(33, 212, 180, 0.35); border-color: #21d4b4; }
+.avatar-peep-full.avatar-bot { box-shadow: none; outline: 3px dashed #21d4b4; outline-offset: 2px; }
+
+/* ─── Profile screen + avatar builder ───────────────────────────────────── */
+.profile-screen { align-items: flex-start; }
+.profile-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.profile-title { font-weight: bold; font-size: 1.05em; color: var(--text); }
+.profile-back { white-space: nowrap; }
+.profile-back-spacer { width: 1px; } /* balances the back button so title centers */
+
+.profile-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.profile-avatar {
+  width: 156px;
+  height: 264px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  font-weight: bold;
+  font-size: 2.6em;
+  color: #1a1a1a;
+  background: linear-gradient(160deg, #2a3a4d, #1c2735);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  padding: 10px 8px 0;
+}
+/* Letter fallback in the profile preview keeps the warm gradient + round look. */
+.profile-avatar:not(.avatar-peep) {
+  height: 168px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #f7c544);
+  padding: 0;
+}
+.profile-pseudo { font-weight: bold; font-size: 1.15em; color: var(--text); }
+
+.profile-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--ui-card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+/* Category tabs — Corps / Visage / Cheveux / Barbe / Lunettes / Couleurs */
+.builder-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.builder-tab {
+  flex: 1 1 auto;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--muted);
+  border: 1px solid transparent;
+  font-size: 0.82em;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.builder-tab:hover { background: rgba(0, 0, 0, 0.4); color: var(--text); }
+.builder-tab.active {
+  background: rgba(240, 165, 0, 0.16);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Browsable strip — ALL options for the open category, horizontal scroll. Only
+   the open category's thumbnails are mounted, so it stays light. */
+.builder-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+}
+.builder-thumb {
+  flex: 0 0 auto;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 2px solid transparent;
+  cursor: pointer;
+  scroll-snap-align: start;
+  display: grid;
+  place-items: center;
+}
+.builder-thumb:hover { background: rgba(0, 0, 0, 0.4); }
+.builder-thumb.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(240, 165, 0, 0.3); }
+.builder-thumb-fig { display: grid; place-items: center; }
+.builder-thumb-head { width: 56px; height: 56px; border-radius: 50%; overflow: hidden; background: rgba(255, 255, 255, 0.04); }
+.builder-thumb-full { width: 60px; height: 88px; }
+
+/* Colours tab — two labelled swatch rows (Trait / Remplissage) */
+.builder-colors { display: flex; flex-direction: column; gap: 10px; padding: 2px; }
+.builder-color-row { display: flex; flex-direction: column; gap: 6px; }
+.builder-color-label {
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.builder-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  padding: 0;
+  cursor: pointer;
+}
+.swatch.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(240, 165, 0, 0.35); }
+
+.profile-actions { display: flex; gap: 10px; }
+.profile-error { text-align: center; }
+
+/* ─── Amis en ligne (presence) ──────────────────────────────────────────── */
+.friends-online { display: flex; flex-direction: column; gap: 10px; }
+.friends-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.friends-title {
+  font-size: 0.78em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.friends-count {
+  font-size: 0.78em;
+  color: var(--success);
+  font-weight: 600;
+}
+.friends-empty {
+  color: var(--muted);
+  font-size: 0.88em;
+  text-align: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+/* Horizontal scrolling avatar row */
+.friends-row {
+  list-style: none;
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.friend {
+  flex: 0 0 auto;
+  width: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+.friend-offline { opacity: 0.45; }
+.friend-avatar-wrap { position: relative; }
+.friend-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: bold;
+  font-size: 1.1em;
+  color: var(--text);
+  background: #3a4a5e; /* fallback / offline tint (per-user hue set inline) */
+}
+.friend-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--ui-bg);
+}
+.friend-dot-online  { background: var(--success); }
+.friend-dot-in-game { background: var(--accent); }
+.friend-dot-offline { background: #6b7785; }
+.friend-name {
+  font-size: 0.76em;
+  color: var(--text);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.friend-status { font-size: 0.66em; color: var(--muted); }
+
+/* Collapsible "Amis hors ligne" section */
+.friends-offline { display: flex; flex-direction: column; gap: 10px; }
+.friends-offline-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  padding: 0;
+  text-align: left;
+}
+.friends-chevron {
+  color: var(--muted);
+  font-size: 0.8em;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+.friends-chevron.open { transform: rotate(90deg); }
+.friends-offline-head:hover .friends-title,
+.friends-offline-head:hover .friends-chevron { color: var(--text); }
+
 /* ─── Game board ────────────────────────────────────────────────────────── */
 .game-board {
   flex: 1;
@@ -354,34 +844,77 @@ a      { color: var(--accent); }
 /* (replaced by .score-bars / .total-score-bar / .live-score-bar below) */
 .score-target-small { color: var(--muted); font-size: 0.85em; }
 
-.board-top    { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+/* Top seat (partner): a compact cluster anchored at the felt's TOP EDGE, inside
+   .board-middle (overlapping the felt like the left/right seats overlap the side
+   edges) — no longer a full-width band above the felt. .board-center reserves top
+   room (below) so the trick / bid focal clear it. */
+.board-top {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  flex-direction: row;       /* contract badge BESIDE the seat → short cluster */
+  align-items: center;
+  gap: 6px;
+  max-width: 96%;
+}
+/* Stacks the top seat over its peek strip so the revealed hand sits directly
+   BELOW the partner's name/avatar (not beside it). */
+.top-seat-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Partner peek — discreet face-up strip of the partner's cards under their seat.
+   Visually distinct from the player's own hand (small chips, dashed tint). */
+.peek-hand {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  margin-top: 3px;
+  padding: 2px 4px;
+  max-width: 220px;
+  background: rgba(0,0,0,0.35);
+  border: 1px dashed rgba(240,165,0,0.5);
+  border-radius: var(--radius);
+}
+.peek-card {
+  font-size: 0.7em;
+  font-weight: bold;
+  line-height: 1.1;
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: #f0ead6;
+  color: #1a1a1a;
+}
+.peek-card.red { color: var(--red); }
 .board-middle {
+  position: relative;
   display: flex;
   flex: 1;
   gap: 4px;
   min-height: 0;
+  overflow: hidden;
 }
 .board-left   { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 86px; flex-shrink: 0; }
 .board-right  { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 86px; flex-shrink: 0; }
-.board-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 6px; position: relative; }
+/* padding-top reserves room for the top seat (absolutely anchored at the felt's
+   top edge) so the centered trick / bid focal clear it. Reset in landscape, where
+   the top seat is hidden (see the max-height:500px block). */
+/* min-width: 0 so the fixed-width (180px) trick-display can't force this flex
+   column past its share and shove the right seat (.board-right) off the felt's
+   right edge (clipped by overflow:hidden) — keeps left/right seats symmetric. */
+.board-center { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 6px; position: relative; padding-top: 40px; }
 .board-middle { border-radius: 14px; background: radial-gradient(ellipse at center, #1e6b30 0%, #164f22 70%, #0f3a18 100%); }
 
-/* ─── Table-positioned bid chip overlays ────────────────────────────────── */
-/* Float on the green table surface in front of each player, not in their seat */
-.table-bid {
-  position: absolute;
-  z-index: 2;
-  pointer-events: none;
-  text-align: center;
-}
-/* Top player (partner) — top-center of the table */
-.tbid-top   { top: 8px;   left: 50%; transform: translateX(-50%); }
-/* Left opponent — left edge of center, vertically centered */
-.tbid-left  { left: 6px;  top: 50%; transform: translateY(-50%); }
-/* Right opponent — right edge of center, vertically centered */
-.tbid-right { right: 6px; top: 50%; transform: translateY(-50%); }
-
-.board-hand   { flex-shrink: 0; background: rgba(0,0,0,0.28); border-top: 2px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding: 6px 4px max(6px, env(safe-area-inset-bottom)); }
+/* Bottom safe-area is owned by the bottom-most child (the relocated toolbar in
+   playing, the bid-sheet in bidding) so it isn't applied twice. */
+.board-hand   { flex-shrink: 0; background: rgba(0,0,0,0.28); border-top: 2px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding: 6px 4px; }
 
 /* ─── Player seats ──────────────────────────────────────────────────────── */
 .player-seat {
@@ -396,6 +929,15 @@ a      { color: var(--accent); }
 }
 .player-seat.player-left, .player-seat.player-right {
   flex-direction: column;
+}
+/* Top seat: compact horizontal cluster (avatar · name/bid · count) so it occupies
+   a short strip at the felt's top edge rather than a tall stacked band. */
+.player-seat.player-top {
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  background: rgba(0,0,0,0.32);
 }
 .player-name {
   font-size: 0.7em;
@@ -462,15 +1004,39 @@ a      { color: var(--accent); }
 .ltw-card  { font-weight: bold; color: var(--text); letter-spacing: -0.5px; }
 .ltw-card.red { color: var(--red); }
 
-.face-down-cards {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  justify-content: center;
-  max-width: 160px;
+/* ─── Compact hand chip (opponent card-count badge) ──────────────────────
+   Replaces the per-card column that used to inflate side seats to ~230px;
+   every seat now occupies ~one card-row tall regardless of handCount. */
+.hand-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.32);
+  border: 1px solid rgba(255,255,255,0.08);
+  line-height: 1;
 }
-.player-left  .face-down-cards,
-.player-right .face-down-cards { max-width: 36px; flex-direction: column; }
+.hand-chip-stack {
+  display: inline-flex;
+  align-items: center;
+}
+.mini-back {
+  display: inline-block;
+  width: 11px;
+  height: 16px;
+  background: #1a4080;
+  border: 1px solid #2255aa;
+  border-radius: 2px;
+  margin-left: -5px;
+}
+.mini-back:first-child { margin-left: 0; }
+.hand-chip-count {
+  font-size: 0.7em;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
 
 /* ─── Cards ─────────────────────────────────────────────────────────────── */
 .card {
@@ -493,23 +1059,48 @@ a      { color: var(--accent); }
   transition: transform 0.1s, box-shadow 0.1s;
 }
 .card-face.red { color: var(--red); }
+/* Lift/straighten is driven by GameBoard via an inline transform (the arc would
+   override any CSS transform here), so these rules only carry the highlight ring
+   and shadow. */
 .card-face.valid {
   cursor: pointer;
   box-shadow: 0 0 0 2px var(--accent);
 }
-@media (hover: hover) {
-  .card-face.valid:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 0 0 2px var(--accent);
-  }
-}
-.card-face.valid:active {
-  transform: translateY(-4px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 2px var(--accent);
-}
-.card-face.card-disabled { opacity: 0.7; cursor: default; }
+/* Hand cards stay flat & uniform: no enlarge/rise/pop-shadow on hover or press
+   (the lift was removed). The actively-dragged card still gets its own transform
+   from draggedStyle() during manual reorder. */
+.card-face.card-lifted { /* intentionally flat — no lift styling */ }
+/* No dim during bidding / not-your-turn — hand cards are always solid white,
+   matching the playing phase. (cursor only; opacity removed.) */
+.card-face.card-disabled { cursor: default; }
 .card-value { font-weight: bold; font-size: 1em; }
 .card-suit  { font-size: 0.95em; }
+
+/* Centered big glyph (kept as the card's flex-centered content) */
+.card-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+  gap: 1px;
+}
+/* Top-left corner index — stays readable when cards overlap in the arc.
+   Sized in em so it scales with the card-face font-size (and thus with
+   --hand-card-scale). */
+.card-index {
+  position: absolute;
+  top: 5%;
+  left: 7%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 0.95;
+  font-weight: bold;
+  pointer-events: none;
+}
+.ci-rank { font-size: 0.72em; }
+.ci-suit { font-size: 0.68em; }
 
 .card-back {
   background: #1a4080;
@@ -525,29 +1116,52 @@ a      { color: var(--accent); }
   border-radius: 3px;
 }
 
-/* ─── My hand ────────────────────────────────────────────────────────────── */
+/* ─── My hand (fanned arc) ───────────────────────────────────────────────── */
+/* Cards are absolutely positioned in an overlapping fan whose horizontal step
+   is derived in JS from this container's measured width — so all cards always
+   fit at any size; bigger Delfino cards just overlap more (never scroll). The
+   height tracks the scaled card height plus a little arch headroom; a lifted /
+   dragged card overflows upward (overflow:visible) and paints over the toolbar
+   transiently. */
 .my-hand {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  justify-content: center;
+  position: relative;
+  display: block;
+  overflow: visible;
   padding: 4px;
+  height: calc(var(--card-h) * var(--hand-card-scale) + 40px);
+}
+.hand-ruler {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--card-w) * var(--hand-card-scale));
+  height: calc(var(--card-h) * var(--hand-card-scale));
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* Mode Delfino — user-toggled scale of the user's own hand cards.
    Only `.my-hand .card-face` (the playable hand at the bottom) is targeted;
    opponent backs (.card-small), trick cards (.trick-card) and AuctionRecap
    minis (.hand-strip-card / .ar-table-felt-card) are unaffected. */
-:root { --hand-card-scale: 1; }
-[data-hand-size="S"] { --hand-card-scale: 1; }
-[data-hand-size="M"] { --hand-card-scale: 1.3; }
-[data-hand-size="L"] { --hand-card-scale: 1.6; }
+/* Two Delfino sizes (see HandSizeToggle.jsx). SMALL ('L') = the former largest
+   scale; BIG ('XL') = one step up. Default = SMALL. */
+:root { --hand-card-scale: 1.6; }
+[data-hand-size="L"]  { --hand-card-scale: 1.6; }  /* SMALL */
+[data-hand-size="XL"] { --hand-card-scale: 1.9; }  /* BIG */
 
+/* Arc cards: absolutely positioned, each transformed (translate + rotate) from
+   a shared centre anchor (left:50%) by GameBoard. transform-origin bottom-centre
+   so the fan pivots naturally; transitions make resize / lift / drop animate. */
 .my-hand .card-face {
+  position: absolute;
+  left: 50%;
+  top: 6px;
   width: calc(var(--card-w) * var(--hand-card-scale));
   height: calc(var(--card-h) * var(--hand-card-scale));
   font-size: calc(0.85em * var(--hand-card-scale));
-  transition: width 0.15s ease-out, height 0.15s ease-out, font-size 0.15s ease-out;
+  transform-origin: center bottom;
+  transition: transform 0.13s ease-out, width 0.15s ease-out, height 0.15s ease-out, font-size 0.15s ease-out, box-shadow 0.13s ease-out;
 }
 
 /* Toggle button itself (Mode Delfino) */
@@ -799,51 +1413,263 @@ a      { color: var(--accent); }
   flex-direction: column;
   gap: 6px;
   padding: 6px 0 4px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  margin-bottom: 2px;
 }
 
-.bid-values {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
-}
+/* Legal-bids-only value grid: two rows, each row flexes its chips full-width
+   (fill-then-stretch — no lonely left-aligned chip). Chips are compact and
+   outlined; only the selected value is the lit amber fill. */
+.bid-values     { display: flex; flex-direction: column; gap: 5px; }
+.bid-values-row { display: flex; gap: 5px; }
 .bid-val-btn {
-  background: #2c3e50;
+  flex: 1;
+  min-width: 0;
+  min-height: 30px;
+  padding: 4px 6px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,0.18);
+  background: transparent;
   color: var(--text);
-  padding: 7px 4px;
-  border-radius: 4px;
   font-size: 0.9em;
   text-align: center;
-  min-height: 36px;
 }
-.bid-val-btn.selected { background: var(--accent); color: #1a1a1a; font-weight: bold; }
-.bid-val-btn.disabled { opacity: 0.3; cursor: not-allowed; }
-.bid-val-btn:not(.disabled):hover { background: #3a4f65; }
-.bid-val-btn.selected:hover { background: var(--accent); }
+.bid-val-btn:not(.selected):hover { background: rgba(255,255,255,0.08); }
+.bid-val-btn.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1a1a;
+  font-weight: bold;
+}
 
-.suit-selector {
+/* Inline suit echo on each value chip (display mirror of the strip selection).
+   Light/dark per suit colour AND chip state so it stays legible on both the dark
+   (unselected) chip and the amber (selected) chip. */
+.bid-val-suit { margin-left: 3px; }
+.bid-val-suit.red   { color: #ff7a7a; }            /* red suit on dark chip */
+.bid-val-suit.black { color: #cfd6dd; }            /* black suit on dark chip */
+.bid-val-btn.selected .bid-val-suit.red   { color: #c0392b; }  /* on amber chip */
+.bid-val-btn.selected .bid-val-suit.black { color: #1a1a1a; }  /* on amber chip */
+
+/* Suit row — keeps the 4 chips centered (col 2) while Annuler, when shown, sits in
+   the left gap (col 1) without shifting them. */
+.suit-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 6px;
+}
+.suit-row .suit-row-undo { grid-column: 1; justify-self: start; white-space: nowrap; }
+.suit-row .suit-chips    { grid-column: 2; }
+
+/* Suit strip — its own centered row between the value grid and the action row.
+   Fixed compact outlined chips; selected = gold ring (outline). */
+.suit-chips {
   display: flex;
-  gap: 10px;
+  gap: 5px;
   justify-content: center;
 }
-.suit-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  font-size: 1.4em;
-  background: #2c3e50;
-}
-.suit-btn.red  { color: var(--red); }
-.suit-btn.black { color: #e0e0e0; }
-.suit-btn.selected { outline: 2px solid var(--accent); }
-.suit-btn:hover:not(.selected) { background: #3a4f65; }
 
+/* Action row: clean full-width controls (no suit glyph). */
 .bid-action-row {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
 }
-.bid-action-row > button { flex: 1; }
+.bid-action-row > button { flex: 1; min-width: 0; }
+.suit-btn {
+  width: 33px;
+  height: 33px;
+  flex: none;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,0.18);
+  background: transparent;
+  font-size: 1.05em;
+}
+.suit-btn.red   { color: var(--red); }
+.suit-btn.black { color: #e0e0e0; }
+.suit-btn.selected { outline: 2px solid var(--accent); outline-offset: -1px; }
+.suit-btn:hover:not(.selected) { background: rgba(255,255,255,0.08); }
+
+/* The single solid (lit) control. */
+.btn-annoncer {
+  background: var(--accent);
+  color: #1a1a1a;
+  font-weight: bold;
+  padding: 7px 8px;
+  border-radius: var(--radius);
+  min-height: 33px;
+  transition: opacity 0.15s;
+}
+.btn-annoncer:hover:not(:disabled) { opacity: 0.85; }
+.btn-annoncer:disabled { opacity: 0.45; cursor: not-allowed; }
+/* Quiet navy — distinct from the (navy) sheet behind it. */
+.btn-passer {
+  background: #2c3e50;
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.18);
+  font-weight: bold;
+  padding: 7px 8px;
+  border-radius: var(--radius);
+  min-height: 33px;
+}
+.btn-passer:hover { background: #3a4f65; }
+/* Red outline (not solid) so it doesn't fight Annoncer for attention. */
+.btn-coinche-outline,
+.btn-surcoinche-outline {
+  background: transparent;
+  color: #e86b6b;
+  border: 1px solid var(--red);
+  font-weight: bold;
+  padding: 7px 8px;
+  border-radius: var(--radius);
+  min-height: 33px;
+}
+.btn-coinche-outline:hover,
+.btn-surcoinche-outline:hover { background: rgba(204,17,17,0.14); }
+
+/* Bidding-phase toolbar: compact icon over a tiny caption, centered, thin
+   dividers between actions. (Normal-flow .hand-toolbar is unchanged.) */
+.hand-toolbar-icons { gap: 0; flex-wrap: nowrap; }
+.hand-toolbar-icons > button {
+  flex: 1 1 0;          /* equal share of the row so all 5 fit on one line */
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-height: auto;
+  padding: 3px 2px;     /* tight horizontal padding — flex distributes width */
+  background: transparent;
+  border: none;
+  border-left: 1px solid rgba(255,255,255,0.12);
+  border-radius: 0;
+}
+.hand-toolbar-icons > button:first-child { border-left: none; }
+.hand-toolbar-icons .ti-icon { font-size: 1.05em; line-height: 1.1; }
+.hand-toolbar-icons .ti-cap  { font-size: 0.6em; line-height: 1; white-space: nowrap; }
+
+/* The playing/non-bidding toolbar relocated to the very bottom row of board-hand
+   (direct child; the bidding toolbar lives inside .bid-sheet). Thin divider from
+   the cards; safe-area bottom padding so it clears the phone's home indicator. */
+.board-hand > .hand-toolbar {
+  margin-top: 2px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-bottom: calc(var(--safe-bottom) + 4px);
+}
+
+/* ─── Collapsible bid sheet + highest-bid bar ────────────────────────────────
+   Base (tall viewports): the sheet is a plain in-flow flex container — the bid
+   controls + toolbar render exactly where they did before. The handle, bar and
+   scrim only appear on short viewports (see the @media block further down). */
+.bid-sheet {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(var(--safe-bottom) + 4px);  /* bottom-most element in tall bidding */
+}
+.bid-sheet-handle { display: none; }
+.bid-bar          { display: none; }
+.bid-scrim        { display: none; }
+
+/* Short viewports: turn the sheet into a sliding opaque bottom sheet with a
+   collapsed slim highest-bid bar. Keep the height threshold in sync with
+   SHORT_VIEWPORT_QUERY in GameBoard.jsx. */
+@media (max-height: 820px) {
+  .bid-sheet {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 80;
+    background: var(--sheet);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    box-shadow: 0 -6px 22px rgba(0,0,0,0.5);
+    padding: 0 8px calc(var(--safe-bottom) + 4px);
+    transition: transform 0.32s ease;
+    will-change: transform;
+  }
+  .bid-sheet.open      { transform: translateY(0); }
+  .bid-sheet.collapsed { transform: translateY(110%); pointer-events: none; }
+
+  .bid-sheet-handle {
+    display: block;
+    width: 44px;
+    height: 5px;
+    margin: 8px auto 4px;
+    padding: 0;
+    border: none;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.32);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .bid-sheet-handle:hover { background: rgba(255,255,255,0.5); }
+
+  /* Slim collapsed-state bar pinned to the bottom edge */
+  .bid-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 70;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 46px;
+    padding: 8px 14px calc(var(--safe-bottom) + 4px);
+    background: var(--sheet);
+    border-top: 1px solid rgba(255,255,255,0.12);
+    border-radius: var(--radius) var(--radius) 0 0;
+    color: var(--text);
+    text-align: left;
+    box-shadow: 0 -3px 12px rgba(0,0,0,0.35);
+  }
+  .bid-bar.bid-bar-hidden { display: none; }
+  .bid-bar-label  { font-size: 0.7em; color: var(--muted); white-space: nowrap; }
+  .bid-bar-value  { flex: 1; display: flex; align-items: baseline; gap: 3px; font-size: 1.05em; font-weight: 800; color: var(--accent); }
+  .bid-bar-suit   { color: var(--accent); }
+  .bid-bar-suit.red { color: var(--red); }
+  .bid-bar-bidder { font-size: 0.78em; font-weight: 600; color: var(--muted); }
+  .bid-bar-empty  { font-style: italic; font-weight: 500; color: var(--muted); }
+  .bid-bar-cta    { font-size: 0.85em; font-weight: 700; color: var(--success); white-space: nowrap; }
+
+  /* Light scrim over the felt while the sheet is open (sheet stays opaque) */
+  .bid-scrim {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 72;
+    background: rgba(0,0,0,0.22);
+    pointer-events: none;
+  }
+
+  /* Float the arc hand above the bar (collapsed) / sheet (open) so full card
+     bodies always clear it. GameBoard sets the translateY offset inline off the
+     measured bar/sheet height; the felt never resizes — only this layer moves.
+     z-index keeps the cards above the bar (70), scrim (72) and sheet (80); the
+     0.32s ease matches the sheet slide so hand + sheet move in sync. */
+  .board-hand.has-bid-sheet .my-hand {
+    z-index: 90;
+    transition: transform 0.32s ease;
+  }
+}
+
+/* Tall / normal viewports: the collapsible sheet + hand-lift are gated to
+   max-height:820px and do NOT apply here, so the bid sheet sits in normal flow
+   and the arc hand would otherwise fall BELOW the bid controls (player can't see
+   their cards while bidding). Reorder the bidding column so the hand sits ABOVE
+   the controls. Scoped to .has-bid-sheet (bid turn only) — playing / non-bidding
+   layouts and the short-viewport sheet behaviour are untouched. */
+@media (min-height: 821px) {
+  .board-hand.has-bid-sheet {
+    display: flex;
+    flex-direction: column;
+  }
+  .board-hand.has-bid-sheet .self-player-bar { order: 1; }
+  .board-hand.has-bid-sheet .my-hand         { order: 2; }
+  .board-hand.has-bid-sheet .bid-sheet       { order: 3; }
+}
 
 .bidding-turn-info, .play-turn-info {
   font-size: 0.85em;
@@ -874,7 +1700,7 @@ a      { color: var(--accent); }
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 16px 16px;
+  padding: 12px 16px calc(var(--safe-bottom) + 6px);
   gap: 12px;
   overflow-y: auto;
 }
@@ -1024,15 +1850,73 @@ a      { color: var(--accent); }
 }
 .summary-card h2 { font-size: 1.3em; }
 
-.contract-result {
-  font-size: 1.1em;
-  font-weight: bold;
-  padding: 6px 16px;
-  border-radius: var(--radius);
+/* Slim result line: ✓/✗ + contract value + suit + coinche badge */
+.result-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.95em;
+  font-weight: 600;
 }
-.contract-result.made   { background: #1a5e2a; color: var(--success); }
-.contract-result.failed { background: #5e1a1a; color: #e05050; }
-.summary-contract { font-size: 0.9em; color: var(--muted); }
+.result-line.made   .result-mark,
+.result-line.made   .result-text { color: var(--success); }
+.result-line.failed .result-mark,
+.result-line.failed .result-text { color: #e05050; }
+.result-mark { font-size: 1.15em; }
+.result-contract { color: var(--muted); font-weight: 500; }
+
+/* Hero — score de la manche (this round) */
+.manche-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+}
+.manche-label {
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.manche-values {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  font-size: 2.1em;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+}
+.ms-sep { color: var(--muted); font-weight: normal; }
+.ms-nous { color: #7ec8e3; }   /* viewer's team — blue */
+.ms-eux  { color: #f4a261; }   /* opponents — orange */
+
+/* Secondary — cumulative total, smaller + muted */
+.total-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+.total-line-label { text-transform: uppercase; letter-spacing: 0.06em; }
+.total-line-values { font-variant-numeric: tabular-nums; }
+.total-line-values .ms-nous,
+.total-line-values .ms-eux { font-weight: 600; opacity: 0.8; }
+.tl-sep { color: var(--muted); margin: 0 4px; }
+
+/* Collapsible detail toggle */
+.detail-toggle {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.82em;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.detail-toggle:hover { text-decoration: underline; }
 
 .score-table {
   width: 100%;
@@ -1402,7 +2286,10 @@ a      { color: var(--accent); }
 
 /* Manual drag mode */
 .my-hand-manual { touch-action: none; user-select: none; }
-.card-dragging  { opacity: 0.55; transform: scale(1.1) translateY(-8px); transition: none; position: relative; z-index: 10; }
+/* The dragged card's transform (follow-the-pointer) is inline from GameBoard;
+   here we just kill the transition so it tracks the finger 1:1 and add a lift
+   shadow. */
+.card-dragging  { transition: none; box-shadow: 0 12px 26px rgba(0,0,0,0.5), 0 0 0 2px var(--accent); }
 
 /* ─── Bid action chips (per-player bidding status) ──────────────────────── */
 .bid-action-chip {
@@ -1551,6 +2438,121 @@ a      { color: var(--accent); }
 .btn-manage:hover { color: var(--text); background: rgba(0,0,0,0.5); }
 .btn-manage-lobby { font-size: 0.9em; padding: 10px 20px; min-height: auto; }
 
+/* ─── Réglages (settings) overlay ───────────────────────────────────────────
+   Shares .admin-panel-overlay as the backdrop; the panel itself is its own card. */
+.settings-modal {
+  background: var(--ui-card);
+  border-radius: 12px;
+  padding: 16px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 340px;
+  max-width: 92vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.settings-title { font-weight: bold; font-size: 1.05em; color: var(--text); }
+.settings-section {
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.settings-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
+
+/* Uniform full-width rows: label left, control right */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.18);
+  border-radius: var(--radius);
+}
+.settings-row-label { font-size: 0.95em; color: var(--text); }
+.pref-row .pref-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pref-subtitle { font-size: 0.78em; color: var(--muted); }
+
+/* Segmented FR | EN language toggle */
+.seg-toggle {
+  display: inline-flex;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.seg-opt {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.82em;
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.seg-opt.active { background: var(--accent); color: #1e2a38; }
+.seg-opt:not(.active):hover { background: rgba(255,255,255,0.07); color: var(--text); }
+
+/* Reusable pill switch (track + sliding knob) */
+.pref-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 46px;
+  height: 26px;
+  border-radius: 13px;
+  border: none;
+  background: rgba(255,255,255,0.18);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  padding: 0;
+}
+.pref-switch.on { background: #1f9e8a; }
+.pref-switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  transition: transform 0.15s ease;
+}
+.pref-switch.on .pref-switch-knob { transform: translateX(20px); }
+
+/* Full-width action rows (manage + destructive) */
+.settings-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 46px;
+  padding: 6px 12px;
+  font-size: 0.95em;
+  color: var(--text);
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.settings-action:hover { background: rgba(0,0,0,0.32); }
+.settings-chevron { color: var(--muted); font-size: 1.2em; line-height: 1; }
+.settings-action.danger {
+  justify-content: center;
+  color: #ff8080;
+  background: rgba(139,26,26,0.22);
+  border-color: rgba(204,17,17,0.4);
+}
+.settings-action.danger:hover { background: rgba(139,26,26,0.42); color: #ffaaaa; }
+
 .btn-undo {
   background: rgba(80,60,20,0.35);
   color: #d4a84b;
@@ -1627,7 +2629,6 @@ a      { color: var(--accent); }
 @media (min-width: 480px) {
   :root { --card-w: 48px; --card-h: 70px; }
   .card { font-size: 0.95em; }
-  .bid-values { grid-template-columns: repeat(5, 1fr); }
 }
 
 /* ─── Landscape phone ────────────────────────────────────────────────────── */
@@ -1679,7 +2680,7 @@ a      { color: var(--accent); }
   .board-top    { display: none; }        /* partner seat hidden — no value in landscape */
   .board-middle { display: contents; }    /* dissolve: children become direct grid items */
   .board-left   { grid-area: left;   display: flex; flex-direction: column; align-items: center; justify-content: center; width: auto; }
-  .board-center { grid-area: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 4px; }
+  .board-center { grid-area: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 4px; padding-top: 0; }
   .board-right  { grid-area: right;  display: flex; flex-direction: column; align-items: center; justify-content: center; width: auto; }
   .board-middle { border-radius: 0; background: none; }
   .board-hand   { grid-area: hand; }
@@ -1691,8 +2692,9 @@ a      { color: var(--accent); }
   /* ── Side seats ── */
   .player-name { max-width: 38px; font-size: 0.65em; }
   .card-back.card-small { width: 12px; height: 18px; }
-  .player-left  .face-down-cards,
-  .player-right .face-down-cards { gap: 1px; }
+  .hand-chip { padding: 0 3px; gap: 2px; }
+  .mini-back { width: 9px; height: 13px; margin-left: -4px; }
+  .hand-chip-count { font-size: 0.62em; }
 
   /* ── Trick display ── */
   .trick-display { gap: 2px; }
@@ -1703,25 +2705,22 @@ a      { color: var(--accent); }
   .bid-focal-suit  { font-size: 1.1em; }
   .bid-whose-turn  { font-size: 0.75em; }
 
-  /* ── Table bid overlays: nudge positions for narrow landscape center ── */
-  .tbid-top   { top: 4px; }
-  .tbid-left  { left: 3px; }
-  .tbid-right { right: 3px; }
-
   /* Keep current bid readable but slightly compact */
   .bsi.bsi-current { font-size: 0.88em; padding: 2px 5px; }
   .bsi.bsi-older   { font-size: 0.5em; }
 
-  /* ── Bidding: 10 values in one row in the hand strip ── */
-  .bidding-panel  { padding: 2px 0; gap: 3px; border-bottom: none; margin-bottom: 0; }
-  .bid-values     { grid-template-columns: repeat(10, 1fr); gap: 2px; }
+  /* ── Bidding: tighten the two-row grid + merged action row ── */
+  .bidding-panel  { padding: 2px 0; gap: 3px; }
+  .bid-values     { gap: 3px; }
+  .bid-values-row { gap: 3px; }
   .bid-val-btn    { min-height: 22px; padding: 2px 1px; font-size: 0.75em; }
-  .suit-selector  { gap: 4px; }
-  .suit-btn       { width: 28px; height: 28px; font-size: 1em; }
-  .btn-coinche,
-  .btn-surcoinche { padding: 3px 8px; font-size: 0.8em; }
+  .suit-chips     { gap: 3px; }
+  .suit-btn       { width: 26px; height: 26px; font-size: 0.95em; }
   .bid-action-row { gap: 4px; }
-  .bid-action-row > button { padding: 4px 8px; }
+  .btn-annoncer,
+  .btn-passer,
+  .btn-coinche-outline,
+  .btn-surcoinche-outline { padding: 3px 6px; font-size: 0.8em; min-height: 26px; }
 
   /* ── Hand: thin strip, single unwrapped row ── */
   .board-hand {
@@ -1731,12 +2730,8 @@ a      { color: var(--accent); }
   .player-avatar     { display: none; }
   .self-player-bar   { display: none; }
   .my-hand {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    justify-content: center;
-    gap: 2px;
-    padding: 0;
+    padding: 2px 0 0;
+    height: calc(var(--card-h) * var(--hand-card-scale) + 30px);
   }
   .hand-toolbar   { padding: 1px 2px; gap: 4px; }
   .btn-sort            { padding: 2px 8px; min-height: 24px; }
@@ -2712,5 +3707,231 @@ a      { color: var(--accent); }
   }
   .gerr-card { min-width: 72px; padding: 8px 6px; }
   .gerr-card-face { font-size: 1.2em; }
+}
+
+
+/* ─── Table chat ─────────────────────────────────────────────────────────── */
+.btn-chat {
+  position: relative;
+  background: none;
+  color: var(--muted);
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.btn-chat:hover { color: var(--accent); }
+.chat-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent2);
+  color: #fff;
+  font-size: 0.6em;
+  font-weight: bold;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* Bottom-sheet conversation panel — slides up over the table, which stays
+   visible above it. Mirrors the admin/settings overlay backdrop + bid-sheet
+   slide-in, for consistency. z-index sits above the settings overlay (400)
+   but below toasts (1000). */
+.chat-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 450;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: rgba(0, 0, 0, 0.35);
+}
+.chat-sheet {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  background: var(--ui-card);
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  max-height: 70dvh;
+  padding-bottom: var(--safe-bottom);
+  animation: chat-slide-up 0.18s ease-out;
+}
+@keyframes chat-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.chat-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+.chat-sheet-title { font-weight: bold; font-size: 1.05em; color: var(--text); }
+
+.chat-message-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 120px;
+}
+.chat-empty {
+  color: var(--muted);
+  font-size: 0.88em;
+  text-align: center;
+  margin: auto 0;
+}
+.chat-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 80%;
+  align-self: flex-start;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 10px;
+}
+.chat-msg-mine {
+  align-self: flex-end;
+  background: rgba(240, 165, 0, 0.18);
+}
+.chat-msg-author { font-size: 0.72em; font-weight: bold; color: var(--muted); }
+.chat-msg-text {
+  font-size: 0.92em;
+  color: var(--text);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+.chat-input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.chat-input::placeholder { color: var(--muted); }
+.chat-send-btn {
+  background: var(--accent);
+  color: #1a1a1a;
+  font-weight: bold;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  white-space: nowrap;
+}
+.chat-send-btn:hover { opacity: 0.88; }
+
+/* Seat-anchored notification bubbles. The layer fills the .app column (which is
+   position:relative, max-width:600px) so each bubble anchors to the table, not
+   the full viewport. Layer ignores pointer events; the bubbles re-enable them. */
+.chat-bubble-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 95;
+}
+.chat-bubble {
+  position: absolute;
+  pointer-events: auto;
+  max-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 10px;
+  background: #2a3a4d;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  text-align: left;
+  animation: chat-bubble-pop 0.16s ease-out;
+}
+@keyframes chat-bubble-pop {
+  from { transform: scale(0.8); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.chat-bubble-author { font-size: 0.68em; font-weight: bold; color: var(--muted); }
+.chat-bubble-text {
+  font-size: 0.84em;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+/* Tail — a small rotated square poking toward the seat. */
+.chat-bubble::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #2a3a4d;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  transform: rotate(45deg);
+}
+
+/* Top seat (partner): centred under the seat, tail pointing up. Its own pop
+   keyframes preserve the translateX(-50%) centring during the animation. */
+.chat-bubble-top {
+  top: 86px;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: chat-bubble-pop-top 0.16s ease-out;
+}
+@keyframes chat-bubble-pop-top {
+  from { transform: translateX(-50%) scale(0.8); opacity: 0; }
+  to   { transform: translateX(-50%) scale(1);   opacity: 1; }
+}
+.chat-bubble-top::after {
+  top: -6px;
+  left: 50%;
+  margin-left: -5px;
+  border-right: none;
+  border-bottom: none;
+}
+/* Left opponent: hugs the left edge, tail pointing left. */
+.chat-bubble-left {
+  top: 38%;
+  left: 8px;
+}
+.chat-bubble-left::after {
+  left: -6px;
+  top: 50%;
+  margin-top: -5px;
+  border-top: none;
+  border-right: none;
+}
+/* Right opponent: hugs the right edge, tail pointing right. */
+.chat-bubble-right {
+  top: 38%;
+  right: 8px;
+}
+.chat-bubble-right::after {
+  right: -6px;
+  top: 50%;
+  margin-top: -5px;
+  border-bottom: none;
+  border-left: none;
 }
 

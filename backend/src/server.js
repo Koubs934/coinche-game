@@ -6,12 +6,14 @@ const fs = require('fs');
 const path = require('path');
 
 const rm = require('./roomManager');
-const { scheduleBotTurns, scheduleBotConfirms, scheduleBotShuffleCut } = require('./botProcessor');
+const presence = require('./presence');
+const { scheduleBotTurns, scheduleBotConfirms, scheduleBotShuffleCut, cancelBotSchedules } = require('./botProcessor');
 const rateLimit = require('./rateLimit');
 const persistence = require('./persistence');
 const gameRecordStorage = require('./game/gameRecordStorage');
 const { registerTrainingHandlers, runStartupCleanup: trainingStartupCleanup } = require('./training/trainingSocket');
 const claudeService = require('./services/claudeService');
+const personalFeuilleService = require('./services/personalFeuille');
 const { caseTypeFor } = require('./training/divergence');
 const cardFeatures = require('./game/cardFeatures');
 // Event payload contract for every socket.on / socket.emit below:
@@ -149,6 +151,25 @@ function loadPastAnnotations(userId, currentFilename) {
 
 function nowIso() { return new Date().toISOString(); }
 
+// V2.2 Phase 3 — pull every CAPTURE_RULE line out of a Claude message,
+// append each as a [PROPOSED] entry to the user's personal feuille, and
+// return the cleaned message that the FE will see + the raw rules for
+// logging. Best-effort persistence: a filesystem error logs but never
+// breaks the conversation flow (the user would never know).
+function captureAndStrip(rawText, { userId, scenarioId, userName }) {
+  const { rules, cleanText } = personalFeuilleService.extractCaptureRules(rawText);
+  if (rules.length === 0) return { cleanText, rules };
+  for (const ruleText of rules) {
+    try {
+      personalFeuilleService.appendProposedRule(userId, ruleText, scenarioId, userName);
+      console.log(`[feuille] Captured PROPOSED rule for ${userId}: ${ruleText}`);
+    } catch (err) {
+      console.error('[feuille] Failed to append rule:', err.message);
+    }
+  }
+  return { cleanText, rules };
+}
+
 function buildContext(userId, annotation, currentFilename) {
   const scenario = loadScenario(annotation.scenarioId);
   if (!scenario) throw new Error(`scenario not found: ${annotation.scenarioId}`);
@@ -200,6 +221,7 @@ app.post('/api/conversation/start', async (req, res) => {
     result = await claudeService.startConversation({
       scenario: context.scenario,
       annotation,
+      userId,
       userName: context.userName,
       pastAnnotations: context.pastAnnotations,
       feuilleContent: context.feuilleContent,
@@ -210,12 +232,22 @@ app.post('/api/conversation/start', async (req, res) => {
     return res.status(502).json({ error: 'Claude API call failed', detail: err.message });
   }
 
+  // V2.2 Phase 3 — extract CAPTURE_RULE lines, persist each as a
+  // [PROPOSED] entry on the user's personal feuille, and strip them from
+  // both the response sent to the FE and the message persisted on disk
+  // (so re-loading the conversation later doesn't re-leak them).
+  const { cleanText } = captureAndStrip(result.text, {
+    userId,
+    scenarioId: annotation.scenarioId,
+    userName:   context.userName,
+  });
+
   const startedAt = nowIso();
   annotation.schemaVersion = 4;
   annotation.claude_conversation = {
     started_at:      startedAt,
     messages: [
-      { role: 'claude', content: result.text, timestamp: startedAt },
+      { role: 'claude', content: cleanText, timestamp: startedAt },
     ],
     card_selections: [],
     rule_candidates: [],
@@ -223,7 +255,7 @@ app.post('/api/conversation/start', async (req, res) => {
     ended_reason:    null,
   };
   writeAnnotationAtomic(userId, annotationFilename, annotation);
-  return res.json({ message: result.text, usage: result.usage });
+  return res.json({ message: cleanText, usage: result.usage });
 });
 
 // V2.2 Phase 2C — POST /api/conversation/select-cards
@@ -300,6 +332,7 @@ app.post('/api/conversation/select-cards', async (req, res) => {
     result = await claudeService.startConversation({
       scenario:        context.scenario,
       annotation,
+      userId,
       userName:        context.userName,
       pastAnnotations: context.pastAnnotations,
       feuilleContent:  context.feuilleContent,
@@ -311,12 +344,19 @@ app.post('/api/conversation/select-cards', async (req, res) => {
     return res.status(502).json({ error: 'Claude API call failed', detail: err.message });
   }
 
+  // V2.2 Phase 3 — extract + persist CAPTURE_RULE lines (see /start).
+  const { cleanText } = captureAndStrip(result.text, {
+    userId,
+    scenarioId: annotation.scenarioId,
+    userName:   context.userName,
+  });
+
   const startedAt = nowIso();
   annotation.schemaVersion = 4;
   annotation.claude_conversation = {
     started_at:     startedAt,
     messages: [
-      { role: 'claude', content: result.text, timestamp: startedAt },
+      { role: 'claude', content: cleanText, timestamp: startedAt },
     ],
     // Append, don't overwrite — preserves audit trail if the FE ever
     // resubmits the selection (e.g. user backed out and reselected).
@@ -334,7 +374,7 @@ app.post('/api/conversation/select-cards', async (req, res) => {
     ended_reason:    null,
   };
   writeAnnotationAtomic(userId, annotationFilename, annotation);
-  return res.json({ message: result.text, usage: result.usage });
+  return res.json({ message: cleanText, usage: result.usage });
 });
 
 app.post('/api/conversation/turn', async (req, res) => {
@@ -387,6 +427,7 @@ app.post('/api/conversation/turn', async (req, res) => {
       userMessage,
       context: {
         feuilleContent:  context.feuilleContent,
+        userId,
         userName:        context.userName,
         pastAnnotations: context.pastAnnotations,
         caseType:        caseTypeFor(annotation.decisions?.[0]?.divergenceType),
@@ -398,11 +439,21 @@ app.post('/api/conversation/turn', async (req, res) => {
     return res.status(502).json({ error: 'Claude API call failed', detail: err.message });
   }
 
+  // V2.2 Phase 3 — extract + persist CAPTURE_RULE lines (see /start).
+  // Stripping before persistence is critical here: on the next /turn we
+  // rebuild the conversation history from conv.messages and feed it back
+  // to Claude, so any unstripped CAPTURE_RULE would loop forever.
+  const { cleanText } = captureAndStrip(result.text, {
+    userId,
+    scenarioId: annotation.scenarioId,
+    userName:   context.userName,
+  });
+
   const userTs = nowIso();
   conv.messages.push({ role: 'user', content: userMessage, timestamp: userTs });
-  conv.messages.push({ role: 'claude', content: result.text, timestamp: nowIso() });
+  conv.messages.push({ role: 'claude', content: cleanText, timestamp: nowIso() });
   writeAnnotationAtomic(userId, annotationFilename, annotation);
-  return res.json({ message: result.text, usage: result.usage });
+  return res.json({ message: cleanText, usage: result.usage });
 });
 
 // V2.2 calibration follow-up — `reason` accepts:
@@ -444,12 +495,41 @@ app.post('/api/conversation/end', (req, res) => {
 // ─── Auth middleware ───────────────────────────────────────────────────────
 
 io.use((socket, next) => {
-  const { userId, username } = socket.handshake.auth;
+  const { userId, username, avatarConfig } = socket.handshake.auth;
   if (!userId || !username) return next(new Error('Authentication required'));
   socket.userId = userId;
   socket.username = username;
+  // Avatar config is an opaque cosmetic blob relayed to other clients. The
+  // backend never inspects its fields (it stays Supabase-free); it only caps
+  // size + shape so a client can't push something huge or non-object.
+  socket.avatarConfig = sanitizeAvatarConfig(avatarConfig);
   next();
 });
+
+// Accept only a plain object that serializes under a small cap; anything else
+// (oversized, array, string, etc.) → null (the client renders the letter
+// fallback). The FE clamps the actual field values on render, so we don't need
+// to know the avataaars schema here.
+const AVATAR_CONFIG_MAX_BYTES = 2048;
+function sanitizeAvatarConfig(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  try {
+    const json = JSON.stringify(raw);
+    if (json.length > AVATAR_CONFIG_MAX_BYTES) return null;
+    return JSON.parse(json); // strip any prototype tricks; plain data only
+  } catch {
+    return null;
+  }
+}
+
+// If a create/join/rejoin payload carries an avatarConfig, refresh the value the
+// socket relays so edits made since connect take effect on the next join. A
+// payload without the key leaves the handshake value untouched.
+function refreshAvatar(socket, data) {
+  if (data && 'avatarConfig' in data) {
+    socket.avatarConfig = sanitizeAvatarConfig(data.avatarConfig);
+  }
+}
 
 // ─── Broadcast helpers ─────────────────────────────────────────────────────
 
@@ -471,6 +551,47 @@ function broadcast(room) {
 function emitError(socket, message) {
   socket.emit('error', { message });
 }
+
+// Replay the room's recent table-chat history to a single socket. Called on
+// every (re)join so a player who refreshes / reconnects sees the conversation
+// so far. Sends an empty list for a fresh room — harmless and keeps the FE's
+// load path uniform.
+function sendChatHistory(socket, room) {
+  socket.emit('chat:history', { messages: room?.chatMessages || [] });
+}
+
+// Ping every connected socket that the set of active rooms changed (created /
+// joined / left / started / membership). Home-screen clients re-request
+// 'lobby:getRooms'; everyone else ignores it. One tiny fan-out, only on
+// lifecycle transitions — never on per-card/bid mutations.
+function broadcastLobbyChanged() {
+  io.emit('lobby:roomsChanged');
+}
+
+// Tiny fan-out ping when a user's PRESENCE changes — online/offline (from the
+// presence module) or in-game/online (room enter/leave, fired by the handlers
+// below). Home-screen clients re-request 'lobby:getFriends'; never fired on
+// per-card/bid mutations.
+function broadcastPresenceChanged() {
+  io.emit('lobby:presenceChanged');
+}
+
+// Presence transitions (first socket online / last socket offline) ping the
+// lobby. Room enter/leave transitions are pinged inline by the handlers.
+presence.configure({ onChange: broadcastPresenceChanged });
+
+// Abandoned-room cleanup: when roomManager deletes a dead room (no human keeping
+// it alive), cancel its pending bot turns, drop it from Redis, and refresh
+// lobbies. Grace window is configurable via DEAD_ROOM_GRACE_MS (ms); default 4 min.
+const DEAD_ROOM_GRACE_MS = Number(process.env.DEAD_ROOM_GRACE_MS);
+rm.configureCleanup({
+  graceMs: Number.isFinite(DEAD_ROOM_GRACE_MS) ? DEAD_ROOM_GRACE_MS : undefined,
+  onRoomDeleted: (code) => {
+    cancelBotSchedules(code);
+    persistence.deleteRoom(code);
+    broadcastLobbyChanged();
+  },
+});
 
 // Persist the just-finished round as a GameRecord and notify the room creator.
 // Guarded by room.game.gameId so a second broadcast of the same ROUND_OVER
@@ -519,6 +640,10 @@ function broadcastGame(room) {
 io.on('connection', socket => {
   const { userId, username } = socket;
 
+  // Track this socket for online presence. Fires a presence ping only if this
+  // is the user's first live socket (offline → online transition).
+  presence.connect(userId, socket.id);
+
   // Rate-limit every event from this socket. Normal play emits ~1 event/sec;
   // 30/sec is well above that and still stops a spammy client from wedging
   // the server or triggering bot cascades.
@@ -531,24 +656,49 @@ io.on('connection', socket => {
     next();
   });
 
+  // ── Lobby: active-rooms list (home screen "Parties en cours") ────────────
+  // Read-only; returns only rooms this user can JOIN or REJOIN (see
+  // listJoinableRooms). Clients fetch on mount/focus and re-fetch when they
+  // receive the 'lobby:roomsChanged' ping.
+  socket.on('lobby:getRooms', () => {
+    socket.emit('lobby:rooms', { rooms: rm.listJoinableRooms(userId) });
+  });
+
+  // ── Lobby: friends presence (home screen "Amis en ligne") ────────────────
+  // Returns a presence map { userId: 'online' | 'in-game' } for every currently
+  // online user EXCEPT the requester (any userId not in the map is offline).
+  // The full registered-user roster is fetched by the client from Supabase
+  // (public.profiles) and merged with this map — the backend has no Supabase
+  // access, so it owns presence only, not the roster. Read-only.
+  socket.on('lobby:getFriends', () => {
+    const map = presence.buildPresenceMap(rm.isUserSeated);
+    delete map[userId]; // exclude self
+    socket.emit('lobby:friends', { presence: map });
+  });
+
   // ── Create room ──────────────────────────────────────────────────────────
-  socket.on('createRoom', () => {
+  socket.on('createRoom', (data = {}) => {
+    refreshAvatar(socket, data);
     // Leave any existing room
     const existing = rm.getRoomForSocket(socket.id);
     if (existing) socket.leave(existing.code);
 
-    const room = rm.createRoom({ userId, username, socketId: socket.id });
+    const room = rm.createRoom({ userId, username, socketId: socket.id, avatarConfig: socket.avatarConfig });
     socket.join(room.code);
     socket.emit('roomJoined', {
       room: rm.publicRoom(room),
       game: rm.publicGame(room, 0),
       myPosition: 0,
     });
+    sendChatHistory(socket, room);
     persistence.saveRoom(room);
+    broadcastLobbyChanged();
+    broadcastPresenceChanged(); // creator: online → in-game
   });
 
   // ── Join room ────────────────────────────────────────────────────────────
-  socket.on('joinRoom', ({ code }) => {
+  socket.on('joinRoom', ({ code, avatarConfig } = {}) => {
+    refreshAvatar(socket, { avatarConfig });
     const existing = rm.getRoomForSocket(socket.id);
     if (existing && existing.code !== code) socket.leave(existing.code);
 
@@ -557,7 +707,7 @@ io.on('connection', socket => {
     if (peek && peek.phase !== 'LOBBY') {
       if (peek.creatorId === userId) {
         // Creator bypasses approval — seats directly
-        const result = rm.creatorJoin(code, { userId, username, socketId: socket.id });
+        const result = rm.creatorJoin(code, { userId, username, socketId: socket.id, avatarConfig: socket.avatarConfig });
         if (result.error) return emitError(socket, result.error);
         socket.join(code);
         socket.emit('roomJoined', {
@@ -565,10 +715,13 @@ io.on('connection', socket => {
           game: rm.publicGame(result.room, result.position),
           myPosition: result.position,
         });
+        sendChatHistory(socket, result.room);
         broadcastGame(result.room);
+        broadcastLobbyChanged();
+        broadcastPresenceChanged(); // joiner: online → in-game
       } else {
         // Non-admin: create a pending join request for the creator to approve
-        const result = rm.requestJoin(code, { userId, username, socketId: socket.id });
+        const result = rm.requestJoin(code, { userId, username, socketId: socket.id, avatarConfig: socket.avatarConfig });
         if (result.error) return emitError(socket, result.error);
         socket.join(code);
         socket.emit('joinPending', { code });
@@ -577,7 +730,7 @@ io.on('connection', socket => {
       return;
     }
 
-    const result = rm.joinRoom(code, { userId, username, socketId: socket.id });
+    const result = rm.joinRoom(code, { userId, username, socketId: socket.id, avatarConfig: socket.avatarConfig });
     if (result.error) return emitError(socket, result.error);
 
     socket.join(code);
@@ -589,12 +742,16 @@ io.on('connection', socket => {
       game: rm.publicGame(room, position),
       myPosition: position,
     });
+    sendChatHistory(socket, room);
     broadcast(room);
+    broadcastLobbyChanged();
+    broadcastPresenceChanged(); // joiner: online → in-game
   });
 
   // ── Rejoin after disconnect ──────────────────────────────────────────────
-  socket.on('rejoinRoom', ({ code }) => {
-    const result = rm.handleReconnect(socket.id, code, userId);
+  socket.on('rejoinRoom', ({ code, avatarConfig } = {}) => {
+    refreshAvatar(socket, { avatarConfig });
+    const result = rm.handleReconnect(socket.id, code, userId, socket.avatarConfig);
     if (!result) {
       // Not in room anymore (e.g. removed by admin) — clear client state
       socket.emit('leftRoom');
@@ -615,7 +772,9 @@ io.on('connection', socket => {
       game: rm.publicGame(room, player.position),
       myPosition: player.position,
     });
+    sendChatHistory(socket, room);
     broadcast(room);
+    broadcastLobbyChanged();
   });
 
   // ── Fill with bots ───────────────────────────────────────────────────────
@@ -623,6 +782,7 @@ io.on('connection', socket => {
     const result = rm.fillWithBots(code, userId);
     if (result.error) return emitError(socket, result.error);
     broadcast(result.room); // lobby broadcast, no bot scheduling needed yet
+    broadcastLobbyChanged();
   });
 
   // ── Team / settings ──────────────────────────────────────────────────────
@@ -643,6 +803,7 @@ io.on('connection', socket => {
     const result = rm.startGame(code, userId);
     if (result.error) return emitError(socket, result.error);
     broadcastGame(result.room); // may need to kick off bot bidding immediately
+    broadcastLobbyChanged();    // LOBBY → in-game: list now shows the new phase
   });
 
   // ── Bidding ──────────────────────────────────────────────────────────────
@@ -668,6 +829,51 @@ io.on('connection', socket => {
     const result = rm.surcoinche(code, userId);
     if (result.error) return emitError(socket, result.error);
     broadcastGame(result.room);
+  });
+
+  // Partner peek toggle — gated server-side to the two specific users; re-broadcast
+  // (per-recipient publicGame is what actually reveals the partner hand, to them only).
+  socket.on('togglePartnerPeek', ({ code }) => {
+    const result = rm.togglePartnerPeek(code, userId);
+    if (result.error) return emitError(socket, result.error);
+    broadcast(result.room);
+  });
+
+  // ── Table chat ─────────────────────────────────────────────────────────
+  // Ephemeral per-room text chat. Sender is resolved from the socket's own
+  // membership (no client-supplied code/userId is trusted). The message —
+  // including the sender's seat position so each recipient can anchor a
+  // notification bubble to the right seat — is broadcast to every socket in
+  // the room, sender included. Invalid payloads (not a player, empty/non-string
+  // text) are silently dropped.
+  socket.on('chat:message', ({ text } = {}) => {
+    const room = rm.getRoomForSocket(socket.id);
+    if (!room) return;
+    const result = rm.addChatMessage(room.code, userId, text);
+    if (result.error) return; // ignore — never surface chat validation as a toast
+    for (const player of result.room.players) {
+      const s = io.sockets.sockets.get(player.socketId);
+      if (s) s.emit('chat:message', result.message);
+    }
+    persistence.saveRoom(result.room);
+  });
+
+  // ── Throw projectiles ──────────────────────────────────────────────────
+  // Cosmetic "throw stuff at a player" gesture, networked like chat but not
+  // persisted. Sender resolved from the socket (never client-trusted); bots
+  // never throw; target must be another seated position; item must be allowed;
+  // a per-sender cooldown throttles spam. On success the throw is broadcast to
+  // every room socket (sender included) so each client animates it from its own
+  // viewer-relative perspective. Invalid/throttled throws are silently dropped.
+  socket.on('throw:item', ({ targetPosition, item } = {}) => {
+    const room = rm.getRoomForSocket(socket.id);
+    if (!room) return;
+    const result = rm.throwItem(room.code, userId, targetPosition, item);
+    if (result.error) return; // ignore (incl. cooldown) — never a toast
+    for (const player of result.room.players) {
+      const s = io.sockets.sockets.get(player.socketId);
+      if (s) s.emit('throw:thrown', result.throw);
+    }
   });
 
   // ── Undo last action (creator only) ─────────────────────────────────────
@@ -751,9 +957,20 @@ io.on('connection', socket => {
 
     socket.leave(code);
     socket.emit('leftRoom');
-    // result.room is null only if the lobby was deleted (no human players remain)
-    if (result.room) broadcast(result.room);
-    if (result.deleted) persistence.deleteRoom(code);
+    if (result.deleted) {
+      // LOBBY emptied of humans — roomManager already removed it from the Map.
+      // Mirror the full-delete side-effects (no bots running pre-start, but keep
+      // it uniform).
+      cancelBotSchedules(code);
+      persistence.deleteRoom(code);
+    } else if (result.room) {
+      // In-game leave: if no human members remain (solo-vs-bots), delete now;
+      // else keep it (paused). Skip broadcasting a just-deleted room.
+      const { deleted } = rm.evaluateRoomForCleanup(code);
+      if (!deleted) broadcast(result.room);
+    }
+    broadcastLobbyChanged();
+    broadcastPresenceChanged(); // leaver: in-game → online
   });
 
   // ── Remove player (creator only) ─────────────────────────────────────────
@@ -765,6 +982,8 @@ io.on('connection', socket => {
       if (s) { s.leave(code); s.emit('leftRoom'); }
     }
     broadcast(result.room);
+    broadcastLobbyChanged();
+    broadcastPresenceChanged(); // removed player: in-game → online
   });
 
   // ── Accept pending join request (creator only) ────────────────────────────
@@ -781,9 +1000,12 @@ io.on('connection', socket => {
           game: rm.publicGame(room, acceptedPosition),
           myPosition: acceptedPosition,
         });
+        sendChatHistory(s, room);
       }
     }
     broadcastGame(room); // may resume bot scheduling if game unpaused
+    broadcastLobbyChanged();
+    broadcastPresenceChanged(); // accepted player: online → in-game
   });
 
   // ── Cancel pending join request ───────────────────────────────────────────
@@ -801,8 +1023,18 @@ io.on('connection', socket => {
   // ── Disconnect ───────────────────────────────────────────────────────────
   socket.on('disconnect', () => {
     rateLimit.clearSocket(socket.id);
+    // Presence: drop this socket. Going offline (last socket) fires its own
+    // 'lobby:presenceChanged' from the presence module, after the grace window.
+    presence.disconnect(userId, socket.id);
     const result = rm.handleDisconnect(socket.id);
-    if (result) broadcast(result.room);
+    if (result) {
+      // Re-evaluate the room: delete now if no human members remain (e.g. a
+      // solo-vs-bots player vanished), else arm the grace timer. Don't broadcast
+      // a room that was just deleted — that would re-persist it to Redis. The
+      // delete path already pinged lobbies via onRoomDeleted.
+      const { deleted } = rm.evaluateRoomForCleanup(result.code);
+      if (!deleted) { broadcast(result.room); broadcastLobbyChanged(); }
+    }
   });
 });
 
@@ -819,6 +1051,20 @@ async function start() {
 
   // Promote stale training partials to abandoned-partial and prime scenario cache.
   trainingStartupCleanup();
+
+  // Periodic sweep of abandoned/dead rooms (~every minute). Catches human-less
+  // rooms and ones whose grace window has elapsed, including any hydrated from
+  // Redis that never got a per-event timer. Each deletion fires onRoomDeleted
+  // (cancel bots, drop from Redis, refresh lobbies).
+  const sweep = setInterval(() => {
+    try {
+      const removed = rm.sweepDeadRooms();
+      if (removed.length) console.log(`[cleanup] swept ${removed.length} dead room(s): ${removed.join(', ')}`);
+    } catch (err) {
+      console.error('[cleanup] sweep failed:', err.message);
+    }
+  }, 60 * 1000);
+  if (typeof sweep.unref === 'function') sweep.unref(); // don't keep the process alive for the sweep
 
   httpServer.listen(PORT, () => {
     console.log(`Coinche server listening on port ${PORT}`);

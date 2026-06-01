@@ -5,19 +5,29 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLang } from '../context/LanguageContext';
 import { SUIT_SYM, displayName } from './gameBoardHelpers';
+import Avatar from './Avatar';
 
 // ─── Card primitives ───────────────────────────────────────────────────────
 
-export function CardFace({ card, onClick, highlight, disabled, isDragging }) {
+export function CardFace({ card, onClick, highlight, disabled, isDragging, lifted, style, onMouseEnter, onMouseLeave }) {
   const isRed = card.suit === 'H' || card.suit === 'D';
   return (
     <button
-      className={`card card-face${isRed ? ' red' : ''}${highlight ? ' valid' : ''}${disabled ? ' card-disabled' : ''}${isDragging ? ' card-dragging' : ''}`}
+      className={`card card-face${isRed ? ' red' : ''}${highlight ? ' valid' : ''}${disabled ? ' card-disabled' : ''}${isDragging ? ' card-dragging' : ''}${lifted ? ' card-lifted' : ''}`}
       onClick={onClick}
       disabled={disabled}
+      style={style}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
-      <span className="card-value">{card.value}</span>
-      <span className="card-suit">{SUIT_SYM[card.suit]}</span>
+      <span className="card-index">
+        <span className="ci-rank">{card.value}</span>
+        <span className="ci-suit">{SUIT_SYM[card.suit]}</span>
+      </span>
+      <div className="card-center">
+        <span className="card-value">{card.value}</span>
+        <span className="card-suit">{SUIT_SYM[card.suit]}</span>
+      </div>
     </button>
   );
 }
@@ -115,10 +125,10 @@ export function CoincheBadge({ type, t }) {
 
 // ─── Player seat (opponent, face-down) ────────────────────────────────────
 
-export function PlayerSeat({ player, handCount, isActive, isDimmed, direction, isCreator, onRemove }) {
+export function PlayerSeat({ player, isActive, isDimmed, direction, isCreator, onRemove, bidHistory }) {
   const { t } = useLang();
   const name = displayName(player, t);
-  const initial = player?.isBot ? '🤖' : (name[0]?.toUpperCase() || '?');
+  const initial = name[0]?.toUpperCase() || '?';
   return (
     <div className={[
       'player-seat',
@@ -126,14 +136,20 @@ export function PlayerSeat({ player, handCount, isActive, isDimmed, direction, i
       isActive  ? 'active-player' : '',
       isDimmed  ? 'seat-dimmed'   : '',
     ].filter(Boolean).join(' ')}>
-      <div className={`player-avatar team${player?.team ?? 0}-avatar`}>
-        {initial}
-      </div>
+      <Avatar
+        config={player?.avatarConfig}
+        isBot={player?.isBot}
+        botSeed={player?.username ?? player?.position}
+        initial={initial}
+        variant="head"
+        circleClassName={`player-avatar team${player?.team ?? 0}-avatar`}
+      />
       <div className="player-name">
         {name}
         {player && player.connected === false && !player.isScripted && <span className="dc-indicator"> ⚠</span>}
         {isActive && <span className="turn-dot"> ●</span>}
       </div>
+      {bidHistory?.length > 0 && <BidStack history={bidHistory} t={t} />}
       {isCreator && player && !player.connected && !player.isBot && !player.isScripted && (
         <button
           className="btn-remove-player"
@@ -143,11 +159,6 @@ export function PlayerSeat({ player, handCount, isActive, isDimmed, direction, i
           title={t.removePlayer}
         >✕</button>
       )}
-      <div className="face-down-cards">
-        {Array.from({ length: handCount || 0 }).map((_, i) => (
-          <CardBack key={i} small />
-        ))}
-      </div>
     </div>
   );
 }

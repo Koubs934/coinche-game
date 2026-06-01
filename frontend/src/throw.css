@@ -1,0 +1,295 @@
+/* ─── Throw projectiles ──────────────────────────────────────────────────────
+   The flying-animation overlay is pointer-events:none so it NEVER blocks card /
+   seat taps. Only the tray + drag ghost are interactive. */
+.throw-layer { position: absolute; inset: 0; pointer-events: none; z-index: 96; overflow: hidden; }
+
+/* Flight: outer translates FROM→TO (ease-out); lift adds the arc; squash gives
+   squash & stretch; spin rotates the emoji. */
+.throw-fly {
+  position: absolute;
+  transform: translate(0, 0);
+  opacity: 1;
+  will-change: transform, opacity;
+  animation: throw-x var(--flight) cubic-bezier(0.2, 0.6, 0.3, 1) forwards,
+             throw-fly-fade var(--flight) ease-in forwards;
+}
+@keyframes throw-x { to { transform: translate(var(--dx), var(--dy)); } }
+@keyframes throw-fly-fade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+.throw-fly-lift { animation: throw-lift var(--flight) cubic-bezier(0.3, 0.1, 0.4, 1) forwards; }
+@keyframes throw-lift {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(calc(-1 * var(--arc))); }
+  100% { transform: translateY(0); }
+}
+.throw-fly-squash { animation: throw-squash var(--flight) ease-in-out forwards; }
+@keyframes throw-squash {
+  0%   { transform: scale(0.7, 1.25); }
+  30%  { transform: scale(1.15, 0.85); }
+  60%  { transform: scale(0.95, 1.05); }
+  100% { transform: scale(1, 1); }
+}
+.throw-fly-spin {
+  display: block;
+  font-size: 30px;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+  animation: throw-spin var(--flight) linear forwards;
+}
+@keyframes throw-spin { to { transform: translate(-50%, -50%) rotate(var(--spin)); } }
+
+/* Impact group appears when the projectile lands (delay = flight). */
+.throw-impact { position: absolute; transform: translate(-50%, -50%); }
+
+/* Splat: scale-pop then linger + fade. */
+.throw-splat {
+  position: absolute; left: 50%; top: 50%;
+  width: 66px; height: 66px;
+  transform: translate(-50%, -50%) scale(0);
+  border-radius: 50%;
+  filter: blur(1px);
+  opacity: 0;
+  animation: throw-splat-pop var(--impact) ease-out forwards;
+  animation-delay: var(--flight);
+}
+@keyframes throw-splat-pop {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+  12%  { opacity: 1; transform: translate(-50%, -50%) scale(1.3); }
+  28%  { transform: translate(-50%, -50%) scale(0.92); }
+  45%  { opacity: 0.95; transform: translate(-50%, -50%) scale(1.05); }
+  70%  { opacity: 0.85; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
+.throw-splat-tomato     { background: radial-gradient(circle, #e23b2e 0%, #c41e12 55%, transparent 72%); }
+.throw-splat-egg        { background: radial-gradient(circle, #ffe07a 0%, #f5c542 55%, transparent 72%); }
+.throw-splat-cream      { width: 84px; height: 84px; background: radial-gradient(circle, #fffdf5 0%, #f0e6cf 62%, transparent 76%); }
+.throw-splat-poop       { background: radial-gradient(circle, #8a5a2b 0%, #5e3d1c 55%, transparent 72%); }
+.throw-splat-lemon      { background: radial-gradient(circle, #fff27a 0%, #ffe024 52%, transparent 72%); }
+.throw-splat-watermelon { width: 92px; height: 92px; background: radial-gradient(circle, #ff7088 0%, #ef3e54 58%, transparent 76%); }
+.throw-splat-orange     { background: radial-gradient(circle, #ffc266 0%, #ff9f1c 55%, transparent 72%); }
+.throw-splat-fish       { background: radial-gradient(circle, #c6ebff 0%, #8fd3ff 55%, transparent 74%); }
+.throw-splat-banana     { background: radial-gradient(circle, rgba(247, 226, 90, 0.45) 0%, transparent 70%); }
+.throw-splat-stars      { background: transparent; }
+.throw-splat-slap       { width: 74px; height: 74px; background: radial-gradient(circle, rgba(255,90,90,0.85) 0%, rgba(255,60,60,0.5) 45%, transparent 70%); }
+/* Train: a wide horizontal swoosh/plow streak rather than a round splat. */
+.throw-splat-charge     { width: 120px; height: 26px; border-radius: 50%; filter: blur(2px); background: linear-gradient(90deg, transparent 0%, rgba(207,216,220,0.85) 45%, #eceff1 55%, transparent 100%); }
+
+/* Particle droplets fly outward (item colour) and fade. */
+.throw-particle {
+  position: absolute; left: 50%; top: 50%;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--pcol);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  animation: throw-particle var(--impact) ease-out forwards;
+  animation-delay: var(--flight);
+}
+@keyframes throw-particle {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+  10%  { opacity: 1; }
+  55%  { opacity: 1; transform: translate(calc(-50% + var(--pdx)), calc(-50% + var(--pdy))) scale(1); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--pdx) * 1.25), calc(-50% + var(--pdy) * 1.25 + 14px)) scale(0.5); }
+}
+
+.throw-burst {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -150%) scale(0);
+  font-size: 22px; line-height: 1;
+  opacity: 0;
+  animation: throw-burst var(--impact) ease-out forwards;
+  animation-delay: var(--flight);
+}
+@keyframes throw-burst {
+  0%   { opacity: 0; transform: translate(-50%, -120%) scale(0.2); }
+  20%  { opacity: 1; transform: translate(-50%, -160%) scale(1.1); }
+  60%  { opacity: 1; transform: translate(-50%, -175%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -200%) scale(0.9); }
+}
+.throw-impact-emoji {
+  position: relative; display: block;
+  font-size: 26px; line-height: 1;
+  transform: translateY(2px) scale(0);
+  opacity: 1;
+  animation: throw-impact-emoji var(--impact) ease-out forwards;
+  animation-delay: var(--flight);
+}
+@keyframes throw-impact-emoji {
+  0%   { transform: translateY(2px) scale(0); }
+  15%  { transform: translateY(2px) scale(1.2) rotate(-8deg); }
+  35%  { transform: translateY(2px) scale(1) rotate(4deg); }
+  80%  { opacity: 1; transform: translateY(2px) scale(1); }
+  100% { opacity: 0; transform: translateY(10px) scale(0.95); }
+}
+
+/* Drip / stain for messy items — slides down the avatar and fades. */
+.throw-drip {
+  position: absolute; left: 50%; top: 50%;
+  width: 14px; height: 30px;
+  border-radius: 0 0 8px 8px;
+  background: linear-gradient(var(--pcol), transparent);
+  transform: translate(-50%, -10%) scaleY(0);
+  transform-origin: top center;
+  opacity: 0;
+  animation: throw-drip var(--impact) ease-in forwards;
+  animation-delay: var(--flight);
+}
+@keyframes throw-drip {
+  0%   { opacity: 0; transform: translate(-50%, -10%) scaleY(0); }
+  18%  { opacity: 0.9; transform: translate(-50%, 6%) scaleY(1); }
+  70%  { opacity: 0.8; transform: translate(-50%, 28%) scaleY(1.25); }
+  100% { opacity: 0; transform: translate(-50%, 48%) scaleY(1.4); }
+}
+
+/* Brief comedic stun overlay (heavy / bonk items). */
+.throw-stunned {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  font-size: 26px; line-height: 1;
+  opacity: 0;
+  animation: throw-stunned var(--impact) ease-out forwards;
+  animation-delay: var(--flight);
+}
+@keyframes throw-stunned {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+  15%  { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+  55%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  75%  { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; }
+}
+
+/* Comic-style TEXT callout (special items only) — pops in above the target,
+   holds, then fades. Outline + shadow so it reads on the felt. ~1.2s. */
+.throw-callout {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -240%) scale(0);
+  font-weight: 900;
+  font-size: 1.05rem;
+  color: #fff;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+  text-shadow: -2px -2px 0 #111, 2px -2px 0 #111, -2px 2px 0 #111, 2px 2px 0 #111, 0 4px 8px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  animation: throw-callout var(--impact) cubic-bezier(0.2, 1.6, 0.4, 1) forwards;
+  animation-delay: var(--flight);
+}
+@keyframes throw-callout {
+  0%   { opacity: 0; transform: translate(-50%, -200%) scale(0.2) rotate(-6deg); }
+  18%  { opacity: 1; transform: translate(-50%, -262%) scale(1.18) rotate(3deg); }
+  38%  { transform: translate(-50%, -250%) scale(1) rotate(-2deg); }
+  80%  { opacity: 1; transform: translate(-50%, -258%) scale(1) rotate(0deg); }
+  100% { opacity: 0; transform: translate(-50%, -300%) scale(1); }
+}
+
+/* Springy target-avatar reactions (overshoot + settle), added to the real
+   .avatar for the reaction window. */
+.avatar.react-shake  { animation: av-shake 600ms cubic-bezier(0.34, 1.6, 0.5, 1); }
+.avatar.react-slip   { animation: av-slip 700ms cubic-bezier(0.34, 1.56, 0.5, 1); }
+.avatar.react-wobble { animation: av-wobble 700ms cubic-bezier(0.34, 1.56, 0.5, 1); }
+.avatar.react-recoil { animation: av-recoil 650ms cubic-bezier(0.34, 1.7, 0.5, 1); }
+.avatar.react-sour   { animation: av-sour 700ms cubic-bezier(0.34, 1.56, 0.5, 1); }
+.avatar.react-knock  { animation: av-knock 650ms cubic-bezier(0.34, 1.7, 0.5, 1); }
+.avatar.react-slap   { animation: av-slap 650ms cubic-bezier(0.34, 1.6, 0.5, 1); }
+@keyframes av-shake  { 0%, 100% { transform: translateX(0); } 15% { transform: translateX(-6px) rotate(-4deg); } 35% { transform: translateX(6px) rotate(4deg); } 55% { transform: translateX(-4px) rotate(-2deg); } 75% { transform: translateX(2px); } }
+@keyframes av-slip   { 0% { transform: rotate(0); } 35% { transform: rotate(-24deg) translateY(4px); } 70% { transform: rotate(10deg); } 100% { transform: rotate(0); } }
+@keyframes av-wobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-12deg) scale(1.08); } 50% { transform: rotate(9deg) scale(0.95); } 75% { transform: rotate(-5deg) scale(1.02); } }
+@keyframes av-recoil { 0% { transform: scale(1); } 22% { transform: scale(0.78) translateY(3px); } 55% { transform: scale(1.12); } 78% { transform: scale(0.96); } 100% { transform: scale(1); } }
+@keyframes av-sour   { 0%, 100% { transform: scale(1, 1); } 25% { transform: scale(0.78, 1.12) rotate(-3deg); } 45% { transform: scale(1.08, 0.9); } 70% { transform: scale(0.94, 1.04); } }
+@keyframes av-knock  { 0% { transform: translateX(0) rotate(0); } 25% { transform: translateX(10px) rotate(12deg); } 55% { transform: translateX(-6px) rotate(-7deg); } 80% { transform: translateX(3px) rotate(3deg); } 100% { transform: translateX(0) rotate(0); } }
+@keyframes av-slap   { 0% { transform: translateX(0) rotate(0); } 20% { transform: translateX(-12px) rotate(-14deg); } 50% { transform: translateX(8px) rotate(8deg); } 80% { transform: translateX(-3px) rotate(-3deg); } 100% { transform: translateX(0); } }
+
+/* ─── Throw tray + drag ───────────────────────────────────────────────────── */
+/* Button lives in the bottom band (self-player-bar), pushed to the right edge —
+   opposite the avatar/name — and on the round-summary screen (bottom-right). */
+.btn-throw {
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  cursor: pointer;
+  font-size: 20px; line-height: 1;
+  flex-shrink: 0;
+}
+.btn-throw:hover  { background: rgba(0, 0, 0, 0.5); }
+.btn-throw.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(240, 165, 0, 0.35); }
+.self-player-bar .btn-throw { margin-left: auto; }   /* opposite the avatar/name */
+.throw-summary-bar {
+  position: absolute;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  z-index: 60;
+}
+
+/* Tray opens UPWARD, anchored just above the button (right/bottom set inline
+   from the measured button rect), so the whole table stays visible. */
+.throw-tray {
+  position: fixed;
+  right: 8px;            /* inline style overrides with the measured anchor */
+  bottom: 96px;
+  z-index: 120;
+  max-width: min(420px, calc(100vw - 16px));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  padding: 10px;
+  background: var(--ui-card);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  animation: throw-tray-in 0.16s ease-out;
+}
+@keyframes throw-tray-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.throw-tray-item {
+  font-size: 26px;
+  width: 46px; height: 46px;
+  border-radius: 11px;
+  background: rgba(0, 0, 0, 0.25);
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.throw-tray-item:hover { background: rgba(0, 0, 0, 0.45); }
+.throw-tray-item.dragging { opacity: 0.35; }
+
+/* Drag ghost — follows the finger; never intercepts hit-testing. */
+.throw-ghost {
+  position: fixed;
+  z-index: 130;
+  font-size: 34px;
+  line-height: 1;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(1.1) rotate(-12deg);
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+}
+
+/* Drop-target highlight while dragging over a seat (toggled on the seat el). */
+.throw-drop-hover { outline: 3px dashed var(--accent); outline-offset: 3px; border-radius: 12px; }
+
+/* Throw mock harness (?mock=throw) — responsive self-eval only. */
+.throw-mock { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.throw-mock-label { font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.throw-mock-tray { display: flex; flex-wrap: wrap; gap: 6px; }
+.throw-mock-impacts { display: flex; flex-wrap: wrap; gap: 14px; }
+.throw-mock-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 92px; }
+.throw-mock-name { font-size: 0.72em; color: var(--muted); }
+.throw-impact-frozen { position: relative; width: 88px; height: 88px; display: grid; place-items: center; }
+/* Freeze every impact animation mid-frame so a static screenshot shows it. */
+.throw-impact-frozen .throw-splat,
+.throw-impact-frozen .throw-particle,
+.throw-impact-frozen .throw-burst,
+.throw-impact-frozen .throw-impact-emoji,
+.throw-impact-frozen .throw-drip,
+.throw-impact-frozen .throw-stunned,
+.throw-impact-frozen .throw-callout { animation: none !important; opacity: 1 !important; }
+.throw-impact-frozen .throw-splat { transform: translate(-50%, -50%) scale(1); }
+.throw-impact-frozen .throw-particle { transform: translate(calc(-50% + var(--pdx)), calc(-50% + var(--pdy))); }
+.throw-impact-frozen .throw-burst { transform: translate(-50%, -160%) scale(1); }
+.throw-impact-frozen .throw-impact-emoji { transform: translateY(2px) scale(1); }
+.throw-impact-frozen .throw-drip { transform: translate(-50%, 20%) scaleY(1.2); }
+.throw-impact-frozen .throw-stunned { transform: translate(-50%, -50%) scale(1); }
+.throw-impact-frozen .throw-callout { transform: translate(-50%, -250%) scale(1); font-size: 0.7rem; }

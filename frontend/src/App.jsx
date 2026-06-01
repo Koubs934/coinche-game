@@ -4,7 +4,15 @@ import { useAuth } from './context/AuthContext';
 import { useLang } from './context/LanguageContext';
 import Auth from './components/Auth';
 import Header from './components/Header';
+import SettingsModal from './components/SettingsModal';
+import ChatPanel from './components/ChatPanel';
+import ChatBubbles from './components/ChatBubbles';
+import ThrowLayer from './components/ThrowLayer';
+import ThrowTray from './components/ThrowTray';
+import ThrowMock from './components/ThrowMock';
+import { THROW_TOTAL_MS } from './lib/throwItems';
 import Lobby from './components/Lobby';
+import ProfileScreen from './components/ProfileScreen';
 import GameBoard from './components/GameBoard';
 import GameErrorTaggerMock from './game/GameErrorTaggerMock';
 import TrainingTable from './training/TrainingTable';
@@ -14,12 +22,14 @@ import TrainingPickerMock from './training/TrainingPickerMock';
 import EnvBadge from './components/EnvBadge';
 import { useHandCardSize } from './components/HandSizeToggle';
 import { cleanupOldDrafts } from './training/noteDraft';
+import { supabase } from './lib/supabase';
+import { normalizeAvatarConfig } from './lib/avatar';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
 // Stable fallback used when game is null (SHUFFLE/CUT before first deal, or loading).
 // dealer: -1 so that any real dealer (0-3) is always different, ensuring the
-// dealer-change useEffect in GameBoard fires and re-evaluates the sort candidate.
+// dealer-change useEffect in GameBoard fires and resets the hand order to AUTO.
 const EMPTY_GAME = {
   dealer: -1, phase: null, currentBid: null, biddingTurn: null,
   consecutivePasses: 0, biddingActions: [null, null, null, null],
@@ -53,6 +63,27 @@ export default function App() {
       </>
     );
   }
+  if (MOCK_MODE === 'throw') {
+    // Auth-free preview of the bottom throw button + upward tray + impacts.
+    return (
+      <>
+        <ThrowMock />
+        <EnvBadge />
+      </>
+    );
+  }
+  if (MOCK_MODE === 'profile') {
+    // Auth-free preview of the Profile screen + avatar builder (no socket, no DB
+    // save). Used for responsive self-eval; mirrors the other ?mock= flags.
+    return (
+      <>
+        <div className="app">
+          <ProfileScreen username="AK7" initialConfig={null} onSaved={() => {}} onBack={() => {}} />
+        </div>
+        <EnvBadge />
+      </>
+    );
+  }
   if (MOCK_MODE === 'game-error-tagger') {
     return (
       <>
@@ -76,6 +107,34 @@ export default function App() {
   const [gameState, setGameState] = useState(null);
   const [myPosition, setMyPosition] = useState(null);
   const [pendingRoom, setPendingRoom] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // The signed-in user's own avatar config (DiceBear options) — fetched from
+  // their profile. Sent to the backend on join so in-game seats can render it;
+  // also drives the lobby strip + profile screen. A ref mirror lets the socket
+  // connect/rejoin closure read the latest value without re-subscribing.
+  const [myAvatarConfig, setMyAvatarConfig] = useState(null);
+  const myAvatarConfigRef = useRef(null);
+  useEffect(() => { myAvatarConfigRef.current = myAvatarConfig; }, [myAvatarConfig]);
+
+  // ── Table chat state ──────────────────────────────────────────────────────
+  // chatBubbles is a map: senderPosition → message. One bubble per seat (a new
+  // message from the same seat replaces it), auto-dismissed by a per-seat timer.
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatOpen, setChatOpen]         = useState(false);
+  const [chatUnread, setChatUnread]     = useState(0);
+  const [chatBubbles, setChatBubbles]   = useState({});
+  const chatOpenRef   = useRef(false);
+  const bubbleTimers  = useRef({}); // senderPosition → setTimeout id
+  useEffect(() => { chatOpenRef.current = chatOpen; }, [chatOpen]);
+
+  // ── Throw projectiles ──────────────────────────────────────────────────────
+  // Active flying throws (cosmetic). Each {id, fromPosition, toPosition, item}
+  // auto-removed after the animation finishes. Multiple coexist.
+  const [throws, setThrows] = useState([]);
+  const [throwTrayOpen, setThrowTrayOpen] = useState(false);
+  const throwIdRef    = useRef(0);
+  const throwTimers   = useRef([]);
 
   // Training-mode state (kept entirely separate from normal-room state)
   const [trainingView,       setTrainingView]       = useState(null); // 'picker' | 'run' | 'complete' | null
@@ -104,12 +163,29 @@ export default function App() {
   // 24 h. Cheap, runs once per page load.
   useEffect(() => { cleanupOldDrafts(); }, []);
 
+  // Load the signed-in user's own avatar config from their profile (null until
+  // they build one → letter-circle fallback everywhere).
+  useEffect(() => {
+    if (!user) { setMyAvatarConfig(null); return; }
+    let cancelled = false;
+    supabase
+      .from('profiles')
+      .select('avatar_config')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        setMyAvatarConfig(normalizeAvatarConfig(data.avatar_config));
+      });
+    return () => { cancelled = true; };
+  }, [user]);
+
   // ── Socket setup ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
 
     const socket = io(SOCKET_URL, {
-      auth: { userId: user.id, username },
+      auth: { userId: user.id, username, avatarConfig: myAvatarConfigRef.current },
       reconnection: true,
       reconnectionAttempts: 20,
       reconnectionDelay: 1000,
@@ -124,7 +200,7 @@ export default function App() {
       // Attempt to rejoin if we have a room code stored
       const savedCode = sessionStorage.getItem('coinche_room');
       if (savedCode) {
-        socket.emit('rejoinRoom', { code: savedCode });
+        socket.emit('rejoinRoom', { code: savedCode, avatarConfig: myAvatarConfigRef.current });
       }
 
       // Reconnect toast (only on a non-initial connect)
@@ -170,6 +246,65 @@ export default function App() {
     socket.on('leftRoom', () => {
       setRoomState(null); setGameState(null); setMyPosition(null); setPendingRoom(null);
       sessionStorage.removeItem('coinche_room');
+      clearChat();
+      clearThrows();
+    });
+
+    // ── Table chat ──────────────────────────────────────────────────────
+    // Reset all chat UI when we leave a room (own bubbles + timers included).
+    function clearChat() {
+      Object.values(bubbleTimers.current).forEach(clearTimeout);
+      bubbleTimers.current = {};
+      setChatMessages([]); setChatUnread(0); setChatBubbles({}); setChatOpen(false);
+    }
+
+    // ── Throw projectiles ────────────────────────────────────────────────
+    function clearThrows() {
+      throwTimers.current.forEach(clearTimeout);
+      throwTimers.current = [];
+      setThrows([]);
+      setThrowTrayOpen(false);
+    }
+    // A throw was broadcast to the whole room (sender included). Enqueue it for
+    // the animation layer and auto-remove after the animation completes.
+    socket.on('throw:thrown', (thr) => {
+      if (!thr || typeof thr.fromPosition !== 'number' || typeof thr.toPosition !== 'number') return;
+      const id = ++throwIdRef.current;
+      setThrows(list => [...list, { ...thr, id }]);
+      const timer = setTimeout(() => {
+        setThrows(list => list.filter(x => x.id !== id));
+        throwTimers.current = throwTimers.current.filter(x => x !== timer);
+      }, THROW_TOTAL_MS + 100);
+      throwTimers.current.push(timer);
+    });
+
+    // Replayed on every (re)join — replace the whole list. History never pops
+    // bubbles or bumps the unread count (these are old/already-seen messages).
+    socket.on('chat:history', ({ messages }) => {
+      setChatMessages(Array.isArray(messages) ? messages : []);
+    });
+
+    // Live message broadcast to every seat (sender included). Own messages just
+    // flow into the list. Others' messages, while the panel is CLOSED, pop a
+    // seat-anchored bubble + bump the unread badge; while OPEN they only flow in.
+    socket.on('chat:message', (msg) => {
+      if (!msg) return;
+      setChatMessages(prev => [...prev, msg]);
+      if (msg.userId === user.id) return;
+      if (chatOpenRef.current) return;
+
+      setChatUnread(c => c + 1);
+      // Replace this seat's bubble (no stacking) and reset its dismiss timer.
+      setChatBubbles(prev => ({ ...prev, [msg.position]: msg }));
+      if (bubbleTimers.current[msg.position]) clearTimeout(bubbleTimers.current[msg.position]);
+      bubbleTimers.current[msg.position] = setTimeout(() => {
+        setChatBubbles(prev => {
+          const next = { ...prev };
+          delete next[msg.position];
+          return next;
+        });
+        delete bubbleTimers.current[msg.position];
+      }, 4000);
     });
 
     // ── Game Review (creator-only) ────────────────────────────────────
@@ -196,6 +331,8 @@ export default function App() {
     socket.on('trainingStarted', (payload) => {
       setTrainingRun(payload);
       setTrainingAnnotation(null);
+      setTrainingAnnotationFilename(null);
+      setTrainingCaseType(null);
       setTrainingView('run');
     });
     socket.on('trainingUpdate',         (payload) => setTrainingRun(payload));
@@ -283,10 +420,31 @@ export default function App() {
     });
 
     return () => {
+      Object.values(bubbleTimers.current).forEach(clearTimeout);
+      bubbleTimers.current = {};
+      throwTimers.current.forEach(clearTimeout);
+      throwTimers.current = [];
       socket.disconnect();
       socketRef.current = null;
     };
   }, [user]);
+
+  // ── Chat control actions ──────────────────────────────────────────────────
+  function openChat() {
+    setChatOpen(true);
+    setChatUnread(0);
+    // The panel supersedes any live bubbles — dismiss them + their timers.
+    Object.values(bubbleTimers.current).forEach(clearTimeout);
+    bubbleTimers.current = {};
+    setChatBubbles({});
+  }
+  function closeChat() { setChatOpen(false); }
+  function sendChat(text) { socketRef.current?.emit('chat:message', { text }); }
+
+  // Throw: drop an item on a seat → emit; the (broadcast) animation plays for all.
+  function sendThrow(targetPosition, item) {
+    socketRef.current?.emit('throw:item', { targetPosition, item });
+  }
 
   // ── Training control actions (called by child components) ──────────────
 
@@ -324,6 +482,25 @@ export default function App() {
     setTrainingResumable(list => list); // keep resumable around; user may come back
     setTrainingView(null);
   }
+  function restartScenario() {
+    // V2.2 Phase 2D — invoked by CompletionSummary's Back button when the
+    // user backs out of the CardSelector phase to re-bid the same
+    // scenario. Server discards the completed annotation, rolls back the
+    // _exhausted entry, and emits trainingStarted on the fresh run; our
+    // existing trainingStarted handler flips the view back to 'run'.
+    //
+    // We pass scenarioId + annotationFilename (not runId) because the
+    // server GCs the run from memory as soon as submitTrainingReason
+    // completes — by the time we get here the runId is stale.
+    const scenarioId = trainingAnnotation?.scenarioId
+      || trainingRun?.trainingState?.scenarioId;
+    if (!scenarioId) { backToPicker(); return; }
+    socketRef.current?.emit('restartTrainingScenario', {
+      scenarioId,
+      annotationFilename: trainingAnnotationFilename,
+    });
+  }
+
   function nextScenario() {
     // Pick the next scenario alphabetically by id that isn't the one we just did
     if (!trainingScenarios?.length) { backToPicker(); return; }
@@ -414,6 +591,7 @@ export default function App() {
             scenarioSnapshot={trainingRun}
             onBackToPicker={backToPicker}
             onNextScenario={nextScenario}
+            onRestartScenario={restartScenario}
             hasNextScenario={hasNextScenario}
           />
         )}
@@ -426,8 +604,20 @@ export default function App() {
     <div className="app" data-hand-size={handSize}>
       <Header
         roomCode={roomState?.code}
-        scores={roomState?.scores}
-        targetScore={roomState?.targetScore}
+        onOpenSettings={() => setShowSettings(true)}
+        showChat={!!roomState}
+        onOpenChat={openChat}
+        chatUnread={chatUnread}
+      />
+
+      <SettingsModal
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        socket={socketRef.current}
+        room={roomState}
+        game={gameState}
+        myPosition={myPosition}
+        handSize={handSize}
         onCycleHandSize={cycleHandSize}
       />
 
@@ -442,6 +632,8 @@ export default function App() {
           room={roomState}
           game={gameState ?? EMPTY_GAME}
           myPosition={myPosition}
+          throwOpen={throwTrayOpen}
+          onToggleThrow={() => setThrowTrayOpen(o => !o)}
         />
       ) : (
         <Lobby
@@ -456,8 +648,45 @@ export default function App() {
           }}
           onOpenTraining={goToPickerFromLobby}
           resumableCount={trainingResumable?.length || 0}
+          myAvatarConfig={myAvatarConfig}
+          onAvatarSaved={setMyAvatarConfig}
         />
       )}
+
+      {/* Table chat — seat-anchored notification bubbles (in-game only, so the
+          seats exist) + the bottom-sheet conversation panel (any room). */}
+      {inGame && (
+        <ChatBubbles
+          bubbles={chatBubbles}
+          myPosition={myPosition}
+          players={roomState?.players}
+          onOpen={openChat}
+        />
+      )}
+      {/* Throw-projectile animation overlay (in-game + round-summary; pointer-
+          events:none so it never blocks card/seat taps). */}
+      {inGame && <ThrowLayer throws={throws} myPosition={myPosition} />}
+      {/* Throw item tray + drag-to-target (interactive); flying layer above is
+          pointer-events:none. In-game only (seats exist; disabled in training). */}
+      {inGame && (
+        <ThrowTray
+          open={throwTrayOpen}
+          onClose={() => setThrowTrayOpen(false)}
+          onThrow={sendThrow}
+          myPosition={myPosition}
+        />
+      )}
+      {roomState && (
+        <ChatPanel
+          open={chatOpen}
+          onClose={closeChat}
+          messages={chatMessages}
+          myUserId={user?.id}
+          players={roomState?.players}
+          onSend={sendChat}
+        />
+      )}
+
       <EnvBadge />
     </div>
   );
