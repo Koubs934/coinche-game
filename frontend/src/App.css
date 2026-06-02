@@ -882,7 +882,7 @@ a      { color: var(--accent); }
    room (below) so the trick / bid focal clear it. */
 .board-top {
   position: absolute;
-  top: calc(50% - 31cqw);            /* oval top edge (half-height = 31cqw) */
+  top: 15%;                          /* OVAL-TUNE: straddles the oval's top edge */
   left: 50%;
   transform: translate(-50%, -50%);  /* straddle the ellipse line */
   z-index: 4;
@@ -935,14 +935,14 @@ a      { color: var(--accent); }
   display: flex;
   align-items: center;
   justify-content: center;
-  container-type: inline-size;   /* enable cqw so the oval ratio is viewport-independent */
 }
-/* the oval itself — width 96%; height tied to width via cqw → consistent ~1.55:1
-   "wide table" ratio at ALL viewport heights (no tall/round oval on 430). */
+/* OVAL-TUNE — the oval FILLS the table zone (percentage insets like the mockup
+   .oval, taller + lower so there's no empty felt band below). Flat ellipse; depth
+   from inset shadow + radial gradient + gold halo only — no 3D. */
 .board-middle::before {
   content: '';
   position: absolute;
-  left: 2%; right: 2%; top: 50%; height: 62cqw; transform: translateY(-50%);
+  top: 15%; bottom: 9%; left: 2%; right: 2%;
   border-radius: 50%;
   background: radial-gradient(ellipse at center, #2c5a3c 0%, #1f3d2e 58%, #0d1f17 100%);
   border: 1.5px solid rgba(201,169,97,0.6);
@@ -954,10 +954,23 @@ a      { color: var(--accent); }
   z-index: 0;
 }
 /* left/right opponents — absolute on the ellipse's mid-edges (straddle the line) */
-.board-left  { position: absolute; left: 0;  top: 50%; transform: translateY(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; }
-.board-right { position: absolute; right: 0; top: 50%; transform: translateY(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; }
+.board-left  { position: absolute; left: 0;  top: 53%; transform: translateY(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; }
+.board-right { position: absolute; right: 0; top: 53%; transform: translateY(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; }
 /* center focal/trick — vertically centered IN the ellipse, above the felt */
 .board-center { position: relative; z-index: 1; width: 100%; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 6px; padding: 0 15%; }
+/* OVAL-TUNE — self seat on the oval's BOTTOM edge (mirrors .board-top at top). */
+.board-bottom {
+  position: absolute;
+  top: 91%;                          /* oval bottom edge (matches ::before bottom:9%) */
+  left: 50%;
+  transform: translate(-50%, -50%);  /* straddle the line */
+  z-index: 4;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  max-width: 96%;
+}
 
 /* Bottom safe-area is owned by the bottom-most child (the relocated toolbar in
    playing, the bid-sheet in bidding) so it isn't applied twice. */
@@ -2806,6 +2819,7 @@ a      { color: var(--accent); }
 
   .score-bars   { grid-area: scores; }
   .board-top    { display: none; }        /* partner seat hidden — no value in landscape */
+  .board-bottom { display: none; }        /* OVAL-TUNE: self seat hidden in the landscape grid (the hand below is you) */
   .board-middle { display: contents; }    /* dissolve: children become direct grid items */
   /* RUN OVAL: undo the portrait ellipse here — seats go back to grid items, the
      oval ::before is hidden. Landscape keeps the proven grid (a portrait oval

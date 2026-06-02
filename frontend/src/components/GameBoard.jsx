@@ -1004,38 +1004,37 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
             bidHistory={isBidding ? perPlayerHistory[(myPosition + 1) % 4] : null}
           />
         </div>
+
+        {/* OVAL-TUNE — bottom seat (self): avatar + name + active status + dealer,
+            straddling the oval's bottom edge like the 3 bots. seatData(0) = my seat.
+            BidStack + throw + the fanned hand stay in the hand bar below. */}
+        <div className="board-bottom">
+          {contractData && contractBy === myPosition && (
+            <ContractBadge contract={contractData} t={t} />
+          )}
+          {surcoincheBy === myPosition && <CoincheBadge type="surcoinche" t={t} />}
+          {coincheBy    === myPosition && surcoincheBy !== myPosition && <CoincheBadge type="coinche" t={t} />}
+          <PlayerSeat
+            {...seatData(0)}
+            direction="bottom"
+            isCreator={isCreator}
+            onRemove={removePlayer}
+            bidHistory={null}
+          />
+        </div>
       </div>
 
       {/* ── My hand ────────────────────────────────────────────────────────── */}
       <div className={`board-hand${isMyTurn ? ' hand-my-turn' : ''}${bidSheetActive ? ' has-bid-sheet' : ''}${bidSheetActive && !sheetOpen ? ' sheet-collapsed' : ''}`}>
 
-        {/* "Your turn" pulse banner */}
-        {isMyTurn && (
-          <div className="your-turn-banner">{t.yourTurn} ●</div>
-        )}
-
-        {/* Contract badge above self player bar when self won the auction */}
-        {contractData && contractBy === myPosition && (
-          <ContractBadge contract={contractData} t={t} />
-        )}
-        {surcoincheBy === myPosition && <CoincheBadge type="surcoinche" t={t} />}
-        {coincheBy    === myPosition && surcoincheBy !== myPosition && <CoincheBadge type="coinche" t={t} />}
-
-        {/* Self player bar: avatar + name + bid status */}
+        {/* OVAL-TUNE — the self's avatar/name/status/dealer + contract badges moved
+            to the board-bottom seat (on the oval edge). The redundant hand-bar
+            "your turn" banner is dropped (the bottom seat shows the active state).
+            The hand bar keeps the self's BidStack + throw button. */}
         <div className="self-player-bar">
-          <Avatar
-            config={myPlayer?.avatarConfig}
-            isBot={myPlayer?.isBot}
-            botSeed={myPlayer?.username ?? myPlayer?.position}
-            initial={displayName(myPlayer, t)[0]?.toUpperCase() || '?'}
-            variant="head"
-            circleClassName="player-avatar avatar-mine"
-          />
-          <span className="self-name">{displayName(myPlayer, t)}{myPosition === game.dealer && <span className="dealer-badge">D</span>}</span>
           {isBidding && perPlayerHistory[myPosition]?.length > 0 && (
             <BidStack history={perPlayerHistory[myPosition]} t={t} />
           )}
-          {/* Throw button — right-aligned, opposite the avatar/name, above the hand. */}
           {throwButton}
         </div>
 
