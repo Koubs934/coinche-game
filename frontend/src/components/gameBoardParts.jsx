@@ -9,6 +9,16 @@ import Avatar from './Avatar';
 
 // ─── Card primitives ───────────────────────────────────────────────────────
 
+// PASS DECK — Paris-pattern PNG deck (served from /public/cards). State uses
+// ENGLISH ranks (J/Q/K/A + 7..10) and LETTER suits (S/H/D/C); the files are
+// FRENCH. Map state → /cards/<fr-rank>-<fr-suit>.png (e.g. K+H → R-coeur.png).
+// Presentation only — card.value / card.suit are NOT mutated.
+const RANK_FR = { J: 'V', Q: 'D', K: 'R', A: 'A', '10': '10', '9': '9', '8': '8', '7': '7' };
+const SUIT_FR = { S: 'pique', H: 'coeur', D: 'carreau', C: 'trefle' };
+export function cardImg(card) {
+  return `/cards/${RANK_FR[String(card.value)] ?? card.value}-${SUIT_FR[card.suit]}.png`;
+}
+
 export function CardFace({ card, onClick, highlight, disabled, isDragging, lifted, style, onMouseEnter, onMouseLeave }) {
   const isRed = card.suit === 'H' || card.suit === 'D';
   return (
@@ -20,20 +30,17 @@ export function CardFace({ card, onClick, highlight, disabled, isDragging, lifte
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <span className="card-index">
-        <span className="ci-rank">{card.value}</span>
-        <span className="ci-suit">{SUIT_SYM[card.suit]}</span>
-      </span>
-      <div className="card-center">
-        <span className="card-value">{card.value}</span>
-        <span className="card-suit">{SUIT_SYM[card.suit]}</span>
-      </div>
+      <img src={cardImg(card)} alt={`${card.value}${card.suit}`} draggable="false" />
     </button>
   );
 }
 
 export function CardBack({ small }) {
-  return <div className={`card card-back${small ? ' card-small' : ''}`}>🂠</div>;
+  return (
+    <div className={`card card-back${small ? ' card-small' : ''}`}>
+      <img src="/cards/back.svg" alt="" draggable="false" />
+    </div>
+  );
 }
 
 // ─── Trick display (used both in-play and in last-trick panel) ─────────────
@@ -54,8 +61,7 @@ export function TrickDisplay({ cards, myPosition, players, animDir, winnerPos })
           <div key={area} className={`trick-slot trick-${area}`}>
             {played ? (
               <div className={`trick-card${isRed ? ' red' : ''}${won ? ' trick-winner-card' : ''}`}>
-                <span className="card-value">{played.card.value}</span>
-                <span className="card-suit">{SUIT_SYM[played.card.suit]}</span>
+                <img src={cardImg(played.card)} alt={`${played.card.value}${played.card.suit}`} draggable="false" />
                 <span className="trick-player-name">{displayName(player, t)}</span>
               </div>
             ) : (

@@ -31,7 +31,7 @@
   --team-eux-tint: rgba(176,103,98,0.25);
   --radius: 6px;
   --card-w: 42px;            /* fixed px — fluid clamp() is a separate later pass */
-  --card-h: 62px;
+  --card-h: calc(var(--card-w) * 1.45);   /* PASS DECK: PNG ratio 600:870 → no stretch */
   --font-display: 'Cinzel', serif;          /* wordmark, scores, names, contract */
   --font-body: 'Cormorant Garamond', serif; /* body */
   /* iOS bottom safe-area (home indicator / rounded corners). Non-zero only with
@@ -1108,17 +1108,17 @@ a      { color: var(--accent); }
 .card {
   width: var(--card-w);
   height: var(--card-h);
-  border-radius: 7px;
-  border: 1px solid var(--accent);   /* PASS 3: brass edge */
+  border-radius: 6px;
+  border: 0;                         /* PASS DECK: PNGs carry their own printed frame (border-less) */
+  overflow: hidden;                  /* clip the card image to the rounded corners */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 0.85em;
-  line-height: 1.1;
-  gap: 1px;
   flex-shrink: 0;
 }
+/* PASS DECK: the PNG fills the card box (box ratio = 600:870, so no stretch). */
+.card-face img, .card-back img, .trick-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .card-face {
   background: var(--card-bg);
   color: var(--black);
@@ -1169,14 +1169,9 @@ a      { color: var(--accent); }
 .ci-suit { font-size: 0.68em; }
 
 .card-back {
-  /* PASS 3: navy → felt-green with a brass losangé crosshatch (mockup card back) */
+  /* PASS DECK: back.svg (losangé doré) fills the card; felt bg shows only if the
+     SVG has transparent margins. Border-less + rounded-clip inherited from .card. */
   background-color: var(--table);
-  background-image:
-    repeating-linear-gradient(45deg, transparent 0 6px, rgba(201,169,97,0.22) 6px 7px),
-    repeating-linear-gradient(-45deg, transparent 0 6px, rgba(201,169,97,0.22) 6px 7px);
-  color: rgba(201,169,97,0.4);
-  font-size: 1.4em;
-  border: 1px solid var(--accent);
   cursor: default;
 }
 .card-back.card-small {
@@ -2761,7 +2756,7 @@ a      { color: var(--accent); }
 
 /* ─── Responsive (wider screens) ────────────────────────────────────────── */
 @media (min-width: 480px) {
-  :root { --card-w: 48px; --card-h: 70px; }
+  :root { --card-w: 48px; }   /* PASS DECK: --card-h follows the 1.45 ratio */
   .card { font-size: 0.95em; }
 }
 
@@ -2785,8 +2780,7 @@ a      { color: var(--accent); }
  */
 @media (max-height: 500px) {
   :root {
-    --card-w: 36px;
-    --card-h: 44px;   /* smaller cards → thinner hand strip */
+    --card-w: 30px;   /* PASS DECK: --card-h follows 1.45 ratio (≈44px) — keeps the landscape hand strip height while honoring the PNG aspect */
   }
 
   /* ── Header ── */
