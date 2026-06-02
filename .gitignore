@@ -36,4 +36,16 @@ verification-screenshots/
 master-screenshots/
 pass1-screenshots/
 pass4-screenshots/
+
+# ── Session scratch docs at repo root (kept on disk, not tracked) ────────────
+# Pass reports + recon/snapshot/sync artifacts. Pre-ignore future pass reports
+# here too (e.g. DECK.md) so they don't drift back into tracking.
 COMPLETION.md
+DECK.md
+RECON.md
+SNAPSHOT.md
+SYNC.md
+PASS1.md
+PASS4.md
+LUMIERE.md
+reference.jpeg
