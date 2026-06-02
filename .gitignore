@@ -33,4 +33,7 @@ Thumbs.db
 
 # ── QA / scratch artifacts (kept on disk, not tracked) ───────────────────────
 verification-screenshots/
+master-screenshots/
+pass1-screenshots/
+pass4-screenshots/
 COMPLETION.md

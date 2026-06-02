@@ -2,23 +2,38 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --table: #1a5e2a;
-  --table-dark: #144a20;
-  --card-bg: #fffef8;
-  --card-border: #ccc;
-  --red: #cc1111;
+  /* ── 1920s French-club palette — PASS 1 skin (values remapped, names kept) ──
+     Targets: redesign-mocks/DESIGN-SYSTEM.md */
+  --table: #1f3d2e;          /* deep felt (was #1a5e2a) */
+  --table-dark: #0d1f17;     /* felt shadow / vert-ombre (was #144a20) */
+  --card-bg: #f4e8d0;        /* crème card face (was #fffef8) */
+  --card-border: #d8c79a;    /* warm card edge (was #ccc) */
+  --red: #b3261a;            /* playing-card red on cream (was #cc1111) */
   --black: #111;
-  --ui-bg: #1e2a38;
-  --ui-card: #28374a;
-  --sheet: #1e2a38;   /* opaque navy for the collapsible bid sheet + bar */
-  --accent: #f0a500;
-  --accent2: #e05050;
-  --text: #f0f0f0;
-  --muted: #7a9ab0;
-  --success: #3dbb6a;
+  --ui-bg: #13261a;          /* dark-green panel back (was navy #1e2a38) */
+  --ui-card: #1d3a28;        /* lifted green panel (was navy #28374a) */
+  --sheet: #13261a;          /* bid sheet / bar back (was navy #1e2a38) */
+  --accent: #c9a961;         /* brass gold — primary accent (was #c9a961) */
+  --or-clair: #e0c987;       /* light gold accent highlight (NEW) */
+  --accent2: #b5483f;        /* warm secondary red (was #e05050) */
+  --bordeaux: #5a2a2a;       /* deep bordeaux — solid panels (NEW) */
+  --bordeaux-deep: #3a1818;  /* deeper oxblood — surcoinche severity (mockup) */
+  --vert-sauge: #7daa7a;     /* sage — trump indicators (NEW) */
+  --text: #f4e8d0;           /* crème body text (was #f0f0f0) */
+  --muted: #b9a884;          /* muted parchment/gold (was cool #7a9ab0) */
+  --success: #3dbb6a;        /* functional go/ready — unchanged */
+  /* Team identity (NEW). Nous → brass/gold, Eux → bordeaux. NOTE: Eux foreground
+     uses a LEGIBLE light-bordeaux (#cf8a82); true bordeaux #5a2a2a is unreadable
+     as text on the felt and is reserved for solid backgrounds. See PASS1.md. */
+  --team-nous: #e0c987;
+  --team-nous-tint: rgba(201,169,97,0.22);
+  --team-eux: #cf8a82;
+  --team-eux-tint: rgba(176,103,98,0.25);
   --radius: 6px;
-  --card-w: 42px;
+  --card-w: 42px;            /* fixed px — fluid clamp() is a separate later pass */
   --card-h: 62px;
+  --font-display: 'Cinzel', serif;          /* wordmark, scores, names, contract */
+  --font-body: 'Cormorant Garamond', serif; /* body */
   /* iOS bottom safe-area (home indicator / rounded corners). Non-zero only with
      viewport-fit=cover in index.html; falls back to 0px elsewhere. */
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -31,7 +46,7 @@ html, body {
   overflow: hidden;
 }
 body {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
   background: var(--table);
   color: var(--text);
   -webkit-tap-highlight-color: transparent;
@@ -41,6 +56,16 @@ body {
 #root {
   height: 100%;
   height: 100dvh;
+}
+
+/* ─── PASS 1 — 1920s display type (Cinzel) ──────────────────────────────────
+   Cinzel on the wordmark / scores / player names / contract label; the body
+   stays Cormorant Garamond (set on body above). Skin-only, no layout change. */
+.app-logo, .splash-logo,
+.total-score-bar, .tsb-item, .score-item, .manche-values, .manche-score,
+.player-name, .team-slot-name,
+.contract-badge, .seat-contract-badge, .bid-focal-value {
+  font-family: var(--font-display);
 }
 
 button { cursor: pointer; font-family: inherit; font-size: inherit; border: none; }
@@ -96,8 +121,8 @@ a      { color: var(--accent); }
 .score-item strong { font-size: 1.05em; }
 .score-sep    { color: var(--muted); }
 .score-target { color: var(--muted); font-size: 0.8em; }
-.team0 strong { color: #7ec8e3; }
-.team1 strong { color: #f4a261; }
+.team0 strong { color: var(--team-nous); }
+.team1 strong { color: var(--team-eux); }
 
 .header-user  { font-size: 0.85em; color: var(--muted); }
 .btn-lang {
@@ -171,23 +196,23 @@ a      { color: var(--accent); }
 .btn-large { width: 100%; font-size: 1.05em; }
 
 .btn-coinche {
-  background: #8b1a1a;
-  color: #fff;
+  background: var(--bordeaux);
+  color: var(--or-clair);
   padding: 7px 12px;
   border-radius: var(--radius);
   font-weight: bold;
   font-size: 0.9em;
 }
-.btn-coinche:hover { background: #a52020; }
+.btn-coinche:hover { background: #6e3636; }
 .btn-surcoinche {
-  background: #5a0a8a;
-  color: #fff;
+  background: var(--bordeaux-deep);
+  color: var(--or-clair);
   padding: 7px 12px;
   border-radius: var(--radius);
   font-weight: bold;
   font-size: 0.9em;
 }
-.btn-surcoinche:hover { background: #6d0faa; }
+.btn-surcoinche:hover { background: #4f2424; }
 
 /* ─── Auth ──────────────────────────────────────────────────────────────── */
 .auth-container {
@@ -326,8 +351,8 @@ a      { color: var(--accent); }
   border-top: 3px solid transparent;
   min-width: 0;
 }
-.team-card-0 { border-top-color: #7ec8e3; }
-.team-card-1 { border-top-color: #f4a261; }
+.team-card-0 { border-top-color: var(--team-nous); }
+.team-card-1 { border-top-color: var(--team-eux); }
 .team-card-title {
   font-size: 0.82em;
   font-weight: 700;
@@ -335,8 +360,8 @@ a      { color: var(--accent); }
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-.team-card-0 .team-card-title { color: #7ec8e3; }
-.team-card-1 .team-card-title { color: #f4a261; }
+.team-card-0 .team-card-title { color: var(--team-nous); }
+.team-card-1 .team-card-title { color: var(--team-eux); }
 .team-slots {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -379,8 +404,8 @@ a      { color: var(--accent); }
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 700;
-  color: #21d4b4;
-  background: rgba(33, 212, 180, 0.14);
+  color: #a05650;                       /* PASS 1: bot marker teal → bordeaux */
+  background: rgba(160, 86, 80, 0.16);
   border-radius: 6px;
   padding: 1px 6px;
 }
@@ -403,7 +428,7 @@ a      { color: var(--accent); }
 .team-slot-silhouette svg { fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; }
 .team-slot-name.empty-name { color: var(--muted); font-weight: 500; font-size: 0.76em; }
 .disconnected { opacity: 0.5; }
-.dc-indicator { color: #f0a500; }
+.dc-indicator { color: #c9a961; }
 
 .target-score-row label {
   display: flex;
@@ -596,8 +621,8 @@ a      { color: var(--accent); }
 .avatar-peep > svg { width: 100%; height: 100%; display: block; }
 .avatar-peep-head { overflow: hidden; }            /* circle class supplies the radius */
 .avatar-peep-full { overflow: visible; }
-.avatar-bot { box-shadow: 0 0 0 3px #21d4b4, 0 0 0 5px rgba(33, 212, 180, 0.35); border-color: #21d4b4; }
-.avatar-peep-full.avatar-bot { box-shadow: none; outline: 3px dashed #21d4b4; outline-offset: 2px; }
+.avatar-bot { box-shadow: 0 0 0 3px #a05650, 0 0 0 5px rgba(160, 86, 80, 0.35); border-color: #a05650; }   /* PASS 1: teal → bordeaux */
+.avatar-peep-full.avatar-bot { box-shadow: none; outline: 3px dashed #a05650; outline-offset: 2px; }
 
 /* ─── Profile screen + avatar builder ───────────────────────────────────── */
 .profile-screen { align-items: flex-start; }
@@ -670,7 +695,7 @@ a      { color: var(--accent); }
 }
 .builder-tab:hover { background: rgba(0, 0, 0, 0.4); color: var(--text); }
 .builder-tab.active {
-  background: rgba(240, 165, 0, 0.16);
+  background: rgba(201, 169, 97, 0.16);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -698,7 +723,7 @@ a      { color: var(--accent); }
   place-items: center;
 }
 .builder-thumb:hover { background: rgba(0, 0, 0, 0.4); }
-.builder-thumb.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(240, 165, 0, 0.3); }
+.builder-thumb.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(201, 169, 97, 0.3); }
 .builder-thumb-fig { display: grid; place-items: center; }
 .builder-thumb-head { width: 56px; height: 56px; border-radius: 50%; overflow: hidden; background: rgba(255, 255, 255, 0.04); }
 .builder-thumb-full { width: 60px; height: 88px; }
@@ -722,7 +747,7 @@ a      { color: var(--accent); }
   padding: 0;
   cursor: pointer;
 }
-.swatch.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(240, 165, 0, 0.35); }
+.swatch.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(201, 169, 97, 0.35); }
 
 .profile-actions { display: flex; gap: 10px; }
 .profile-error { text-align: center; }
@@ -836,7 +861,14 @@ a      { color: var(--accent); }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--table);
+  /* PASSE LUMIÈRE — warm directional felt light ported verbatim from the mockup
+     .app (01-bidding-table.html:102-116): a spotlight pulled high-center (toward
+     the contract panel / partner) over a lit-center → dark-corner vignette. Depth
+     from gradients only — no 3D. */
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(48,88,65,0.35) 0%, transparent 50%),
+    radial-gradient(ellipse at center, var(--table) 25%, rgba(13,31,23,0.88) 100%),
+    var(--table);
   gap: 4px;
   padding: 4px;
 }
@@ -850,9 +882,9 @@ a      { color: var(--accent); }
    room (below) so the trick / bid focal clear it. */
 .board-top {
   position: absolute;
-  top: 2px;
+  top: calc(50% - 31cqw);            /* oval top edge (half-height = 31cqw) */
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);  /* straddle the ellipse line */
   z-index: 4;
   display: flex;
   flex-direction: row;       /* contract badge BESIDE the seat → short cluster */
@@ -880,7 +912,7 @@ a      { color: var(--accent); }
   padding: 2px 4px;
   max-width: 220px;
   background: rgba(0,0,0,0.35);
-  border: 1px dashed rgba(240,165,0,0.5);
+  border: 1px dashed rgba(201,169,97,0.5);
   border-radius: var(--radius);
 }
 .peek-card {
@@ -893,24 +925,39 @@ a      { color: var(--accent); }
   color: #1a1a1a;
 }
 .peek-card.red { color: var(--red); }
+/* RUN OVAL — flat ellipse felt. Depth = border-radius:50% + inset shadow +
+   interior radial-gradient + gold halo ONLY. NO rotateX / perspective / 3D
+   transform (known failure mode — compresses the felt vertically). */
 .board-middle {
   position: relative;
-  display: flex;
   flex: 1;
-  gap: 4px;
   min-height: 0;
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: inline-size;   /* enable cqw so the oval ratio is viewport-independent */
 }
-.board-left   { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 86px; flex-shrink: 0; }
-.board-right  { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 86px; flex-shrink: 0; }
-/* padding-top reserves room for the top seat (absolutely anchored at the felt's
-   top edge) so the centered trick / bid focal clear it. Reset in landscape, where
-   the top seat is hidden (see the max-height:500px block). */
-/* min-width: 0 so the fixed-width (180px) trick-display can't force this flex
-   column past its share and shove the right seat (.board-right) off the felt's
-   right edge (clipped by overflow:hidden) — keeps left/right seats symmetric. */
-.board-center { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 6px; position: relative; padding-top: 40px; }
-.board-middle { border-radius: 14px; background: radial-gradient(ellipse at center, #1e6b30 0%, #164f22 70%, #0f3a18 100%); }
+/* the oval itself — width 96%; height tied to width via cqw → consistent ~1.55:1
+   "wide table" ratio at ALL viewport heights (no tall/round oval on 430). */
+.board-middle::before {
+  content: '';
+  position: absolute;
+  left: 2%; right: 2%; top: 50%; height: 62cqw; transform: translateY(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, #2c5a3c 0%, #1f3d2e 58%, #0d1f17 100%);
+  border: 1.5px solid rgba(201,169,97,0.6);
+  box-shadow:
+    inset 0 0 0 1px rgba(224,201,135,0.22),
+    inset 0 0 40px rgba(13,31,23,0.55),
+    0 0 26px rgba(201,169,97,0.12);
+  pointer-events: none;
+  z-index: 0;
+}
+/* left/right opponents — absolute on the ellipse's mid-edges (straddle the line) */
+.board-left  { position: absolute; left: 0;  top: 50%; transform: translateY(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; }
+.board-right { position: absolute; right: 0; top: 50%; transform: translateY(-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; }
+/* center focal/trick — vertically centered IN the ellipse, above the felt */
+.board-center { position: relative; z-index: 1; width: 100%; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 6px; padding: 0 15%; }
 
 /* Bottom safe-area is owned by the bottom-most child (the relocated toolbar in
    playing, the bid-sheet in bidding) so it isn't applied twice. */
@@ -949,6 +996,21 @@ a      { color: var(--accent); }
   max-width: 80px;
 }
 .turn-dot { color: var(--success); }
+/* RUN OVAL — dealer pastille (mockup "D"). Inline so it never affects seat geometry. */
+.dealer-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px; height: 13px;
+  margin-left: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--table-dark);
+  font-size: 0.6em;
+  font-weight: 700;
+  font-family: var(--font-display);
+  vertical-align: middle;
+}
 
 /* ─── Player avatar circles ──────────────────────────────────────────────── */
 .player-avatar {
@@ -961,13 +1023,17 @@ a      { color: var(--accent); }
   font-size: 0.75em;
   font-weight: bold;
   flex-shrink: 0;
-  border: 2px solid rgba(255,255,255,0.15);
+  border: 2px solid rgba(201,169,97,0.55);   /* PASS 1: white → brass */
 }
-.team0-avatar { background: rgba(126,200,227,0.25); color: #7ec8e3; }
-.team1-avatar { background: rgba(244,162,97,0.25);  color: #f4a261; }
+.team0-avatar { background: var(--team-nous-tint); color: var(--team-nous); }
+.team1-avatar { background: var(--team-eux-tint);  color: var(--team-eux); }
+/* RUN OVAL §6b — VIEWER-RELATIVE tints: my team (me + partner) = gold (Nous),
+   opponents = bordeaux (Eux). Correct for both camps (unlike fixed team0/1). */
+.avatar-mine   { background: var(--team-nous-tint); color: var(--team-nous); }
+.avatar-theirs { background: var(--team-eux-tint);  color: var(--team-eux); }
 .active-player .player-avatar {
   border-color: var(--accent);
-  box-shadow: 0 0 8px rgba(240,165,0,0.5);
+  box-shadow: 0 0 8px rgba(201,169,97,0.5);
 }
 
 /* ─── Self player bar ────────────────────────────────────────────────────── */
@@ -1042,8 +1108,8 @@ a      { color: var(--accent); }
 .card {
   width: var(--card-w);
   height: var(--card-h);
-  border-radius: 5px;
-  border: 1px solid var(--card-border);
+  border-radius: 7px;
+  border: 1px solid var(--accent);   /* PASS 3: brass edge */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1064,7 +1130,7 @@ a      { color: var(--accent); }
    and shadow. */
 .card-face.valid {
   cursor: pointer;
-  box-shadow: 0 0 0 2px var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 8px rgba(201,169,97,0.4);
 }
 /* Hand cards stay flat & uniform: no enlarge/rise/pop-shadow on hover or press
    (the lift was removed). The actively-dragged card still gets its own transform
@@ -1073,7 +1139,7 @@ a      { color: var(--accent); }
 /* No dim during bidding / not-your-turn — hand cards are always solid white,
    matching the playing phase. (cursor only; opacity removed.) */
 .card-face.card-disabled { cursor: default; }
-.card-value { font-weight: bold; font-size: 1em; }
+.card-value { font-weight: bold; font-size: 1em; font-family: var(--font-display); }  /* PASS 3: serif rank */
 .card-suit  { font-size: 0.95em; }
 
 /* Centered big glyph (kept as the card's flex-centered content) */
@@ -1099,14 +1165,18 @@ a      { color: var(--accent); }
   font-weight: bold;
   pointer-events: none;
 }
-.ci-rank { font-size: 0.72em; }
+.ci-rank { font-size: 0.78em; font-family: var(--font-display); }  /* PASS 3: serif corner rank */
 .ci-suit { font-size: 0.68em; }
 
 .card-back {
-  background: #1a4080;
-  color: rgba(255,255,255,0.15);
+  /* PASS 3: navy → felt-green with a brass losangé crosshatch (mockup card back) */
+  background-color: var(--table);
+  background-image:
+    repeating-linear-gradient(45deg, transparent 0 6px, rgba(201,169,97,0.22) 6px 7px),
+    repeating-linear-gradient(-45deg, transparent 0 6px, rgba(201,169,97,0.22) 6px 7px);
+  color: rgba(201,169,97,0.4);
   font-size: 1.4em;
-  border: 1px solid #2255aa;
+  border: 1px solid var(--accent);
   cursor: default;
 }
 .card-back.card-small {
@@ -1306,8 +1376,8 @@ a      { color: var(--accent); }
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-.scbt-coinche    { background: rgba(240,160,48,0.15); border: 1.5px solid #f0a030; color: #f0a030; }
-.scbt-surcoinche { background: rgba(204,102,255,0.15); border: 1.5px solid #cc66ff; color: #cc66ff; }
+.scbt-coinche    { background: var(--bordeaux);      border: 1.5px solid var(--accent); color: var(--or-clair); }
+.scbt-surcoinche { background: var(--bordeaux-deep); border: 1.5px solid var(--accent); color: var(--or-clair); }
 
 /* ─── Bid center (board-center during BIDDING) ───────────────────────────── */
 .bid-center {
@@ -1351,13 +1421,40 @@ a      { color: var(--accent); }
   line-height: 1;
   align-self: center;
 }
-.bid-focal-mod.coin { color: #e05050; }
-.bid-focal-mod.sur  { color: #cc66ff; }
+.bid-focal-mod.coin { color: var(--team-eux); }   /* PASS 5: red → legible bordeaux */
+.bid-focal-mod.sur  { color: var(--team-eux); }   /* PASS 5: violet → legible bordeaux */
 .bid-focal-empty {
-  font-size: 0.85em;
+  font-size: 1.6em;
   color: var(--muted);
-  font-style: italic;
+  font-style: normal;
+  line-height: 1;
 }
+
+/* PASS 4 — bid-focal restyled as the mockup's "contrat" panel (vertical stack:
+   label → big value → atout line). Keeps the .bid-focal base + its short-viewport
+   overrides; .contrat-panel only flips it to a column + the casket look. */
+.bid-focal.contrat-panel {
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: radial-gradient(ellipse at center, rgba(20,45,32,0.95) 0%, var(--table-dark) 100%);
+  border: 1px solid var(--accent);
+}
+.contrat-label {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 0.82em;
+  color: var(--or-clair);
+  letter-spacing: 0.02em;
+}
+.contrat-row { display: flex; align-items: baseline; gap: 4px; }
+.contrat-atout {
+  font-family: var(--font-body);
+  font-size: 0.92em;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+.contrat-atout .bid-focal-suit { font-size: 1.1em; }
 
 /* Whose turn */
 .bid-whose-turn {
@@ -1403,8 +1500,8 @@ a      { color: var(--accent); }
 }
 .bh-pass .bh-action       { color: rgba(255,255,255,0.3); }
 .bh-bid .bh-action        { color: var(--accent); }
-.bh-coinche .bh-action    { color: #e05050; }
-.bh-surcoinche .bh-action { color: #cc66ff; }
+.bh-coinche .bh-action    { color: var(--team-eux); }
+.bh-surcoinche .bh-action { color: var(--team-eux); }
 
 /* ─── Bidding panel (lives in board-hand, full-width bottom panel) ──────── */
 .bidding-panel {
@@ -1426,18 +1523,20 @@ a      { color: var(--accent); }
   min-height: 30px;
   padding: 4px 6px;
   border-radius: var(--radius);
-  border: 1px solid rgba(255,255,255,0.18);
-  background: transparent;
-  color: var(--text);
+  border: 1px solid rgba(201,169,97,0.4);          /* PASS 5: brass outline */
+  background: linear-gradient(to bottom, rgba(0,0,0,0.05), rgba(0,0,0,0.2));
+  color: var(--or-clair);
+  font-family: var(--font-display);
   font-size: 0.9em;
   text-align: center;
 }
-.bid-val-btn:not(.selected):hover { background: rgba(255,255,255,0.08); }
-.bid-val-btn.selected {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #1a1a1a;
-  font-weight: bold;
+.bid-val-btn:not(.selected):hover { background: rgba(201,169,97,0.14); }
+.bid-val-btn.selected {                            /* PASS 5: lit gold gradient + inner highlight */
+  background: linear-gradient(to bottom, var(--or-clair) 0%, var(--accent) 100%);
+  border-color: var(--or-clair);
+  color: var(--table-dark);
+  font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 0 2px 5px rgba(0,0,0,0.3);
 }
 
 /* Inline suit echo on each value chip (display mirror of the strip selection).
@@ -1445,7 +1544,7 @@ a      { color: var(--accent); }
    (unselected) chip and the amber (selected) chip. */
 .bid-val-suit { margin-left: 3px; }
 .bid-val-suit.red   { color: #ff7a7a; }            /* red suit on dark chip */
-.bid-val-suit.black { color: #cfd6dd; }            /* black suit on dark chip */
+.bid-val-suit.black { color: var(--muted); }       /* black suit on dark chip (warm) */
 .bid-val-btn.selected .bid-val-suit.red   { color: #c0392b; }  /* on amber chip */
 .bid-val-btn.selected .bid-val-suit.black { color: #1a1a1a; }  /* on amber chip */
 
@@ -1480,20 +1579,23 @@ a      { color: var(--accent); }
   height: 33px;
   flex: none;
   border-radius: var(--radius);
-  border: 1px solid rgba(255,255,255,0.18);
-  background: transparent;
+  border: 1px solid rgba(201,169,97,0.4);
+  background: linear-gradient(to bottom, rgba(0,0,0,0.05), rgba(0,0,0,0.2));
   font-size: 1.05em;
 }
 .suit-btn.red   { color: var(--red); }
-.suit-btn.black { color: #e0e0e0; }
-.suit-btn.selected { outline: 2px solid var(--accent); outline-offset: -1px; }
-.suit-btn:hover:not(.selected) { background: rgba(255,255,255,0.08); }
+.suit-btn.black { color: var(--text); }
+.suit-btn.selected { outline: 2px solid var(--accent); outline-offset: -1px; background: rgba(201,169,97,0.16); }
+.suit-btn:hover:not(.selected) { background: rgba(201,169,97,0.14); }
 
 /* The single solid (lit) control. */
 .btn-annoncer {
-  background: var(--accent);
-  color: #1a1a1a;
-  font-weight: bold;
+  background: linear-gradient(to bottom, var(--or-clair), var(--accent));
+  color: var(--table-dark);
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border: 1px solid var(--or-clair);
   padding: 7px 8px;
   border-radius: var(--radius);
   min-height: 33px;
@@ -1503,28 +1605,44 @@ a      { color: var(--accent); }
 .btn-annoncer:disabled { opacity: 0.45; cursor: not-allowed; }
 /* Quiet navy — distinct from the (navy) sheet behind it. */
 .btn-passer {
-  background: #2c3e50;
+  background: rgba(0,0,0,0.25);
   color: var(--text);
-  border: 1px solid rgba(255,255,255,0.18);
-  font-weight: bold;
+  border: 1px solid rgba(201,169,97,0.4);
+  font-weight: 600;
   padding: 7px 8px;
   border-radius: var(--radius);
   min-height: 33px;
 }
-.btn-passer:hover { background: #3a4f65; }
-/* Red outline (not solid) so it doesn't fight Annoncer for attention. */
+.btn-passer:hover { background: rgba(0,0,0,0.4); }
+/* PASS 5: Coinche/Surcoinche → solid bordeaux (was red/violet). */
 .btn-coinche-outline,
 .btn-surcoinche-outline {
-  background: transparent;
-  color: #e86b6b;
-  border: 1px solid var(--red);
-  font-weight: bold;
+  background: var(--bordeaux);
+  color: var(--or-clair);
+  border: 1px solid var(--accent);
+  font-weight: 700;
   padding: 7px 8px;
   border-radius: var(--radius);
   min-height: 33px;
 }
 .btn-coinche-outline:hover,
-.btn-surcoinche-outline:hover { background: rgba(204,17,17,0.14); }
+.btn-surcoinche-outline:hover { background: #6e3636; }
+
+/* PASS 5 — standing-bid line under the panel (mockup .last-bid). Reuses
+   t.highestBid + "·" since i18n is out of scope (no "Dernière enchère"/"par" key). */
+.last-bid {
+  text-align: center;
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 0.82em;
+  color: var(--or-clair);
+  letter-spacing: 0.02em;
+  padding: 2px 0 0;
+}
+.last-bid b { font-style: normal; font-weight: 700; font-family: var(--font-display); }
+.last-bid-suit { margin-left: 1px; }
+.last-bid-suit.red { color: var(--red); }
+.last-bid-by { color: var(--muted); font-style: normal; }
 
 /* Bidding-phase toolbar: compact icon over a tiny caption, centered, thin
    dividers between actions. (Normal-flow .hand-toolbar is unchanged.) */
@@ -1581,6 +1699,7 @@ a      { color: var(--accent); }
     bottom: 0;
     z-index: 80;
     background: var(--sheet);
+    border-top: 1px solid rgba(201,169,97,0.4);
     border-top-left-radius: 16px;
     border-top-right-radius: 16px;
     box-shadow: 0 -6px 22px rgba(0,0,0,0.5);
@@ -1599,11 +1718,11 @@ a      { color: var(--accent); }
     padding: 0;
     border: none;
     border-radius: 3px;
-    background: rgba(255,255,255,0.32);
+    background: rgba(201,169,97,0.5);
     cursor: pointer;
     flex-shrink: 0;
   }
-  .bid-sheet-handle:hover { background: rgba(255,255,255,0.5); }
+  .bid-sheet-handle:hover { background: rgba(224,201,135,0.7); }
 
   /* Slim collapsed-state bar pinned to the bottom edge */
   .bid-bar {
@@ -1619,7 +1738,7 @@ a      { color: var(--accent); }
     min-height: 46px;
     padding: 8px 14px calc(var(--safe-bottom) + 4px);
     background: var(--sheet);
-    border-top: 1px solid rgba(255,255,255,0.12);
+    border-top: 1px solid rgba(201,169,97,0.3);
     border-radius: var(--radius) var(--radius) 0 0;
     color: var(--text);
     text-align: left;
@@ -1632,7 +1751,7 @@ a      { color: var(--accent); }
   .bid-bar-suit.red { color: var(--red); }
   .bid-bar-bidder { font-size: 0.78em; font-weight: 600; color: var(--muted); }
   .bid-bar-empty  { font-style: italic; font-weight: 500; color: var(--muted); }
-  .bid-bar-cta    { font-size: 0.85em; font-weight: 700; color: var(--success); white-space: nowrap; }
+  .bid-bar-cta    { font-size: 0.85em; font-weight: 700; color: var(--or-clair); white-space: nowrap; }
 
   /* Light scrim over the felt while the sheet is open (sheet stays opaque) */
   .bid-scrim {
@@ -1691,8 +1810,8 @@ a      { color: var(--accent); }
   padding: 1px 5px;
   border-radius: 3px;
 }
-.badge-coin { background: #8b1a1a; color: #fff; }
-.badge-sur  { background: #5a0a8a; color: #fff; }
+.badge-coin { background: var(--bordeaux);      color: var(--or-clair); }
+.badge-sur  { background: var(--bordeaux-deep); color: var(--or-clair); }
 
 /* ─── Round summary ──────────────────────────────────────────────────────── */
 .round-summary {
@@ -1730,7 +1849,7 @@ a      { color: var(--accent); }
 .ar-table-felt {
   flex: 1;
   border-radius: 40%;
-  background: radial-gradient(ellipse at center, #1e6b30 0%, #164f22 70%, #0f3a18 100%);
+  background: radial-gradient(ellipse at center, #2c5a3c 0%, #1f3d2e 55%, #0d1f17 100%);
   border: 1px solid rgba(255,255,255,0.06);
   /* V2.2 Phase 2D: min-height bumped from 50px to 72px so the optional
      2x4 centerHand grid (2 × 30px cards + 4px gap + 6px padding) fits
@@ -1807,8 +1926,8 @@ a      { color: var(--accent); }
 .ar-latest.red   { color: var(--red); }
 .ar-old          { font-size: 0.72em; color: var(--muted); }
 .ar-pass         { font-size: 0.72em; color: var(--muted); font-style: italic; }
-.ar-coinche      { font-size: 0.82em; font-weight: 700; color: #f0a030; }
-.ar-surcoinche   { font-size: 0.82em; font-weight: 700; color: #cc66ff; }
+.ar-coinche      { font-size: 0.82em; font-weight: 700; color: var(--team-eux); }
+.ar-surcoinche   { font-size: 0.82em; font-weight: 700; color: var(--team-eux); }
 
 /* ─── Initial-hand mini-strip (round-end auction recap) ──────────────────── */
 .hand-strip {
@@ -1890,8 +2009,8 @@ a      { color: var(--accent); }
   font-variant-numeric: tabular-nums;
 }
 .ms-sep { color: var(--muted); font-weight: normal; }
-.ms-nous { color: #7ec8e3; }   /* viewer's team — blue */
-.ms-eux  { color: #f4a261; }   /* opponents — orange */
+.ms-nous { color: var(--team-nous); }   /* viewer's team */
+.ms-eux  { color: var(--team-eux); }    /* opponents */
 
 /* Secondary — cumulative total, smaller + muted */
 .total-line {
@@ -1998,8 +2117,8 @@ a      { color: var(--accent); }
 }
 .ta-card.red  { color: var(--red); }
 .ta-card.ta-win {
-  border-color: #f0a500;
-  box-shadow: 0 0 8px rgba(240,165,0,0.45);
+  border-color: #c9a961;
+  box-shadow: 0 0 8px rgba(201,169,97,0.45);
 }
 .ta-cf { font-size: 0.92em; font-weight: 800; letter-spacing: 0.02em; }
 .ta-lead {
@@ -2029,13 +2148,13 @@ a      { color: var(--accent); }
   border-radius: 8px;
   white-space: nowrap;
 }
-.twb-team0 { background: rgba(126,200,227,0.18); color: #7ec8e3; border: 1px solid #7ec8e3; }
-.twb-team1 { background: rgba(244,162,97,0.18);  color: #f4a261; border: 1px solid #f4a261; }
+.twb-team0 { background: var(--team-nous-tint); color: var(--team-nous); border: 1px solid var(--team-nous); }
+.twb-team1 { background: var(--team-eux-tint);  color: var(--team-eux); border: 1px solid var(--team-eux); }
 .ta-pts  { font-size: 0.68em; font-weight: 600; color: var(--text); }
 .ta-ddd  { font-size: 0.6em;  color: var(--muted); }
 .ta-cumul { font-size: 0.7em; display: flex; align-items: center; gap: 3px; }
-.rcu-t0  { color: #7ec8e3; }
-.rcu-t1  { color: #f4a261; }
+.rcu-t0  { color: var(--team-nous); }
+.rcu-t1  { color: var(--team-eux); }
 .rcu-sep { color: var(--muted); }
 
 /* ─── All-tricks view ────────────────────────────────────────────────────── */
@@ -2083,13 +2202,13 @@ a      { color: var(--accent); }
   transform: translateX(-50%);
   z-index: 200;
   background: rgba(0, 0, 0, 0.85);
-  color: #f0a500;
+  color: #c9a961;
   padding: 10px 20px;
   border-radius: var(--radius);
   font-size: 0.9em;
   text-align: center;
   max-width: 90vw;
-  border: 1px solid #f0a500;
+  border: 1px solid #c9a961;
 }
 
 /* ─── Score bars ─────────────────────────────────────────────────────────── */
@@ -2101,20 +2220,35 @@ a      { color: var(--accent); }
 }
 .total-score-bar {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  gap: 8px;
+  gap: 4px;
   background: rgba(0,0,0,0.28);
+  border: 1px solid rgba(201,169,97,0.35);
   border-radius: var(--radius);
-  padding: 4px 10px;
+  padding: 3px 6px;
   font-size: 0.85em;
 }
-.tsb-item   { white-space: nowrap; }
-.tsb-target { color: var(--muted); font-size: 0.8em; }
-.team0-col strong { color: #7ec8e3; }
-.team1-col strong { color: #f4a261; }
-.team0-col { color: #7ec8e3; }
-.team1-col { color: #f4a261; }
+.tsb-target { color: var(--muted); font-size: 0.72em; letter-spacing: 0.04em; }
+/* PASS 4 — three score cells. Nous/Eux are VIEWER-RELATIVE (not fixed team0/1),
+   so the gold/bordeaux split is correct for both camps (fixes the PASS 1 §6b
+   caveat for the score bar). The old .team0-col/.team1-col rules are removed. */
+.tsb-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.tsb-team  { font-size: 0.66em; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.85; }
+.tsb-score { font-size: 1.3em; font-weight: 700; line-height: 1.15; }
+.tsb-nous  { color: var(--team-nous); }                              /* gold text on felt */
+.tsb-eux   { background: var(--bordeaux); color: var(--or-clair); }  /* true bordeaux cell + gold text */
+.tsb-center { flex: 1; gap: 0; }
+.tsb-ornament { color: var(--accent); font-size: 0.8em; line-height: 1; opacity: 0.85; }
 
 .live-score-bar {
   display: flex;
@@ -2134,11 +2268,11 @@ a      { color: var(--accent); }
   transition: opacity 0.25s;
 }
 .active-player {
-  background: rgba(240, 165, 0, 0.12);
+  background: rgba(201, 169, 97, 0.12);
   border: 2px solid var(--accent);
   border-radius: 8px;
   padding: 4px 6px;
-  box-shadow: 0 0 14px rgba(240, 165, 0, 0.45);
+  box-shadow: 0 0 14px rgba(201, 169, 97, 0.45);
 }
 .active-player .player-name { color: var(--accent); font-weight: bold; }
 .seat-dimmed { opacity: 0.45; }
@@ -2276,7 +2410,7 @@ a      { color: var(--accent); }
 .btn-sort.sort-on {
   color: var(--accent);
   border-color: var(--accent);
-  background: rgba(240,165,0,0.1);
+  background: rgba(201,169,97,0.1);
 }
 .btn-sort.sort-red {
   color: var(--red);
@@ -2302,9 +2436,9 @@ a      { color: var(--accent); }
   line-height: 1.5;
 }
 .chip-pass    { background: rgba(122,154,176,0.2); color: var(--muted); }
-.chip-bid     { background: rgba(240,165,0,0.18); color: var(--accent); }
-.chip-coinche { background: rgba(139,26,26,0.45); color: #f88; }
-.chip-surc    { background: rgba(90,10,138,0.45); color: #cc88ff; }
+.chip-bid     { background: rgba(201,169,97,0.18); color: var(--accent); }
+.chip-coinche { background: rgba(90,42,42,0.5); color: var(--or-clair); }   /* PASS finition: → bordeaux */
+.chip-surc    { background: rgba(58,24,24,0.6); color: var(--or-clair); }   /* → deeper bordeaux */
 
 /* ─── Per-player bid stack near each seat (bidding phase) ───────────────── */
 .bid-stack {
@@ -2351,8 +2485,8 @@ a      { color: var(--accent); }
 /* Current: pass — visible but quiet */
 .bsi.bsi-current.bsi-pass              { color: rgba(255,255,255,0.38); font-weight: 500; font-size: 0.7em; }
 /* Current: coinche / surcoinche */
-.bsi.bsi-current.bsi-coinche           { color: #f88; }
-.bsi.bsi-current.bsi-surcoinche        { color: #cc88ff; }
+.bsi.bsi-current.bsi-coinche           { color: var(--team-eux); }
+.bsi.bsi-current.bsi-surcoinche        { color: var(--team-eux); }
 
 /* ─── Admin panel modal ─────────────────────────────────────────────────── */
 .admin-panel-overlay {
@@ -2405,7 +2539,7 @@ a      { color: var(--accent); }
   display: inline-block;
   font-size: 0.68em;
   font-weight: bold;
-  background: rgba(240,165,0,0.2);
+  background: rgba(201,169,97,0.2);
   color: var(--accent);
   border-radius: 3px;
   padding: 0 4px;
@@ -2679,10 +2813,14 @@ a      { color: var(--accent); }
   .score-bars   { grid-area: scores; }
   .board-top    { display: none; }        /* partner seat hidden — no value in landscape */
   .board-middle { display: contents; }    /* dissolve: children become direct grid items */
-  .board-left   { grid-area: left;   display: flex; flex-direction: column; align-items: center; justify-content: center; width: auto; }
-  .board-center { grid-area: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 4px; padding-top: 0; }
-  .board-right  { grid-area: right;  display: flex; flex-direction: column; align-items: center; justify-content: center; width: auto; }
+  /* RUN OVAL: undo the portrait ellipse here — seats go back to grid items, the
+     oval ::before is hidden. Landscape keeps the proven grid (a portrait oval
+     can't fit a short-wide viewport); the 1920s skin/tokens still apply. */
+  .board-left   { grid-area: left;   position: static; transform: none; display: flex; flex-direction: column; align-items: center; justify-content: center; width: auto; }
+  .board-center { grid-area: center; position: static; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 4px; padding: 0; }
+  .board-right  { grid-area: right;  position: static; transform: none; display: flex; flex-direction: column; align-items: center; justify-content: center; width: auto; }
   .board-middle { border-radius: 0; background: none; }
+  .board-middle::before { display: none; }
   .board-hand   { grid-area: hand; }
 
   /* ── Score strip ── */
@@ -2802,8 +2940,8 @@ a      { color: var(--accent); }
   letter-spacing: 0.04em;
   animation: belote-pop 0.25s ease-out;
 }
-.ba-belote   { background: rgba(240,165,0,0.18); color: var(--accent); border: 1px solid var(--accent); }
-.ba-rebelote { background: rgba(240,165,0,0.28); color: #ffe066;       border: 1px solid #ffe066; }
+.ba-belote   { background: rgba(201,169,97,0.18); color: var(--accent); border: 1px solid var(--accent); }
+.ba-rebelote { background: rgba(201,169,97,0.28); color: #ffe066;       border: 1px solid #ffe066; }
 @keyframes belote-pop {
   from { transform: scale(0.7); opacity: 0; }
   to   { transform: scale(1);   opacity: 1; }
@@ -2944,7 +3082,7 @@ a      { color: var(--accent); }
   height: 64px;
   border-top: 2px solid var(--accent);
   border-bottom: 2px solid var(--accent);
-  background: rgba(240,165,0,0.08);
+  background: rgba(201,169,97,0.08);
   pointer-events: none;
   z-index: 2;
 }
@@ -3274,8 +3412,8 @@ a      { color: var(--accent); }
 /* Resumable callout — warm amber tint so it reads as "in-progress, finish
    it" rather than another new scenario card. */
 .training-resumable {
-  background: rgba(240, 165, 0, 0.09);
-  border: 1px solid rgba(240, 165, 0, 0.38);
+  background: rgba(201, 169, 97, 0.09);
+  border: 1px solid rgba(201, 169, 97, 0.38);
   border-radius: 10px;
   padding: 14px;
 }
@@ -3293,7 +3431,7 @@ a      { color: var(--accent); }
   align-items: flex-start;
   padding: 12px;
   background: rgba(0, 0, 0, 0.28);
-  border: 1px solid rgba(240, 165, 0, 0.22);
+  border: 1px solid rgba(201, 169, 97, 0.22);
   border-radius: var(--radius);
   margin-bottom: 8px;
 }
@@ -3463,9 +3601,9 @@ a      { color: var(--accent); }
   transition: background 120ms, color 120ms, border-color 120ms;
 }
 .btn-tag-play-error:hover {
-  background: rgba(240, 165, 0, 0.08);
+  background: rgba(201, 169, 97, 0.08);
   color: var(--accent);
-  border-color: rgba(240, 165, 0, 0.4);
+  border-color: rgba(201, 169, 97, 0.4);
 }
 
 .game-error-overlay-backdrop {
@@ -3480,7 +3618,7 @@ a      { color: var(--accent); }
 }
 .game-error-overlay-card {
   background: var(--ui-card);
-  border: 1px solid rgba(240, 165, 0, 0.4);
+  border: 1px solid rgba(201, 169, 97, 0.4);
   border-radius: var(--radius);
   padding: 22px 22px 20px;
   max-width: 560px;
@@ -3514,8 +3652,8 @@ a      { color: var(--accent); }
 }
 .gerr-trick-pill:hover { background: rgba(255, 255, 255, 0.1); }
 .gerr-trick-pill.on {
-  background: rgba(240, 165, 0, 0.18);
-  border-color: rgba(240, 165, 0, 0.55);
+  background: rgba(201, 169, 97, 0.18);
+  border-color: rgba(201, 169, 97, 0.55);
   color: var(--accent);
 }
 .gerr-trick-pill-inprogress { font-style: italic; }
@@ -3541,12 +3679,12 @@ a      { color: var(--accent); }
   transition: border-color 120ms, transform 80ms, box-shadow 120ms;
 }
 .gerr-card:hover {
-  border-color: rgba(240, 165, 0, 0.55);
+  border-color: rgba(201, 169, 97, 0.55);
 }
 .gerr-card:active { transform: scale(0.98); }
 .gerr-card-selected {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(240, 165, 0, 0.25);
+  box-shadow: 0 0 0 2px rgba(201, 169, 97, 0.25);
 }
 .gerr-card-red .gerr-card-face { color: #c0392b; }
 .gerr-card-face {
@@ -3580,7 +3718,7 @@ a      { color: var(--accent); }
 .gerr-card-tagged {
   /* Subtle amber outline to signal "this card has existing notes" without
      competing visually with the selection state's full amber border. */
-  box-shadow: inset 0 0 0 2px rgba(240, 165, 0, 0.28);
+  box-shadow: inset 0 0 0 2px rgba(201, 169, 97, 0.28);
 }
 .gerr-card-badge {
   position: absolute;
@@ -3617,7 +3755,7 @@ a      { color: var(--accent); }
   padding: 8px 10px;
   background: #1a1a1a;
   color: #f1e8d8;
-  border: 1px solid rgba(240, 165, 0, 0.45);
+  border: 1px solid rgba(201, 169, 97, 0.45);
   border-radius: 6px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
   font-size: 0.8em;
@@ -3636,13 +3774,13 @@ a      { color: var(--accent); }
 .gerr-card-tooltip-item + .gerr-card-tooltip-item {
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px solid rgba(240, 165, 0, 0.25);
+  border-top: 1px solid rgba(201, 169, 97, 0.25);
 }
 
 .game-error-overlay-selected-label {
   margin: 6px 0 12px;
   padding: 8px 10px;
-  background: rgba(240, 165, 0, 0.08);
+  background: rgba(201, 169, 97, 0.08);
   border-left: 3px solid var(--accent);
   color: var(--text);
   font-size: 0.88em;
@@ -3666,7 +3804,7 @@ a      { color: var(--accent); }
 }
 .game-error-overlay-note:focus {
   outline: none;
-  border-color: rgba(240, 165, 0, 0.6);
+  border-color: rgba(201, 169, 97, 0.6);
 }
 
 .game-error-overlay-actions {
@@ -3805,7 +3943,7 @@ a      { color: var(--accent); }
 }
 .chat-msg-mine {
   align-self: flex-end;
-  background: rgba(240, 165, 0, 0.18);
+  background: rgba(201, 169, 97, 0.18);
 }
 .chat-msg-author { font-size: 0.72em; font-weight: bold; color: var(--muted); }
 .chat-msg-text {

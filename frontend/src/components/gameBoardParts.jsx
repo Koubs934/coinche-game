@@ -125,7 +125,7 @@ export function CoincheBadge({ type, t }) {
 
 // ─── Player seat (opponent, face-down) ────────────────────────────────────
 
-export function PlayerSeat({ player, isActive, isDimmed, direction, isCreator, onRemove, bidHistory }) {
+export function PlayerSeat({ player, isActive, isDimmed, isMine, isDealer, direction, isCreator, onRemove, bidHistory }) {
   const { t } = useLang();
   const name = displayName(player, t);
   const initial = name[0]?.toUpperCase() || '?';
@@ -142,10 +142,11 @@ export function PlayerSeat({ player, isActive, isDimmed, direction, isCreator, o
         botSeed={player?.username ?? player?.position}
         initial={initial}
         variant="head"
-        circleClassName={`player-avatar team${player?.team ?? 0}-avatar`}
+        circleClassName={`player-avatar ${isMine ? 'avatar-mine' : 'avatar-theirs'}`}
       />
       <div className="player-name">
         {name}
+        {isDealer && <span className="dealer-badge">D</span>}
         {player && player.connected === false && !player.isScripted && <span className="dc-indicator"> ⚠</span>}
         {isActive && <span className="turn-dot"> ●</span>}
       </div>

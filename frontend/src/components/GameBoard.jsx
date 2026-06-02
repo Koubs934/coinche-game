@@ -233,6 +233,8 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
       handCount: dealAnimCounts ? dealAnimCounts[pos] : handCounts[pos],
       isActive:  isActiveTurnPhase && pos === activeTurnPos,
       isDimmed:  isActiveTurnPhase && pos !== activeTurnPos,
+      isMine:    player ? player.team === myTeam : false,   // §6b viewer-relative tint
+      isDealer:  pos === game.dealer,
     };
   }
 
@@ -800,8 +802,22 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
       {/* ── Score bars ─────────────────────────────────────────────────────── */}
       <div className="score-bars">
         <div className="total-score-bar">
-          <span className="tsb-item team0-col">{myTeam === 0 ? t.us : t.them}: <strong>{scores[0]}</strong></span>
-          <span className="tsb-item team1-col">{myTeam === 1 ? t.us : t.them}: <strong>{scores[1]}</strong></span>
+          {/* Viewer-relative: Nous = my team, Eux = opponents. scores[] is indexed
+              by TEAM (RECON §4), so this reads correctly for both camps. */}
+          <span className="tsb-cell tsb-nous">
+            <span className="tsb-team">{t.us}</span>
+            <strong className="tsb-score">{scores[myTeam]}</strong>
+          </span>
+          <span className="tsb-cell tsb-center">
+            {/* wordmark dropped — the global Header already shows "COINCHE".
+                Spade ornament (mockup motif) keeps the target cell intentional. */}
+            <span className="tsb-ornament" aria-hidden="true">♠</span>
+            <span className="tsb-target">{room.targetScore} pts</span>
+          </span>
+          <span className="tsb-cell tsb-eux">
+            <span className="tsb-team">{t.them}</span>
+            <strong className="tsb-score">{scores[1 - myTeam]}</strong>
+          </span>
         </div>
       </div>
 
@@ -865,22 +881,33 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
           {phase === 'BIDDING' && (
             <div className="bid-center">
               {/* Focal element: current highest bid */}
-              <div className="bid-focal">
-                {currentBid ? (
-                  <>
-                    <span className="bid-focal-value">
-                      {currentBid.value === 'capot' ? t.capot : currentBid.value}
-                    </span>
-                    {currentBid.suit && (
-                      <span className={`bid-focal-suit${currentBid.suit === 'H' || currentBid.suit === 'D' ? ' red' : ''}`}>
-                        {t.suitSymbol[currentBid.suit]}
-                      </span>
-                    )}
-                    {currentBid.surcoinched && <span className="bid-focal-mod sur">{t.surcoinched}</span>}
-                    {currentBid.coinched && !currentBid.surcoinched && <span className="bid-focal-mod coin">{t.coinched}</span>}
-                  </>
-                ) : (
-                  <span className="bid-focal-empty">{t.biddingPhase}</span>
+              <div className="bid-focal contrat-panel">
+                <div className="contrat-label">{t.contract}</div>
+                {currentBid ? (() => {
+                  // Atout: prefer the running bid's suit. game.trumpSuit is NULL
+                  // mid-auction (RECON §4); it only matters as a post-close fallback.
+                  const atout = currentBid.suit ?? trumpSuit;
+                  const atoutRed = atout === 'H' || atout === 'D';
+                  return (
+                    <>
+                      <div className="contrat-row">
+                        {/* value: number 80..160 OR the string 'capot' (RECON §4) */}
+                        <span className="bid-focal-value">
+                          {currentBid.value === 'capot' ? t.capot : currentBid.value}
+                        </span>
+                        {currentBid.surcoinched && <span className="bid-focal-mod sur">{t.surcoinched}</span>}
+                        {currentBid.coinched && !currentBid.surcoinched && <span className="bid-focal-mod coin">{t.coinched}</span>}
+                      </div>
+                      {atout && (
+                        <div className="contrat-atout">
+                          {t.trump} <span className={`bid-focal-suit${atoutRed ? ' red' : ''}`}>{t.suitSymbol[atout]}</span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })() : (
+                  /* before the first bid: clean placeholder, no crash */
+                  <span className="bid-focal-value bid-focal-empty">—</span>
                 )}
               </div>
 
@@ -1002,9 +1029,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
             botSeed={myPlayer?.username ?? myPlayer?.position}
             initial={displayName(myPlayer, t)[0]?.toUpperCase() || '?'}
             variant="head"
-            circleClassName={`player-avatar team${myTeam}-avatar`}
+            circleClassName="player-avatar avatar-mine"
           />
-          <span className="self-name">{displayName(myPlayer, t)}</span>
+          <span className="self-name">{displayName(myPlayer, t)}{myPosition === game.dealer && <span className="dealer-badge">D</span>}</span>
           {isBidding && perPlayerHistory[myPosition]?.length > 0 && (
             <BidStack history={perPlayerHistory[myPosition]} t={t} />
           )}
@@ -1066,6 +1093,17 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
                 isCreator={isCreator}
                 canUndo={room.canUndo}
               />
+              {/* PASS 5 — standing-bid line (mockup .last-bid), derived from the tail
+                  of the auction: currentBid + its bidder (highBidder). No new state. */}
+              {currentBid && (
+                <div className="last-bid">
+                  {t.highestBid} : <b>{currentBid.value === 'capot' ? t.capot : currentBid.value}</b>
+                  {currentBid.suit && (
+                    <span className={`last-bid-suit${currentBid.suit === 'H' || currentBid.suit === 'D' ? ' red' : ''}`}>{t.suitSymbol[currentBid.suit]}</span>
+                  )}
+                  {highBidder && <span className="last-bid-by"> · {displayName(highBidder, t)}</span>}
+                </div>
+              )}
               {/* In normal play the bid toolbar is now empty (Trier removed, Annuler
                   moved into the suit row) — don't render an empty bar. Training has no
                   Header/Settings, so keep it there for the abandon button. */}
