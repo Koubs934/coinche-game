@@ -528,8 +528,14 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     // has no hover).
     if (idx !== -1 && isMyCardTurn) setLiftIdx(idx);
     if (idx === -1) return;
+    // Clear any stale drag-suppression from a prior gesture. A finished drag sets
+    // wasDragRef so its trailing click can't play a card; once a NEW press starts
+    // that flag must drop, otherwise the first genuine tap after a reorder would
+    // be swallowed (its click would be treated as the drag's leftover).
+    wasDragRef.current = false;
     dragRectRef.current = handElRef.current.getBoundingClientRect();
-    try { handElRef.current.setPointerCapture(e.pointerId); } catch {}
+    const startX = e.clientX;
+    const pointerId = e.pointerId;
     startXYRef.current = { x: e.clientX, y: e.clientY };
     longPressRef.current = setTimeout(() => {
       // A long-press-drag is the only way into manual mode. Seed the manual order
@@ -539,9 +545,17 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
         enterManual(displayHand.map(cardKey));
       }
       dragRef.current = { fromIdx: idx, toIdx: idx };
+      // Capture the pointer ONLY now that a drag has actually begun, so pointer
+      // moves keep tracking even when the finger/cursor leaves the hand. Capturing
+      // earlier (on every press) retargets the synthesized `click` to .my-hand,
+      // which on DESKTOP swallows the card button's onClick — that was the reason a
+      // mouse click never played a card. A plain tap (no drag) now leaves capture
+      // unset, so its click lands on the card and plays it. Touch was unaffected
+      // either way because the legacy touch→click path hit-tests the card directly.
+      try { handElRef.current.setPointerCapture(pointerId); } catch {}
       setLiftIdx(null);
       setDragVisual({ fromIdx: idx, toIdx: idx });
-      setDragX(e.clientX);
+      setDragX(startX);
     }, 250);
   }
 
