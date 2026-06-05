@@ -17,6 +17,7 @@ import {
 } from './gameBoardParts';
 import GameErrorTagOverlay from '../game/GameErrorTagOverlay';
 import Avatar from './Avatar';
+import { useTapLongPressDrag } from '../lib/useTapLongPressDrag';
 
 // ─── Fanned-arc hand tuning ────────────────────────────────────────────────
 const HAND_ARCH = 2.2;   // px per off² — vertical arch depth (middle highest)
@@ -139,8 +140,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   // cancel the belote banner timer.
   const beloteTimerRef   = useRef(null);
   const dragRef          = useRef(null);   // active drag { fromIdx, toIdx }
-  const longPressRef     = useRef(null);   // long-press timer
-  const startXYRef       = useRef(null);   // pointer position at pointerdown
   const wasDragRef       = useRef(false);  // suppress click after drag completes
   const handElRef        = useRef(null);   // ref on .my-hand div
   const rulerRef         = useRef(null);   // hidden element whose width = scaled card width
@@ -522,87 +521,72 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     return els.findIndex(el => el === e.target || el.contains(e.target));
   }
 
-  function handleHandPointerDown(e) {
-    const idx = cardIdxFromEvent(e);
-    // Press feedback: lift the touched playable card (also covers touch, which
-    // has no hover).
-    if (idx !== -1 && isMyCardTurn) setLiftIdx(idx);
-    if (idx === -1) return;
-    // Clear any stale drag-suppression from a prior gesture. A finished drag sets
-    // wasDragRef so its trailing click can't play a card; once a NEW press starts
-    // that flag must drop, otherwise the first genuine tap after a reorder would
-    // be swallowed (its click would be treated as the drag's leftover).
-    wasDragRef.current = false;
-    dragRectRef.current = handElRef.current.getBoundingClientRect();
-    const startX = e.clientX;
-    const pointerId = e.pointerId;
-    startXYRef.current = { x: e.clientX, y: e.clientY };
-    longPressRef.current = setTimeout(() => {
+  // Tap a card → play (handled by the card button's onClick). Long-press (250ms,
+  // held still within 8px) → enter MANUAL and start a drag; drag → reorder. The
+  // shared useTapLongPressDrag hook makes this fire IDENTICALLY for mouse, touch
+  // and pen (Pointer Events). Pointer capture is acquired on .my-hand only once
+  // the drag actually begins — capturing on every press retargets the synthesized
+  // click to .my-hand and swallows the card button's onClick on desktop (the bug
+  // fixed in a9f21bc). A plain tap leaves capture unset so its click plays.
+  const handGesture = useTapLongPressDrag({
+    longPressMs: 250,
+    moveTolerance: 8,
+    dragMode: 'longPress',
+    captureTarget: () => handElRef.current,
+    onPressStart: (ctx) => {
+      const idx = cardIdxFromEvent(ctx.event);
+      if (idx === -1) return false; // press didn't land on a card — no gesture
+      // Press feedback: lift the touched playable card (also covers touch, which
+      // has no hover).
+      if (isMyCardTurn) setLiftIdx(idx);
+      // Clear any stale drag-suppression from a prior gesture so the first genuine
+      // tap after a reorder isn't swallowed as that drag's leftover click.
+      wasDragRef.current = false;
+      dragRectRef.current = handElRef.current.getBoundingClientRect();
+      return idx; // threaded through as ctx.data
+    },
+    onDragStart: (ctx) => {
       // A long-press-drag is the only way into manual mode. Seed the manual order
       // from the CURRENT displayed order so the hand doesn't jump and the drag
       // indices (computed against the shown cards) stay valid.
-      if (orderSource !== 'manual') {
-        enterManual(displayHand.map(cardKey));
-      }
-      dragRef.current = { fromIdx: idx, toIdx: idx };
-      // Capture the pointer ONLY now that a drag has actually begun, so pointer
-      // moves keep tracking even when the finger/cursor leaves the hand. Capturing
-      // earlier (on every press) retargets the synthesized `click` to .my-hand,
-      // which on DESKTOP swallows the card button's onClick — that was the reason a
-      // mouse click never played a card. A plain tap (no drag) now leaves capture
-      // unset, so its click lands on the card and plays it. Touch was unaffected
-      // either way because the legacy touch→click path hit-tests the card directly.
-      try { handElRef.current.setPointerCapture(pointerId); } catch {}
+      if (orderSource !== 'manual') enterManual(displayHand.map(cardKey));
+      dragRef.current = { fromIdx: ctx.data, toIdx: ctx.data };
       setLiftIdx(null);
-      setDragVisual({ fromIdx: idx, toIdx: idx });
-      setDragX(startX);
-    }, 250);
-  }
-
-  function handleHandPointerMove(e) {
-    if (dragRef.current) {
-      setDragX(e.clientX);
-      const to = getDropIdx(e.clientX);
-      if (to !== dragRef.current.toIdx) {
+      setDragVisual({ fromIdx: ctx.data, toIdx: ctx.data });
+      setDragX(ctx.startX);
+    },
+    onDragMove: (ctx) => {
+      setDragX(ctx.x);
+      const to = getDropIdx(ctx.x);
+      if (dragRef.current && to !== dragRef.current.toIdx) {
         dragRef.current.toIdx = to;
         setDragVisual({ fromIdx: dragRef.current.fromIdx, toIdx: to });
       }
-      return;
-    }
-    // Cancel long-press if finger moved too much
-    if (longPressRef.current && startXYRef.current) {
-      if (Math.abs(e.clientX - startXYRef.current.x) > 8 ||
-          Math.abs(e.clientY - startXYRef.current.y) > 8) {
-        clearTimeout(longPressRef.current);
-        longPressRef.current = null;
-        setLiftIdx(null);
+    },
+    onDragEnd: () => {
+      const dr = dragRef.current;
+      dragRef.current = null;
+      setLiftIdx(null);
+      setDragVisual(null);
+      setDragX(null);
+      if (!dr) return;
+      wasDragRef.current = true; // suppress the trailing click so it can't play
+      if (dr.fromIdx !== dr.toIdx) {
+        setManualOrder(reorderArr(manualHand, dr.fromIdx, dr.toIdx).map(cardKey));
       }
-    }
-  }
-
-  function handleHandPointerUp() {
-    clearTimeout(longPressRef.current);
-    longPressRef.current = null;
-    setLiftIdx(null);
-    const dr = dragRef.current;
-    dragRef.current = null;
-    setDragVisual(null);
-    setDragX(null);
-    if (!dr) return;
-    wasDragRef.current = true;
-    if (dr.fromIdx !== dr.toIdx) {
-      setManualOrder(reorderArr(manualHand, dr.fromIdx, dr.toIdx).map(cardKey));
-    }
-  }
-
-  function handleHandPointerCancel() {
-    clearTimeout(longPressRef.current);
-    longPressRef.current = null;
-    setLiftIdx(null);
-    dragRef.current = null;
-    setDragVisual(null);
-    setDragX(null);
-  }
+    },
+    // Pointer moved past the tolerance before the hold completed (a scroll/slide,
+    // not a press) — drop the press-lift; no drag, no play.
+    onLongPressCancel: () => setLiftIdx(null),
+    // Quick release with no drag — drop the press-lift; the click plays the card.
+    onTap: () => setLiftIdx(null),
+    onCancel: () => {
+      dragRef.current = null;
+      setLiftIdx(null);
+      setDragVisual(null);
+      setDragX(null);
+    },
+  });
 
   // ── Bid sheet open/collapse ────────────────────────────────────────────────
   // Only act on short viewports; on tall screens the handle/bar are hidden and
@@ -1117,10 +1101,7 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
           className={`my-hand${orderSource === 'manual' ? ' my-hand-manual' : ''}`}
           ref={handElRef}
           style={handLift ? { transform: `translateY(${-handLift}px)` } : undefined}
-          onPointerDown={handleHandPointerDown}
-          onPointerMove={handleHandPointerMove}
-          onPointerUp={handleHandPointerUp}
-          onPointerCancel={handleHandPointerCancel}
+          {...handGesture}
         >
           {/* Hidden ruler: width tracks the scaled card width so the measure
               effect can read it (and react to Mode Delfino changes). */}

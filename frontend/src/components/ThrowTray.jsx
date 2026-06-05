@@ -1,20 +1,25 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { THROW_ITEMS } from '../lib/throwItems';
+import { useTapLongPressDrag } from '../lib/useTapLongPressDrag';
 
 // Throw item tray + drag-and-drop targeting. Opened by the header throw button;
 // stays open (throw several) until dismissed by an outside tap or the button.
-// Drag an item → a ghost follows the finger → on release we hit-test the seat
+// Drag an item → a ghost follows the pointer → on release we hit-test the seat
 // drop zones ([data-throw-target] in GameBoard) and, over a valid OTHER seat,
-// fire onThrow(targetPosition, itemId). The tray + ghost are interactive; the
-// flying animation (ThrowLayer) stays pointer-events:none and is untouched here.
+// fire onThrow(targetPosition, itemId). Works the SAME for mouse, touch and pen:
+// the drag rides the shared useTapLongPressDrag hook in 'immediate' mode (drag
+// begins on pointerdown), which captures the pointer on the pressed item so the
+// ghost keeps tracking anywhere on screen — no bespoke window listeners. The tray
+// + ghost are interactive; the flying animation (ThrowLayer) stays
+// pointer-events:none and is untouched here.
 //
 // Dismissal uses a document pointerdown listener (NOT a blocking backdrop) so
 // tapping a card both closes the tray AND still plays the card.
 export default function ThrowTray({ open, onClose, onThrow, myPosition }) {
   const [drag, setDrag] = useState(null); // { item, x, y } while dragging
   const [pos, setPos]   = useState(null); // { right, bottom } anchored to the button
-  const dragRef  = useRef(null);
   const hoverRef = useRef(null); // currently-highlighted seat element
+  const pendingItemRef = useRef(null); // item of the pressed tray button (set on pointerdown)
 
   // Anchor the tray just above the throw button (bottom band), opening UPWARD,
   // so the whole table stays visible. Measured from the live button rect so it
@@ -60,47 +65,37 @@ export default function ThrowTray({ open, onClose, onThrow, myPosition }) {
     return { seat, target };
   }
 
-  function onMove(e) {
-    if (!dragRef.current) return;
-    dragRef.current.x = e.clientX;
-    dragRef.current.y = e.clientY;
-    setDrag(d => (d ? { ...d, x: e.clientX, y: e.clientY } : d));
-    const hit = seatAt(e.clientX, e.clientY, true); // valid (non-self) target only
-    if (hoverRef.current && (!hit || hit.seat !== hoverRef.current)) clearHover();
-    if (hit && hit.seat !== hoverRef.current) { hit.seat.classList.add('throw-drop-hover'); hoverRef.current = hit.seat; }
-  }
+  // One shared gesture for every tray item. 'immediate' → the drag starts on
+  // pointerdown; the hook captures the pointer on the pressed button so moves and
+  // the release land here even over a seat far across the table.
+  const dragHandlers = useTapLongPressDrag({
+    dragMode: 'immediate',
+    preventDefault: true, // suppress text selection / touch scroll during the drag
+    onPressStart: () => pendingItemRef.current, // item stashed by the button's onPointerDown
+    onDragStart: (ctx) => {
+      if (!ctx.data) return;
+      setDrag({ item: ctx.data, x: ctx.startX, y: ctx.startY });
+    },
+    onDragMove: (ctx) => {
+      setDrag(d => (d ? { ...d, x: ctx.x, y: ctx.y } : d));
+      const hit = seatAt(ctx.x, ctx.y, true); // valid (non-self) target only
+      if (hoverRef.current && (!hit || hit.seat !== hoverRef.current)) clearHover();
+      if (hit && hit.seat !== hoverRef.current) { hit.seat.classList.add('throw-drop-hover'); hoverRef.current = hit.seat; }
+    },
+    onDragEnd: (ctx) => {
+      const item = ctx.data;
+      setDrag(null);
+      clearHover();
+      if (!item) return;
+      const hit = seatAt(ctx.x, ctx.y, true);
+      if (hit) onThrow(hit.target, item.id); // valid drop → throw; tray stays open
+    },
+    onCancel: () => { setDrag(null); clearHover(); },
+  });
 
-  function endDrag(e) {
-    window.removeEventListener('pointermove', onMove);
-    window.removeEventListener('pointerup', endDrag);
-    window.removeEventListener('pointercancel', endDrag);
-    const d = dragRef.current;
-    dragRef.current = null;
-    setDrag(null);
-    clearHover();
-    if (!d) return;
-    const hit = seatAt(e.clientX, e.clientY, true);
-    if (hit) onThrow(hit.target, d.item.id); // valid drop → throw; tray stays open
-  }
-
-  function startDrag(e, item) {
-    if (e.button != null && e.button !== 0) return; // primary pointer only
-    e.preventDefault();
-    dragRef.current = { item, x: e.clientX, y: e.clientY };
-    setDrag({ item, x: e.clientX, y: e.clientY });
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', endDrag);
-    window.addEventListener('pointercancel', endDrag);
-  }
-
-  // Clean up listeners/hover if unmounted mid-drag.
-  useEffect(() => () => {
-    window.removeEventListener('pointermove', onMove);
-    window.removeEventListener('pointerup', endDrag);
-    window.removeEventListener('pointercancel', endDrag);
-    clearHover();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Clear any leftover seat highlight if unmounted mid-drag (the hook itself
+  // drops the in-flight gesture + releases capture on unmount).
+  useEffect(() => () => clearHover(), []);
 
   if (!open) return null;
 
@@ -117,7 +112,10 @@ export default function ThrowTray({ open, onClose, onThrow, myPosition }) {
             type="button"
             className={`throw-tray-item${drag?.item.id === it.id ? ' dragging' : ''}`}
             title={it.id}
-            onPointerDown={(e) => startDrag(e, it)}
+            onPointerDown={(e) => { pendingItemRef.current = it; dragHandlers.onPointerDown(e); }}
+            onPointerMove={dragHandlers.onPointerMove}
+            onPointerUp={dragHandlers.onPointerUp}
+            onPointerCancel={dragHandlers.onPointerCancel}
           >
             {it.emoji}
           </button>
