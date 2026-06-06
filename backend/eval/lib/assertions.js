@@ -106,6 +106,7 @@ const SIGNALS = {
   states500:     (t) => /\b500\b/.test(t),
   clarifiesVocab:(t) => /(qu'est-ce que tu (appelles|veux dire|entends)|c'est quoi[^.!?]{0,14}(antibelote|34|ça|ton|le 21)|tu appelles quoi|tu entends quoi par)/i.test(t),
   statesSilence: (t) => /(ne couvre pas|ne formalise pas|pas (de )?règle (pour|qui)|n'est pas couvert|muette sur|la feuille (est )?(muette|silen))/i.test(t),
+  mentionsDer:   (t) => /(dix[ -]?de[ -]?der|dernier pli|\bder\b|dix de der)/i.test(t),
 };
 
 // Deterministic "leading" hint (the judge also reports leading; for non-judged

@@ -51,7 +51,9 @@ function rehydrateCardSelection(annotation) {
 // Resolve everything static for a case ONCE (scenario, annotation, system prompt,
 // seed/history) and return a `callBot()` closure invoked per sample.
 function resolveInputs(c, opts = {}) {
-  const scenario = loadScenario(c.scenarioId);
+  // Synthetic cases may carry a fully inline scenario (own hand/timeline) instead
+  // of referencing a committed scenario file — used by DER-1's specific hand.
+  const scenario = c.inlineScenario || loadScenario(c.scenarioId);
   if (!scenario) return { skip: `scénario introuvable: ${c.scenarioId}` };
 
   const isSynthetic = !c.annotationFile;
