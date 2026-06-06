@@ -16,6 +16,9 @@ frontend/.vite/
 # (covers backend/data/games-mirror/ — the local Game Review mirror — as well)
 backend/data/
 
+# ── Behavioral-eval scorecards (regenerated on each `npm run eval`) ───────────
+backend/eval/results/
+
 # ── Game analysis report (generated from mirror, regenerate on demand) ───────
 docs/games-report.html
 
