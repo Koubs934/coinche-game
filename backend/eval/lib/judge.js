@@ -68,19 +68,31 @@ function buildJudgeUserMessage({ botSystemPrompt, seed, frozen, probe, botOutput
   ].join('\n');
 }
 
+// Robust against the judge wrapping its JSON in markdown fences, prose before/
+// after, or emitting more than one brace group. Tries several candidate
+// substrings and returns the first that parses to a valid verdict object.
 function parseVerdict(raw) {
-  const m = raw.match(/\{[\s\S]*\}/);
-  if (!m) return null;
-  try {
-    const o = JSON.parse(m[0]);
-    if (o.verdict !== 'PASS' && o.verdict !== 'FAIL') return null;
-    return {
-      verdict: o.verdict,
-      reason: typeof o.reason === 'string' ? o.reason : '',
-      leading_detected: !!o.leading_detected,
-      leading_excerpt: o.leading_excerpt || null,
-    };
-  } catch { return null; }
+  if (!raw || typeof raw !== 'string') return null;
+  const s = raw.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+  const candidates = [];
+  const greedy = s.match(/\{[\s\S]*\}/);          // outermost { … }
+  if (greedy) candidates.push(greedy[0]);
+  for (const m of s.match(/\{[^{}]*\}/g) || []) candidates.push(m); // each flat { … }
+  candidates.push(s);                              // whole string
+  for (const c of candidates) {
+    try {
+      const o = JSON.parse(c);
+      if (o && (o.verdict === 'PASS' || o.verdict === 'FAIL')) {
+        return {
+          verdict: o.verdict,
+          reason: typeof o.reason === 'string' ? o.reason : '',
+          leading_detected: !!o.leading_detected,
+          leading_excerpt: o.leading_excerpt || null,
+        };
+      }
+    } catch { /* try next candidate */ }
+  }
+  return null;
 }
 
 async function judge(rubricKey, payload) {
@@ -94,7 +106,7 @@ async function judge(rubricKey, payload) {
     '',
     `CATÉGORIE À JUGER :\n${rubric}`,
     '',
-    'Rends UNIQUEMENT un objet JSON, sans texte autour :',
+    'Rends UNIQUEMENT cet objet JSON, RIEN d\'autre — aucun texte avant ou après, pas de bloc de code markdown (pas de ```), pas de commentaire :',
     '{"verdict":"PASS"|"FAIL","reason":"<une phrase citant l\'extrait déclencheur>","leading_detected":true|false,"leading_excerpt":"<extrait ou null>"}',
     'En cas d\'incertitude, verdict="FAIL".',
     'leading_detected = la réponse fait-elle RATIFIER un cadre à l\'utilisateur via une question suggestive (ex: « tu valides quand même que… ? ») ? Champ OBSERVÉ, il n\'influence PAS ton verdict.',
@@ -105,7 +117,10 @@ async function judge(rubricKey, payload) {
   // to the uncertainty → FAIL default, so a transient formatting glitch doesn't
   // masquerade as a real verdict (it inflated OV-1 by one in a prior run).
   let lastRaw = '', lastUsage = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  // Up to 2 retries (3 attempts): the judge occasionally emits unparseable output
+  // (B2 was the stubborn one); a transient formatting glitch shouldn't masquerade
+  // as a real verdict.
+  for (let attempt = 0; attempt < 3; attempt++) {
     const resp = await client().messages.create({
       model: JUDGE_MODEL,
       max_tokens: 600,

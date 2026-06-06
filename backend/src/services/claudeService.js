@@ -603,7 +603,21 @@ function formatPastAnnotations(pastAnnotations) {
   return lines.join('\n');
 }
 
-async function startConversation({ scenario, annotation, userName, pastAnnotations, feuilleContent, caseType, cardSelection, userId }) {
+// Extract the visible answer text. With extended thinking ON, the first content
+// block is a `thinking` block, so content[0].text would be undefined — find the
+// text block explicitly. Without thinking, content[0] IS the text block, so this
+// is byte-for-byte equivalent to the old content[0].text.
+function extractText(response) {
+  const block = (response.content || []).find(b => b.type === 'text');
+  return block ? block.text : '';
+}
+
+// `thinking` (optional) + `maxTokens` (optional) are unset by default, so prod
+// callers (server.js) build a byte-for-byte identical request (no thinking field,
+// max_tokens = MAX_TOKENS). They are set only by the offline eval's opt-in
+// --thinking A/B path; the thinking budget then lives inside a larger maxTokens
+// so it never eats the visible reply.
+async function startConversation({ scenario, annotation, userName, pastAnnotations, feuilleContent, caseType, cardSelection, userId, thinking, maxTokens }) {
   const systemPrompt = buildSystemPrompt({
     feuilleContent,
     userName,
@@ -617,13 +631,14 @@ async function startConversation({ scenario, annotation, userName, pastAnnotatio
 
   const response = await getClient().messages.create({
     model: MODEL,
-    max_tokens: MAX_TOKENS,
+    max_tokens: maxTokens || MAX_TOKENS,
     system: systemPrompt,
     messages: [{ role: 'user', content: userMessage }],
+    ...(thinking ? { thinking } : {}),
   });
 
   return {
-    text: response.content[0].text,
+    text: extractText(response),
     usage: response.usage,
     firstUserMessage: userMessage,
   };
@@ -649,13 +664,14 @@ async function continueConversation({ conversationHistory, userMessage, context 
 
   const response = await getClient().messages.create({
     model: MODEL,
-    max_tokens: MAX_TOKENS,
+    max_tokens: context.maxTokens || MAX_TOKENS,
     system: systemPrompt,
     messages,
+    ...(context.thinking ? { thinking: context.thinking } : {}),
   });
 
   return {
-    text: response.content[0].text,
+    text: extractText(response),
     usage: response.usage,
   };
 }

@@ -50,7 +50,7 @@ function rehydrateCardSelection(annotation) {
 
 // Resolve everything static for a case ONCE (scenario, annotation, system prompt,
 // seed/history) and return a `callBot()` closure invoked per sample.
-function resolveInputs(c) {
+function resolveInputs(c, opts = {}) {
   const scenario = loadScenario(c.scenarioId);
   if (!scenario) return { skip: `scénario introuvable: ${c.scenarioId}` };
 
@@ -78,7 +78,7 @@ function resolveInputs(c) {
   if (c.mode === 'turn1') {
     seedForJudge = formatScenarioForClaude(scenario, annotation, cardSelection);
     frozenForJudge = []; probeForJudge = null;
-    callBot = () => startConversation({ scenario, annotation, userId, userName, pastAnnotations: [], feuilleContent, caseType, cardSelection });
+    callBot = () => startConversation({ scenario, annotation, userId, userName, pastAnnotations: [], feuilleContent, caseType, cardSelection, thinking: opts.thinking, maxTokens: opts.maxTokens });
   } else {
     const prior = isSynthetic
       ? (c.inlineFrozenHistory || [])
@@ -86,7 +86,7 @@ function resolveInputs(c) {
     const conversationHistory = buildConversationHistory(scenario, annotation, cardSelection, prior);
     seedForJudge = conversationHistory[0].content; frozenForJudge = prior; probeForJudge = c.probeUserTurn;
     callBot = () => continueConversation({ conversationHistory, userMessage: c.probeUserTurn,
-      context: { feuilleContent, userId, userName, pastAnnotations: [], caseType, cardSelection } });
+      context: { feuilleContent, userId, userName, pastAnnotations: [], caseType, cardSelection, thinking: opts.thinking, maxTokens: opts.maxTokens } });
   }
   return { scenario, caseType, botSystemPrompt, seedForJudge, frozenForJudge, probeForJudge, callBot };
 }
@@ -134,8 +134,8 @@ async function scoreSample(c, inputs) {
   };
 }
 
-async function runCase(c, samples) {
-  const inputs = resolveInputs(c);
+async function runCase(c, samples, opts) {
+  const inputs = resolveInputs(c, opts);
   if (inputs.skip) return { id: c.id, category: c.category, source: c.source, skipped: true, reason: inputs.skip };
 
   const sampleResults = [];
@@ -188,7 +188,7 @@ function renderMd(report) {
   const N = report.samples;
   L.push('# Éval comportementale — La Feuille (multi-échantillon)');
   L.push('');
-  L.push(`- **Bot testé** : \`${report.model}\` (MAX_TOKENS ${report.maxTokens}, sans thinking, température par défaut)`);
+  L.push(`- **Bot testé** : \`${report.model}\` · thinking: **${report.botThinking}** · MAX_TOKENS ${report.maxTokens} · température par défaut`);
   L.push(`- **Juge** : \`${report.judgeModel}\` (1× par échantillon)`);
   L.push(`- **Échantillons par cas** : ${N}`);
   L.push(`- **Lancé** : ${report.startedAt}`);
@@ -272,14 +272,19 @@ async function main() {
   const samplesArg = (process.argv.find(a => a.startsWith('--samples=')) || '').split('=')[1];
   const samples = Math.max(1, parseInt(samplesArg, 10) || DEFAULT_SAMPLES);
   const onlyArg = (process.argv.find(a => a.startsWith('--only=')) || '').split('=')[1];
+  // Opt-in extended thinking for the BOT under test — OFF by default so prod and
+  // the no-thinking baseline are unchanged. Adaptive thinking on Sonnet 4.6 with a
+  // larger output budget (4096) so thinking tokens don't truncate the visible reply.
+  const thinkingOn = process.argv.includes('--thinking');
+  const opts = thinkingOn ? { thinking: { type: 'adaptive' }, maxTokens: 4096 } : {};
   let cases = CASES;
   if (onlyArg) cases = CASES.filter(c => c.id === onlyArg || c.category === onlyArg);
   if (!cases.length) { console.error(`Aucun cas pour --only=${onlyArg}`); process.exit(1); }
 
-  console.log(`Éval : ${cases.length} cas × ${samples} échantillons · bot=${MODEL} · juge=${JUDGE_MODEL} · concurrence=${CONCURRENCY}`);
+  console.log(`Éval : ${cases.length} cas × ${samples} échantillons · bot=${MODEL}${thinkingOn ? ' +thinking(adaptive, max 4096)' : ' (no thinking)'} · juge=${JUDGE_MODEL} · concurrence=${CONCURRENCY}`);
   const startedAt = new Date().toISOString();
   const results = await runPool(cases, CONCURRENCY, async (c) => {
-    const r = await runCase(c, samples);
+    const r = await runCase(c, samples, opts);
     const status = r.skipped ? 'SKIP' : r.error ? 'ERR ' : `${CLASS_BADGE[r.classification].replace(/^.. /, '')} ${r.passCount}/${samples}`;
     console.log(`  [${status}] ${r.id}`);
     return r;
@@ -322,7 +327,8 @@ async function main() {
   }
 
   const report = {
-    model: MODEL, maxTokens: MAX_TOKENS, judgeModel: JUDGE_MODEL, startedAt, samples,
+    model: MODEL, maxTokens: thinkingOn ? 4096 : MAX_TOKENS, botThinking: thinkingOn ? 'adaptive' : 'off',
+    judgeModel: JUDGE_MODEL, startedAt, samples,
     aggregate: { meanPass, counted: counted.length, stablePass: stablePass.length, wobble: wobble.length,
       stableFail: stableFail.length, skipped: results.filter(r => r.skipped).length, errors: results.filter(r => r.error).length },
     byCategory, coreModesUnstable, leadingObservations, captureRuleObservations, cases: results,
