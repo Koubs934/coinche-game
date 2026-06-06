@@ -267,6 +267,20 @@ describe('claudeService — V2.2 calibration regression (Sacha audit)', () => {
     });
   });
 
+  describe('Mod 17 — protéger le challenge (question pointue, jamais de clôture molle)', () => {
+    it('exige une question pointue au retour de main, pas une clôture qui appelle l\'accord', () => {
+      const sp = buildVD();
+      expect(sp).toMatch(/RENDRE LA MAIN.{0,4}INVITER L'ACCORD/);
+      expect(sp).toMatch(/question\s+POINTUE/);
+      expect(sp).toMatch(/JAMAIS une clôture\s+molle/);
+    });
+    it('garde le garde-fou symétrique : ne pas fabriquer de challenge quand l\'utilisateur a raison', () => {
+      const sp = buildVD();
+      expect(sp).toMatch(/ne fabrique pas d'objection/);
+      expect(sp).toMatch(/interdit d'ADOUCIR un challenge\s+mérité, pas d'en inventer/);
+    });
+  });
+
   describe('Mod 16 — discipline des noms (pas d\'écho)', () => {
     it('interdit de répéter le nom d\'un autre joueur, même pour décliner', () => {
       const sp = buildVD();
