@@ -251,4 +251,21 @@ describe('claudeService — V2.2 calibration regression (Sacha audit)', () => {
       expect(vd).toMatch(/Pas d'accord/);
     });
   });
+
+  describe('Mod 15 — brévité sélective (anti-énumération)', () => {
+    it('demande de sélectionner un seul point, pas d\'énumérer', () => {
+      const sp = buildVD();
+      expect(sp).toMatch(/SÉLECTIONNE, n'énumère pas/);
+      expect(sp).toMatch(/traite UN SEUL point/);
+      expect(sp).toMatch(/UNE seule question/);
+    });
+  });
+
+  describe('Mod 16 — discipline des noms (pas d\'écho)', () => {
+    it('interdit de répéter le nom d\'un autre joueur, même pour décliner', () => {
+      const sp = buildVD();
+      expect(sp).toMatch(/NE RÉPÈTE PAS ce nom/);
+      expect(sp).toMatch(/même pas pour dire que tu ne le/);
+    });
+  });
 });
