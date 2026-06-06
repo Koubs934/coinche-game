@@ -15,7 +15,7 @@ const path = require('path');
 
 const claudeService = require('../src/services/claudeService');
 const { startConversation, continueConversation, formatScenarioForClaude, buildSystemPrompt, formatPastAnnotations, MODEL, MAX_TOKENS } = claudeService;
-const { loadFeuille, buildConversationHistory } = require('../src/training/conversationContext');
+const { loadFeuille, buildConversationHistory, stripCaptureRules } = require('../src/training/conversationContext');
 const { caseTypeFor } = require('../src/training/divergence');
 const cardFeatures = require('../src/game/cardFeatures');
 const { runDeterministic } = require('./lib/assertions');
@@ -95,15 +95,30 @@ async function runCase(c) {
     seedForJudge = conversationHistory[0].content; frozenForJudge = prior; probeForJudge = c.probeUserTurn;
   }
 
-  // ── Deterministic checks ────────────────────────────────────────────────────
+  // ── Apply the REAL CAPTURE_RULE strip — assert + judge the USER-VISIBLE text ─
+  // server.js strips these silent lines before persistence/FE; the eval judges
+  // the same post-strip output. The stripped rules are LOGGED (observed), never
+  // scored, so over-capture can be watched separately.
+  const botOutputRaw = botOutput;
+  const stripped = stripCaptureRules(botOutputRaw);
+  const captureRules = stripped.rules;
+  botOutput = stripped.cleanText;
+  // For the JUDGE, an empty post-strip turn is presented NEUTRALLY: the judge
+  // must see only the user-visible text, never that a CAPTURE_RULE was stripped
+  // (that observation lives in the scorecard tally, not the judge's input).
+  const visible = (botOutput && botOutput.trim())
+    ? botOutput
+    : '(le bot n\'a produit aucun texte visible à l\'utilisateur ce tour-ci.)';
+
+  // ── Deterministic checks (on the post-strip text) ───────────────────────────
   const det = runDeterministic(botOutput, c, scenario);
   const blocking = det.checks.filter(x => x.blocking);
   const allBlockingPass = blocking.every(x => x.pass);
 
-  // ── Judge ───────────────────────────────────────────────────────────────────
+  // ── Judge (on the post-strip, user-visible text) ────────────────────────────
   let judgeRes = null;
   if (c.judge) {
-    judgeRes = await judge(c.judge, { botSystemPrompt, seed: seedForJudge, frozen: frozenForJudge, probe: probeForJudge, botOutput });
+    judgeRes = await judge(c.judge, { botSystemPrompt, seed: seedForJudge, frozen: frozenForJudge, probe: probeForJudge, botOutput: visible });
   }
 
   const pass = allBlockingPass && (judgeRes ? judgeRes.verdict === 'PASS' : true);
@@ -113,7 +128,9 @@ async function runCase(c) {
 
   return {
     id: c.id, category: c.category, caseType, source: c.source, expected: c.expected, mode: c.mode,
-    botOutput,
+    botOutput,            // post-strip (user-visible; may be '')
+    botOutputRaw,         // raw (pre-strip) for traceability
+    captureRules,         // stripped CAPTURE_RULE lines (observed, not scored)
     deterministic: det.checks,
     signals: det.signals,
     judge: judgeRes ? { rubric: c.judge, verdict: judgeRes.verdict, reason: judgeRes.reason,
@@ -174,9 +191,15 @@ function renderMd(report) {
     if (c.error) { L.push(`- **ERREUR** : ${c.error}`); continue; }
     L.push(`- caseType : \`${c.caseType}\` · mode : \`${c.mode}\``);
     L.push('');
-    L.push('**Réponse réelle du bot :**');
+    L.push('**Réponse réelle du bot (post-strip, user-visible) :**');
     L.push('');
-    L.push('> ' + String(c.botOutput).replace(/\n/g, '\n> '));
+    const vis = (c.botOutput && c.botOutput.trim()) ? c.botOutput : '(aucun texte visible — uniquement des lignes CAPTURE_RULE, strippées)';
+    L.push('> ' + String(vis).replace(/\n/g, '\n> '));
+    if (c.captureRules && c.captureRules.length) {
+      L.push('');
+      L.push(`**CAPTURE_RULE émis (strippé · observé · n'affecte pas le verdict)** : ${c.captureRules.length}`);
+      for (const r of c.captureRules) L.push(`  - « ${r} »`);
+    }
     L.push('');
     L.push('**Checks déterministes :**');
     L.push(fmtChecks(c.deterministic));
@@ -199,6 +222,12 @@ function renderMd(report) {
   const lead = report.leadingObservations;
   L.push(`- ${lead.length} cas sur ${counted.length} évalués présentent une question suggestive de cadrage.`);
   for (const o of lead) L.push(`  - ${o.id} : « ${o.excerpt || '(flag juge sans extrait)'} »`);
+  L.push('');
+  L.push('## « CAPTURE_RULE » émis (observé — n\'affecte pas les scores)');
+  const cap = report.captureRuleObservations;
+  const totalLines = cap.reduce((n, o) => n + o.rules.length, 0);
+  L.push(`- ${cap.length} cas sur ${counted.length} ont émis ≥ 1 ligne CAPTURE_RULE (total ${totalLines}). En prod ces lignes sont strippées avant l'affichage utilisateur.`);
+  for (const o of cap) L.push(`  - ${o.id} : ${o.rules.length} ligne(s)`);
   L.push('');
   return L.join('\n');
 }
@@ -232,10 +261,11 @@ async function main() {
     else t.fail++;
   }
   const leadingObservations = results.filter(r => r.leading && r.leading.detected).map(r => ({ id: r.id, excerpt: r.leading.excerpt }));
+  const captureRuleObservations = results.filter(r => r.captureRules && r.captureRules.length).map(r => ({ id: r.id, rules: r.captureRules }));
 
   const report = {
     model: MODEL, maxTokens: MAX_TOKENS, judgeModel: JUDGE_MODEL, startedAt,
-    totalsByCategory, leadingObservations, cases: results,
+    totalsByCategory, leadingObservations, captureRuleObservations, cases: results,
   };
 
   fs.mkdirSync(RESULTS_DIR, { recursive: true });

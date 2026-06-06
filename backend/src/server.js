@@ -15,7 +15,7 @@ const { registerTrainingHandlers, runStartupCleanup: trainingStartupCleanup } = 
 const claudeService = require('./services/claudeService');
 const personalFeuilleService = require('./services/personalFeuille');
 const { caseTypeFor } = require('./training/divergence');
-const { loadFeuille, buildConversationHistory } = require('./training/conversationContext');
+const { loadFeuille, buildConversationHistory, stripCaptureRules } = require('./training/conversationContext');
 const cardFeatures = require('./game/cardFeatures');
 // Event payload contract for every socket.on / socket.emit below:
 // see socketEvents.js. Update both sides (FE + BE) when changing a payload.
@@ -154,7 +154,9 @@ function nowIso() { return new Date().toISOString(); }
 // logging. Best-effort persistence: a filesystem error logs but never
 // breaks the conversation flow (the user would never know).
 function captureAndStrip(rawText, { userId, scenarioId, userName }) {
-  const { rules, cleanText } = personalFeuilleService.extractCaptureRules(rawText);
+  // stripCaptureRules is the shared strip entry (training/conversationContext),
+  // also used by the eval so it judges the same post-strip text users see.
+  const { rules, cleanText } = stripCaptureRules(rawText);
   if (rules.length === 0) return { cleanText, rules };
   for (const ruleText of rules) {
     try {

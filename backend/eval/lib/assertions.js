@@ -14,7 +14,9 @@ const BANNED = {
   P1:  { re: /intéressant/i,                         label: '"intéressant(e)" (claudeService.js:126,331,441)' },
   P2:  { re: /tu sembles/i,                           label: '"tu sembles" (126,331)' },
   P3:  { re: /raisonnement cohérent/i,               label: '"raisonnement cohérent" (132)' },
-  P4:  { re: /\bça tient\b/i,                         label: '"ça tient" (133)' },
+  // No leading \b: JS \b is ASCII-only, so it never bounds the accented "ç" and
+  // /\bça tient\b/ silently fails to match "Ça tient". Anchor only on the right.
+  P4:  { re: /ça tient\b/i,                           label: '"ça tient" (133)' },
   P4b: { re: /\b(le|ton|ce|un) raisonnement tient\b/i, label: '"… raisonnement tient" (variante de 133)' },
   P5:  { re: /bonne logique/i,                        label: '"bonne logique" (134)' },
   P6:  { re: /c'est solide/i,                         label: '"c\'est solide" (135)' },

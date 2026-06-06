@@ -7,6 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const { formatScenarioForClaude } = require('../services/claudeService');
+const { extractCaptureRules } = require('../services/personalFeuille');
 
 // The same file the server injects as "LA FEUILLE V2.1". The path is resolved
 // from THIS module's location: this file lives one directory deeper than
@@ -31,4 +32,14 @@ function buildConversationHistory(scenario, annotation, cardSelection, priorMess
   ];
 }
 
-module.exports = { FEUILLE_PATH, loadFeuille, buildConversationHistory };
+// Shared CAPTURE_RULE strip: returns { rules, cleanText } — the user-visible
+// message (cleanText) with the silent `CAPTURE_RULE:` lines removed, plus the
+// extracted rules. Single entry point used by BOTH server.js (before
+// persistence/FE) and the eval harness (so it judges the SAME post-strip text
+// the user actually sees). Delegates to the regex in personalFeuille
+// (kept there because personalFeuille.test.js locks its behavior).
+function stripCaptureRules(rawText) {
+  return extractCaptureRules(rawText);
+}
+
+module.exports = { FEUILLE_PATH, loadFeuille, buildConversationHistory, stripCaptureRules };
