@@ -10,13 +10,22 @@ Complements the 74 static prompt-text tests, which only assert the guardrail tex
 ```sh
 cd backend
 export $(cat .env.railway.local | xargs)   # ANTHROPIC_API_KEY
-npm run eval                                # all cases
+npm run eval                                # all cases, 3 samples each (default)
+node eval/run.js --samples=5               # 5 samples/case (robust re-baseline)
 node eval/run.js --only=HAL-1              # one case
 node eval/run.js --only=2-hallucination   # one category
 ```
 
 Runs **outside** vitest / verify.js — on demand, **never a CI gate** (it makes
 real API calls).
+
+**Multi-sample.** The bot (sonnet-4-6, default temperature, no thinking) is
+stochastic, so single-run pass/fail wobbles. Each case is run `--samples=N` times
+(default 3) on the SAME seed/history/probe; the scorecard reports a per-case pass
+count **k/N** and a class: **STABLE-PASS** (k=N), **STABLE-FAIL** (k=0),
+**WOBBLE** (0<k<N), plus a mean-pass aggregate and a wobble-by-category callout
+(flagging if over-validation cat 1 or hallucination cat 2 wobble). Samples run
+sequentially within a case; ≤2 cases in parallel.
 
 - **Bot under test** = the module's current config, automatically:
   `claude-sonnet-4-6`, `max_tokens 1024`, **no thinking** (the baseline). Change

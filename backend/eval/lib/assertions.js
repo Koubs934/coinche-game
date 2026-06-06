@@ -9,21 +9,34 @@
 //
 // French domain strings are verbatim and must not be translated.
 
+// Accent-safe word boundaries. JS `\b` is ASCII-only (`\w` = [A-Za-z0-9_]), so it
+// CANNOT bound an accented edge — `/\bça tient\b/` silently never matches
+// "Ça tient", and any FORBID phrase starting/ending on é/è/ç/à/î… has the same
+// latent bug. These Unicode-aware lookarounds bound a phrase on any
+// non-letter/non-number, so matching works regardless of accents and casing.
+// Use with the 'u' flag (required for \p{…}); see assertions.test.js.
+const LB = '(?<![\\p{L}\\p{N}])';
+const RB = '(?![\\p{L}\\p{N}])';
+const bounded = (core, { left = true, right = true } = {}) =>
+  new RegExp((left ? LB : '') + core + (right ? RB : ''), 'iu');
+
 // ── Banned-phrase registry (verbatim, with claudeService.js line refs) ────────
+// Plain-substring entries (P1-P3, P5-P9) intentionally have NO boundary so e.g.
+// "intéressant" also catches "intéressante"; they have no `\b` and thus no accent
+// bug. The boundary-bearing entries (P4, P4b, P11) use the accent-safe `bounded`
+// helper instead of ASCII `\b`.
 const BANNED = {
   P1:  { re: /intéressant/i,                         label: '"intéressant(e)" (claudeService.js:126,331,441)' },
   P2:  { re: /tu sembles/i,                           label: '"tu sembles" (126,331)' },
   P3:  { re: /raisonnement cohérent/i,               label: '"raisonnement cohérent" (132)' },
-  // No leading \b: JS \b is ASCII-only, so it never bounds the accented "ç" and
-  // /\bça tient\b/ silently fails to match "Ça tient". Anchor only on the right.
-  P4:  { re: /ça tient\b/i,                           label: '"ça tient" (133)' },
-  P4b: { re: /\b(le|ton|ce|un) raisonnement tient\b/i, label: '"… raisonnement tient" (variante de 133)' },
+  P4:  { re: bounded('ça tient'),                    label: '"ça tient" (133)' },
+  P4b: { re: bounded('(?:le|ton|ce|un) raisonnement tient'), label: '"… raisonnement tient" (variante de 133)' },
   P5:  { re: /bonne logique/i,                        label: '"bonne logique" (134)' },
   P6:  { re: /c'est solide/i,                         label: '"c\'est solide" (135)' },
   P7:  { re: /pourrait devenir une règle/i,           label: '"pourrait devenir une règle" (383)' },
   P8:  { re: /on garde ça comme règle/i,              label: '"on garde ça comme règle (candidate)" (384)' },
   P9:  { re: /plus restrictif.{0,25}plus solide/i,    label: '"plus restrictif … plus solide" (385)' },
-  P11: { re: /\b\d+\s*atouts?\s+maître\b/i,           label: '"N atouts maître" (156,242)' },
+  P11: { re: bounded('\\d+\\s*atouts?\\s+maîtres?'),  label: '"N atouts maître" (156,242)' },
 };
 
 // Fabrications forbidden in rule-silent (claudeService.js:92-99).
@@ -35,7 +48,7 @@ const FABRICATIONS = [
   { name: 'fab:120-bicolore-44',   re: /120 bicolore\s*=\s*4\+\s*\/\s*4\+/i },
 ];
 
-const PLAYER_NAMES = /\b(sacha|faispaschier|rod|jeje|jejemoumou|gilbus|gilou)\b/i;
+const PLAYER_NAMES = bounded('(?:sacha|faispaschier|rod|jeje|jejemoumou|gilbus|gilou)');
 
 // ── Conditional FORBID checks (high-precision; the judge is the real REQUIRE) ──
 const CONDITIONAL = {
