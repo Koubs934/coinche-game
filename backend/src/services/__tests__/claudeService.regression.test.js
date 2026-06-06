@@ -288,4 +288,15 @@ describe('claudeService — V2.2 calibration regression (Sacha audit)', () => {
       expect(sp).toMatch(/même pas pour dire que tu ne le/);
     });
   });
+
+  describe('Mod 18 — règle du dix de der (compte de points)', () => {
+    it('contient la règle du der, socratique et tightement scopée', () => {
+      const sp = buildVD();
+      expect(sp).toMatch(/RÈGLE DU DIX DE DER/);
+      expect(sp).toMatch(/tient compte du DIX DE DER/);
+      expect(sp).toMatch(/le dernier pli, il va\s+à qui si tu perds le 7♥ en dernier/);
+      expect(sp).toMatch(/Ne calcule PAS le total exact/);
+      expect(sp).toMatch(/QUE sur une justification chiffrée d'annonce/);
+    });
+  });
 });
