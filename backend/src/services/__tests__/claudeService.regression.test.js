@@ -252,12 +252,18 @@ describe('claudeService — V2.2 calibration regression (Sacha audit)', () => {
     });
   });
 
-  describe('Mod 15 — brévité sélective (anti-énumération)', () => {
-    it('demande de sélectionner un seul point, pas d\'énumérer', () => {
+  describe('Mod 15 — discipline de contenu (un point, une question, pas de laïus)', () => {
+    it('cadre : au plus un point + une question, pas de leçon', () => {
       const sp = buildVD();
-      expect(sp).toMatch(/SÉLECTIONNE, n'énumère pas/);
-      expect(sp).toMatch(/traite UN SEUL point/);
-      expect(sp).toMatch(/UNE seule question/);
+      expect(sp).toMatch(/SÉLECTIONNE, NE FAIS PAS LA LEÇON/);
+      expect(sp).toMatch(/Traite AU PLUS UN point/);
+      expect(sp).toMatch(/Pose AU PLUS UNE question/);
+      expect(sp).toMatch(/N'explique pas, ne justifie pas la règle longuement/);
+    });
+    it('coupe le laïus mais garde la correction obligatoire (pas de terseness qui lâche la correction)', () => {
+      const sp = buildVD();
+      expect(sp).toMatch(/couper l'explication.{0,4}lâcher la correction/);
+      expect(sp).toMatch(/une phrase nette reste OBLIGATOIRE/);
     });
   });
 
