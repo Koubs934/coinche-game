@@ -15,6 +15,7 @@ const { registerTrainingHandlers, runStartupCleanup: trainingStartupCleanup } = 
 const claudeService = require('./services/claudeService');
 const personalFeuilleService = require('./services/personalFeuille');
 const { caseTypeFor } = require('./training/divergence');
+const { loadFeuille, buildConversationHistory } = require('./training/conversationContext');
 const cardFeatures = require('./game/cardFeatures');
 // Event payload contract for every socket.on / socket.emit below:
 // see socketEvents.js. Update both sides (FE + BE) when changing a payload.
@@ -87,7 +88,8 @@ app.get('/health', (_, res) => res.json({ ok: true }));
 const TRAINING_ROOT = () => process.env.TRAINING_DATA_DIR
   || path.join(__dirname, '..', 'data', 'training');
 const SCENARIOS_DIR = path.join(__dirname, 'training', 'scenarios');
-const FEUILLE_PATH  = path.join(__dirname, '..', '..', 'docs', 'la-feuille-v2.md');
+// loadFeuille + FEUILLE_PATH now live in ./training/conversationContext (shared
+// with the offline eval harness); imported above.
 
 function safeUserSeg(userId) {
   return String(userId).replace(/[\\/]/g, '_');
@@ -120,11 +122,6 @@ function loadScenario(scenarioId) {
   const p = path.join(SCENARIOS_DIR, `${scenarioId}.json`);
   if (!fs.existsSync(p)) return null;
   return JSON.parse(fs.readFileSync(p, 'utf8'));
-}
-
-function loadFeuille() {
-  if (!fs.existsSync(FEUILLE_PATH)) return '(la-feuille-v2.md introuvable)';
-  return fs.readFileSync(FEUILLE_PATH, 'utf8');
 }
 
 // last 10 completed annotations of this user, excluding the current file
@@ -413,12 +410,9 @@ app.post('/api/conversation/turn', async (req, res) => {
 
   // Rebuild the seed scenario message so Claude has context on every turn.
   // We don't store it in `messages[]` (FE doesn't need to render the synthetic
-  // seed) but we always prepend it before calling the API.
-  const seedMessage = claudeService.formatScenarioForClaude(context.scenario, annotation, cardSelection);
-  const conversationHistory = [
-    { role: 'user', content: seedMessage },
-    ...conv.messages,
-  ];
+  // seed) but we always prepend it before calling the API. Shared with the eval
+  // harness via buildConversationHistory (./training/conversationContext).
+  const conversationHistory = buildConversationHistory(context.scenario, annotation, cardSelection, conv.messages);
 
   let result;
   try {
