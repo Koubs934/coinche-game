@@ -3,6 +3,8 @@
 Convention d'ouverture et de réponse partenaire pour le bot de Coinche, version 2.
 Document de référence destiné à servir de spec pour l'implémentation et de checklist pour les sessions de validation.
 
+**Périmètre :** cette Feuille couvre les **ouvertures** et les **réponses sur ouverture** (1er niveau d'enchère). Les **réponses sur réponses** (tours suivants, comptage de points plus fin) ne sont **pas encore formalisées**.
+
 ---
 
 ## Définitions clés
@@ -15,6 +17,18 @@ Document de référence destiné à servir de spec pour l'implémentation et de 
   - 4 atouts avec belote, sans pièce
   - ≥5 atouts, sans pièce
 - **Seuils** : sauf indication contraire, une position en Xème signifie « au moins Xème » (les seuils de pièce/atout sont des minimums).
+
+---
+
+### Types d'annonce : ouverture, réponse, chique
+
+Toute annonce relève de l'un de ces trois types (exemple avec 120, mais la règle vaut à tous les montants) :
+
+- **Réponse** — monter sur l'annonce de son **partenaire** :
+  - dans la même couleur d'atout → toujours une réponse, même en sautant de plus de 10 ;
+  - sur une ouverture à **80** → toujours une réponse, même dans une autre couleur.
+- **Ouverture** — tout le reste : annonce directe, saut de plus de 10, ou changement de couleur d'atout — **sauf** les cas de réponse ci-dessus. Seul cas où monter sur son partenaire est une ouverture : changer de couleur sur une ouverture du partenaire **≥ 90**.
+- **Chique** — +10 strict par-dessus l'annonce de l'**adversaire** (signal d'apport ; voir la catégorie « Chiquer »).
 
 ---
 
@@ -79,6 +93,8 @@ L'ouverture est l'annonce **la plus haute** que la main qualifie, dans cet ordre
 
 **Logique du pass à 2 As :** le partenaire peut être bicolore sur une main potentiellement déséquilibrée. 2 As seuls ne couvrent pas forcément ses perdantes si tu as par ailleurs des cartes faibles.
 
+**Chique à 120 ou 120 annoncé en réponse (pas une ouverture) :** la règle des 3 As ne s'applique pas. Pour décider si on monte au-dessus de 120, on compte ses **plis perdants** et on annonce plus (ou non) selon les plis / points qu'on risque de perdre.
+
 ---
 
 ## ⚙️ Règles transversales
@@ -135,6 +151,7 @@ Mains à 8 cartes. Annonce attendue selon La Feuille V2.
 - **V2** (ce document) : 80 exige petit jeu, hiérarchie 100+ > 80 > 90, bicolore = strictement 2 couleurs.
 - **V2.1** (correction sur réponses à 90) : Distinction pièce 2nde (110) vs pièce 3ème (120). Découvert par confrontation des annotations training-mode contre la table V2 — les 3 annotateurs ont convergé sur 110 pour pièce 2nde + 1 As, contredisant la table V2 qui annonçait 120 dans ce cas.
 - **V2.3** (réconciliation avec la feuille de base validée — le modèle de base l'emporte) : retour au modèle de base sur le 120-sur-90 (pièce 2nde ou + → 120), annulant la correction V2.1 (pièce 2nde → 110) ; plancher 4 atouts (V9 As 4ème) sur les ouvertures 100/110 ; réponse sur 120 bicolore = 3 As seulement (la pièce d'atout ne compte plus) ; ajout de la note « seuils = au moins ». Source : feuille de base manuscrite validée par Aaron.
+- **V2.3 (clarifications types d'annonce)** : ajout de la règle globale « types d'annonce » (ouverture / réponse / chique), de la note de périmètre (couverture ouvertures + réponses sur ouverture ; réponses sur réponses non encore formalisées), de la distinction chique-120 / 120 en réponse → compter les plis perdants, et de la force relative du chique (toujours plus faible qu'une annonce pure au même montant). Source : clarifications d'Aaron (validées).
 
 Migration V1 → V2 : à planifier séparément (réécriture de `botBidding.js`, mise à jour de `verify.js` blocs B1-B9 et R1-R20, mise à jour de `smoke.test.js`, vocabulaire de tags `reasonTags.json` à enrichir si besoin).
 
@@ -229,6 +246,7 @@ de sa valeur numérique.
 - **Réitérable** : Possible de chiquer à nouveau si le tour revient et
   qu'on veut signaler encore plus.
 - **Force** : Toujours +10 exactement. +20 ou plus n'est pas du chiquer.
+- **Plus faible qu'une vraie annonce** : à tout montant, un chique = main **plus faible** qu'une annonce pure au même montant.
 
 #### Exploration
 
