@@ -14,6 +14,7 @@ Document de référence destiné à servir de spec pour l'implémentation et de 
   - ≥1 pièce + ≥2 atouts
   - 4 atouts avec belote, sans pièce
   - ≥5 atouts, sans pièce
+- **Seuils** : sauf indication contraire, une position en Xème signifie « au moins Xème » (les seuils de pièce/atout sont des minimums).
 
 ---
 
@@ -27,8 +28,8 @@ L'ouverture est l'annonce **la plus haute** que la main qualifie, dans cet ordre
 | Annonce | Conditions |
 |---|---|
 | **120 bicolore** | Maître à l'atout + ≥1 autre atout + cartes réparties dans **strictement 2 couleurs** (atout + 1 seule autre) |
-| **110** | Maître à l'atout + 1 As extérieur |
-| **100** | Maître à l'atout (sans As extérieur) |
+| **110** | Maître à l'atout + 1 As extérieur, minimum V9 As 4ème |
+| **100** | Maître à l'atout (sans As extérieur), minimum V9 As 4ème |
 | **80** | Au moins 2 As + petit jeu |
 | **90** | Une de ces 3 conditions :<br>• Pièce 4ème + 1 As extérieur<br>• Valet 3ème + belote (V+K+Q) + 1 As extérieur<br>• V + 9 + 1 autre atout + 1 As extérieur |
 | **Pass** | Sinon |
@@ -57,8 +58,8 @@ L'ouverture est l'annonce **la plus haute** que la main qualifie, dans cet ordre
 | Réponse | Condition |
 |---|---|
 | 100 | ≥1 atout + 1 As (sans pièce) |
-| 110 | Pièce 2nde + 1 As OU au moins 1 atout + 2 As |
-| 120 | Pièce 3ème + 1 As **OU** 3 As |
+| 110 | Au moins 1 atout + 2 As |
+| 120 | Pièce 2nde OU 3 As |
 | 130 | Pièce 3ème + 2 As |
 
 ### Sur ouverture 100 (= partenaire a maître à l'atout, sans As ext)
@@ -73,7 +74,7 @@ L'ouverture est l'annonce **la plus haute** que la main qualifie, dans cet ordre
 
 | Réponse | Condition |
 |---|---|
-| 130 | 3 As **OU** une pièce d'atout |
+| 130 | 3 As |
 | Pass | Sinon (même avec 2 As) |
 
 **Logique du pass à 2 As :** le partenaire peut être bicolore sur une main potentiellement déséquilibrée. 2 As seuls ne couvrent pas forcément ses perdantes si tu as par ailleurs des cartes faibles.
@@ -133,6 +134,7 @@ Mains à 8 cartes. Annonce attendue selon La Feuille V2.
 - **V1** (actuelle dans `botBidding.js`) : 80 = fallback (2+ As, n'importe quelle main), hiérarchie 90/100/110/120 > 80, bicolore = "exploitable" lâche (longueur 4+ ou A+honneur).
 - **V2** (ce document) : 80 exige petit jeu, hiérarchie 100+ > 80 > 90, bicolore = strictement 2 couleurs.
 - **V2.1** (correction sur réponses à 90) : Distinction pièce 2nde (110) vs pièce 3ème (120). Découvert par confrontation des annotations training-mode contre la table V2 — les 3 annotateurs ont convergé sur 110 pour pièce 2nde + 1 As, contredisant la table V2 qui annonçait 120 dans ce cas.
+- **V2.3** (réconciliation avec la feuille de base validée — le modèle de base l'emporte) : retour au modèle de base sur le 120-sur-90 (pièce 2nde ou + → 120), annulant la correction V2.1 (pièce 2nde → 110) ; plancher 4 atouts (V9 As 4ème) sur les ouvertures 100/110 ; réponse sur 120 bicolore = 3 As seulement (la pièce d'atout ne compte plus) ; ajout de la note « seuils = au moins ». Source : feuille de base manuscrite validée par Aaron.
 
 Migration V1 → V2 : à planifier séparément (réécriture de `botBidding.js`, mise à jour de `verify.js` blocs B1-B9 et R1-R20, mise à jour de `smoke.test.js`, vocabulaire de tags `reasonTags.json` à enrichir si besoin).
 
