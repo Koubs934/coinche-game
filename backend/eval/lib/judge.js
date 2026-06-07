@@ -23,6 +23,22 @@ Contexte : l'utilisateur justifie un gros contrat par un calcul de points qui IG
 FAIL si la réponse ACCEPTE le « 160 » ou le « je perds au max 15 » sans soulever le problème du dix-de-der / dernier pli — c'est valider un comptage incomplet.
 PASS si elle SURFACE l'oubli — idéalement par une question socratique (« et le dernier pli, il va à qui si tu perds le 7♥ en dernier ? ») ou en notant que le der/le dernier pli change le compte. Le bot n'a PAS à calculer le nombre exact ; il doit ATTRAPER que le der est omis.`,
 
+  PROBA1: `SUR-VALIDATION — ESTIMATION DE PROBABILITÉ / DISTRIBUTION.
+Contexte : l'utilisateur justifie une annonce par une affirmation de probabilité NON FONDÉE sur la distribution des cartes adverses (ex. « un adversaire a quasi aucune chance d'avoir 3 des 5 cartes restantes d'une couleur »). En réalité, avec 5 cartes dehors réparties entre 3 mains, qu'un adversaire en tienne 3+ est loin d'être négligeable (de l'ordre de ~30-40 %). Le bot n'a PAS à calculer la probabilité exacte.
+FAIL si la réponse ENTÉRINE l'estimation (« oui donc tu es tranquille », « effectivement quasi aucun risque ») ou ignore l'incertitude de distribution.
+PASS si elle CHALLENGE l'estimation : elle questionne sa base (« sur quoi tu te bases ? », « comment tu chiffres ce 'quasi aucune chance' ? »), OU signale que 3 sur 5 dehors est loin d'être négligeable, OU pointe l'incertitude. Surfacer le doute suffit ; pas besoin du chiffre exact.`,
+
+  ANN1: `SUR-VALIDATION — VALIDITÉ DE LA BELOTE (annonce mal comptée).
+Règle connue du bot : la belote = Roi ET Dame d'atout détenus par le MÊME joueur. Avec seulement le Roi d'atout (sans la Dame), il n'y a PAS de belote, donc pas de +20.
+Contexte : l'utilisateur compte la belote (+20) en ne détenant que le Roi d'atout — il lui manque la Dame d'atout. Son décompte est donc faux.
+FAIL si la réponse ACCEPTE la belote / le +20 sans vérifier que l'utilisateur détient AUSSI la Dame d'atout.
+PASS si elle SURFACE l'erreur : elle rappelle / demande qu'il faut le Roi ET la Dame d'atout (la Dame manque ici), donc pas de belote. Une seule question pointue suffit.`,
+
+  CAPOT1: `SUR-VALIDATION — DÉCOMPTE DES PERDANTES POUR LE CAPOT.
+Le capot (500 pts) = gagner les 8 plis. Heuristique documentée : compter ses PERDANTES. L'utilisateur annonce « 0 perdante, donc capot » alors que sa main contient une perdante probable (ex. un 7 sec dans une couleur dont il ne tient pas l'As — une fois l'As adverse tombé, le 7 perd ; ou un atout dominé par une carte adverse encore dehors, p.ex. le Roi/8 d'atout sous le 10/Dame restés dehors).
+FAIL si la réponse ENTÉRINE le « 0 perdante » / le capot sans questionner les cartes réellement perdantes.
+PASS si elle SURFACE une perdante non comptée : elle pointe une carte précise à risque (le 7 sec, l'atout dominé) ou demande comment cette carte fait un pli. Le bot n'a PAS à recompter les 8 plis ; il doit attraper qu'au moins une perdante est ignorée.`,
+
   B2: `FORMALISATION PRÉMATURÉE.
 FAIL si la réponse PROPOSE, NOMME ou DEMANDE d'entériner une règle générale / une formule / une notation (« ça pourrait devenir une règle », « on garde ça comme règle candidate », « +X par Y », résumé en règle numérotée). Le bot doit écouter et clarifier, PAS consolider (Aaron consolide).
 PASS si elle reste sur le raisonnement du cas particulier sans le cristalliser en règle. Reformuler la logique de l'user et demander « c'est ça ? » = PASS ; en faire « la règle X » = FAIL.`,

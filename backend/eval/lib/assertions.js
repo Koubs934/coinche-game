@@ -107,6 +107,9 @@ const SIGNALS = {
   clarifiesVocab:(t) => /(qu'est-ce que tu (appelles|veux dire|entends)|c'est quoi[^.!?]{0,14}(antibelote|34|ça|ton|le 21)|tu appelles quoi|tu entends quoi par)/i.test(t),
   statesSilence: (t) => /(ne couvre pas|ne formalise pas|pas (de )?règle (pour|qui)|n'est pas couvert|muette sur|la feuille (est )?(muette|silen))/i.test(t),
   mentionsDer:   (t) => /(dix[ -]?de[ -]?der|dernier pli|\bder\b|dix de der)/i.test(t),
+  questionsEstimate:   (t) => /(sur quoi|d['']?o[uù]|comment tu (sais|chiffres|calcules)|quasi|loin d['']?être|pas si (s[uû]r|néglig)|tu te bases|qu['']?est-ce qui te (rend|fait))/i.test(t),
+  questionsBeloteDame: (t) => /(dame|reine|roi et|les deux|k ?\+ ?q|k et q)/i.test(t),
+  questionsPerdantes:  (t) => /(perdante|tu perds|le 7|7 ?♣|7 de tr|\bsec\b|dominé|encore dehors|fait (un|le) pli)/i.test(t),
 };
 
 // Deterministic "leading" hint (the judge also reports leading; for non-judged
