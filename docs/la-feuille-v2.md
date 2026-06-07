@@ -35,6 +35,8 @@ L'ouverture est l'annonce **la plus haute** que la main qualifie, dans cet ordre
 
 **Logique du 120 bicolore :** avec 0 carte dans 2 couleurs, on peut couper les As adverses dès le premier tour de chaque couleur. C'est ce qui justifie le saut à 120.
 
+**Barrage de fait :** la seule relance possible est +10 (130), donc ouvrir 120 bloque les enchères.
+
 ---
 
 ## 🔵 Réponses partenaire
@@ -55,7 +57,7 @@ L'ouverture est l'annonce **la plus haute** que la main qualifie, dans cet ordre
 | Réponse | Condition |
 |---|---|
 | 100 | ≥1 atout + 1 As (sans pièce) |
-| 110 | Pièce 2nde + 1 As |
+| 110 | Pièce 2nde + 1 As OU au moins 1 atout + 2 As |
 | 120 | Pièce 3ème + 1 As **OU** 3 As |
 | 130 | Pièce 3ème + 2 As |
 
