@@ -301,12 +301,14 @@ describe('claudeService — V2.2 calibration regression (Sacha audit)', () => {
   });
 
   describe('Mod 19 — règle de la belote (validité K+Q)', () => {
-    it('contient la règle de validité belote, socratique et scopée', () => {
+    it('contient la règle de validité belote, socratique si douteuse, silencieuse si valide', () => {
       const sp = buildVD();
       expect(sp).toMatch(/RÈGLE DE LA BELOTE \(validité\)/);
       expect(sp).toMatch(/Roi ET la Dame d'atout dans la MÊME main/);
       expect(sp).toMatch(/t'as bien le\s+Roi ET la Dame d'atout, pas juste l'un des deux/);
-      expect(sp).toMatch(/QUE quand l'user compte effectivement une belote/);
+      expect(sp).toMatch(/tu n'en PARLES que si la belote est\s+DOUTEUSE/);
+      expect(sp).toMatch(/Si la belote est VALIDE/);
+      expect(sp).toMatch(/n'écris jamais « ça tient »/);
     });
   });
 });
