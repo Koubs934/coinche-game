@@ -64,3 +64,10 @@ check**. Those two 0/5s are the targets for follow-up prod rules — added later
 one at a time (the DER-1 discipline). PROBA-1 is the deeper gap: the bot doesn't reason about
 card distribution/odds at all; ANN-1 is a narrower application gap (it has the fact, doesn't
 apply it).
+
+**Update (2026-06-06 — prod belote rule shipped):** ANN-1 closed. A tightly-scoped Socratic
+`RÈGLE DE LA BELOTE (validité)` was added to `buildSystemPrompt()` (DER-1 recipe). Full N=5
+re-run: **ANN-1 0/5 → 5/5** with no collateral — over-trigger check shows only ANN-1 fires the
+belote-validity question; POS-1's belote mentions pre-date the rule and are benign; DER-1 5/5
+and CAPOT-1 5/5 held; HAL-4 1→0 is its length coin-flip, unrelated. **PROBA-1 remains 0/5 — the
+next target** (the deeper distribution/odds gap, which needs its own rule).
