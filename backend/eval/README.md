@@ -14,7 +14,15 @@ npm run eval                                # all cases, 3 samples each (default
 node eval/run.js --samples=5               # 5 samples/case (robust re-baseline)
 node eval/run.js --only=HAL-1              # one case
 node eval/run.js --only=2-hallucination   # one category
+node eval/run.js --only=ANN-1,DER-1       # comma-separated subset of ids/categories
+node eval/run.js --only=ANN-1 --no-judge  # éco: real bot + signals, NO Opus judge (dumps replies)
 ```
+
+**Éco mode (`--no-judge`).** Runs the real production bot + deterministic signals
+but skips the Opus judge entirely (no judging, no scorecard). It prints a dump of
+each case's user-visible replies (CAPTURE_RULE stripped) with the
+`questionsBeloteDame` signal per sample, and writes `results/eval-nojudge-*.json`.
+For cheap iteration where a human judges the outputs.
 
 Runs **outside** vitest / verify.js — on demand, **never a CI gate** (it makes
 real API calls).

@@ -95,7 +95,7 @@ function resolveInputs(c, opts = {}) {
 
 // One sample: call the bot, strip CAPTURE_RULE, run deterministic asserts + judge
 // on the user-visible text. Returns the per-sample verdict + detail.
-async function scoreSample(c, inputs) {
+async function scoreSample(c, inputs, opts = {}) {
   const r = await inputs.callBot();
   const botOutputRaw = r.text;
   const stripped = stripCaptureRules(botOutputRaw);
@@ -112,7 +112,7 @@ async function scoreSample(c, inputs) {
   const allBlockingPass = blocking.every(x => x.pass);
 
   let judgeRes = null;
-  if (c.judge) judgeRes = await judge(c.judge, {
+  if (c.judge && !opts.noJudge) judgeRes = await judge(c.judge, {
     botSystemPrompt: inputs.botSystemPrompt, seed: inputs.seedForJudge,
     frozen: inputs.frozenForJudge, probe: inputs.probeForJudge, botOutput: visible,
   });
@@ -141,7 +141,7 @@ async function runCase(c, samples, opts) {
   if (inputs.skip) return { id: c.id, category: c.category, source: c.source, skipped: true, reason: inputs.skip };
 
   const sampleResults = [];
-  for (let s = 0; s < samples; s++) sampleResults.push(await scoreSample(c, inputs));
+  for (let s = 0; s < samples; s++) sampleResults.push(await scoreSample(c, inputs, opts));
 
   const passCount = sampleResults.filter(s => s.pass).length;
   const classification = passCount === samples ? 'STABLE-PASS' : passCount === 0 ? 'STABLE-FAIL' : 'WOBBLE';
@@ -278,19 +278,53 @@ async function main() {
   // the no-thinking baseline are unchanged. Adaptive thinking on Sonnet 4.6 with a
   // larger output budget (4096) so thinking tokens don't truncate the visible reply.
   const thinkingOn = process.argv.includes('--thinking');
-  const opts = thinkingOn ? { thinking: { type: 'adaptive' }, maxTokens: 4096 } : {};
+  // Éco mode: run the real bot + deterministic signals but SKIP the Opus judge
+  // (cheap iteration — outputs are dumped for hand-judging in chat). Reusable.
+  const noJudge = process.argv.includes('--no-judge');
+  const opts = { ...(thinkingOn ? { thinking: { type: 'adaptive' }, maxTokens: 4096 } : {}), noJudge };
   let cases = CASES;
-  if (onlyArg) cases = CASES.filter(c => c.id === onlyArg || c.category === onlyArg);
+  if (onlyArg) {
+    // --only accepts a single id/category OR a comma-separated list of them.
+    const wanted = onlyArg.split(',').map(s => s.trim()).filter(Boolean);
+    cases = CASES.filter(c => wanted.includes(c.id) || wanted.includes(c.category));
+  }
   if (!cases.length) { console.error(`Aucun cas pour --only=${onlyArg}`); process.exit(1); }
 
-  console.log(`Éval : ${cases.length} cas × ${samples} échantillons · bot=${MODEL}${thinkingOn ? ' +thinking(adaptive, max 4096)' : ' (no thinking)'} · juge=${JUDGE_MODEL} · concurrence=${CONCURRENCY}`);
+  console.log(`Éval : ${cases.length} cas × ${samples} échantillons · bot=${MODEL}${thinkingOn ? ' +thinking(adaptive, max 4096)' : ' (no thinking)'} · juge=${noJudge ? 'SKIPPED (éco --no-judge)' : JUDGE_MODEL} · concurrence=${CONCURRENCY}`);
   const startedAt = new Date().toISOString();
   const results = await runPool(cases, CONCURRENCY, async (c) => {
     const r = await runCase(c, samples, opts);
-    const status = r.skipped ? 'SKIP' : r.error ? 'ERR ' : `${CLASS_BADGE[r.classification].replace(/^.. /, '')} ${r.passCount}/${samples}`;
+    const status = r.skipped ? 'SKIP' : r.error ? 'ERR ' : noJudge ? `bot×${samples}` : `${CLASS_BADGE[r.classification].replace(/^.. /, '')} ${r.passCount}/${samples}`;
     console.log(`  [${status}] ${r.id}`);
     return r;
   });
+
+  if (noJudge) {
+    // Éco dump: real bot replies (CAPTURE_RULE stripped) + the belote signal,
+    // computed uniformly across ALL subset cases (not only those listing it), so
+    // over-trigger on the non-belote controls is visible. No judge, no scorecard.
+    const L = ['', '========== DUMP ÉCO — bot réel, SANS juge =========='];
+    for (const r of results) {
+      if (r.skipped || r.error) { L.push(`\n### ${r.id} — ${r.skipped ? 'SKIP' : 'ERR'}`); continue; }
+      L.push(`\n### ${r.id} (${r.category}) — ${samples} échantillons`);
+      r.sampleResults.forEach((s, i) => {
+        const bd = runDeterministic(s.botOutput || '', { signals: ['questionsBeloteDame'] }, null)
+          .signals.find(x => x.name === 'questionsBeloteDame');
+        const flag = bd && bd.present ? 'questionsBeloteDame=✅' : 'questionsBeloteDame=·';
+        const text = (s.botOutput && s.botOutput.trim())
+          ? s.botOutput.replace(/\s*\n\s*/g, ' ').trim()
+          : '(aucun texte visible — CAPTURE_RULE strippé)';
+        L.push(`[#${i + 1}] [${flag}] ${text}`);
+      });
+    }
+    console.log(L.join('\n'));
+    fs.mkdirSync(RESULTS_DIR, { recursive: true });
+    const stamp = startedAt.replace(/[:.]/g, '-');
+    fs.writeFileSync(path.join(RESULTS_DIR, `eval-nojudge-${stamp}.json`),
+      JSON.stringify({ model: MODEL, samples, noJudge: true, startedAt, cases: results }, null, 2));
+    console.log(`\n(éco) bot réel uniquement — AUCUN appel au juge Opus. JSON : results/eval-nojudge-${stamp}.json`);
+    return;
+  }
 
   const counted = results.filter(r => !r.skipped && !r.error);
   const stablePass = counted.filter(r => r.classification === 'STABLE-PASS');
