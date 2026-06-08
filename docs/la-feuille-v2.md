@@ -61,8 +61,8 @@ L'ouverture est l'annonce **la plus haute** que la main qualifie, dans cet ordre
 | Réponse | Condition |
 |---|---|
 | 90 | Valet sec **OU** pièce 2nde (V ou 9 + 1 autre atout). ❌ Jamais 9 sec |
-| 100 | Pièce + 1 As |
-| 110 | Pièce + 2 As |
+| 100 | Valet + 1 As OU 9 second + 1 As |
+| 110 | Valet + 2 As OU 9 second + 2 As |
 | 120 | Pièce 3ème |
 | 130 | Pièce 3ème + 1 As |
 | 140 | Pièce 3ème + 2 As |
@@ -78,7 +78,7 @@ L'ouverture est l'annonce **la plus haute** que la main qualifie, dans cet ordre
 
 ### Sur ouverture 100 (= partenaire a maître à l'atout, sans As ext)
 
-**+10 par As extérieur.** Plafond pratique 130 (partenaire ayant déjà l'As d'atout, le partenaire ne peut au mieux qu'ajouter 3 As extérieurs).
+**+10 par As extérieur.** Pas de plafond — capot possible.
 
 ### Sur ouverture 110 (= partenaire a maître + 1 As ext)
 
@@ -152,6 +152,7 @@ Mains à 8 cartes. Annonce attendue selon La Feuille V2.
 - **V2.1** (correction sur réponses à 90) : Distinction pièce 2nde (110) vs pièce 3ème (120). Découvert par confrontation des annotations training-mode contre la table V2 — les 3 annotateurs ont convergé sur 110 pour pièce 2nde + 1 As, contredisant la table V2 qui annonçait 120 dans ce cas.
 - **V2.3** (réconciliation avec la feuille de base validée — le modèle de base l'emporte) : retour au modèle de base sur le 120-sur-90 (pièce 2nde ou + → 120), annulant la correction V2.1 (pièce 2nde → 110) ; plancher 4 atouts (V9 As 4ème) sur les ouvertures 100/110 ; réponse sur 120 bicolore = 3 As seulement (la pièce d'atout ne compte plus) ; ajout de la note « seuils = au moins ». Source : feuille de base manuscrite validée par Aaron.
 - **V2.3 (clarifications types d'annonce)** : ajout de la règle globale « types d'annonce » (ouverture / réponse / chique), de la note de périmètre (couverture ouvertures + réponses sur ouverture ; réponses sur réponses non encore formalisées), de la distinction chique-120 / 120 en réponse → compter les plis perdants, et de la force relative du chique (toujours plus faible qu'une annonce pure au même montant). Source : clarifications d'Aaron (validées).
+- **V2.3 (revue Sacha)** : réponses sur 80 (100/110) précisées (Valet / 9 second + As) ; réponse sur 100 — plafond pratique retiré (capot possible) ; Exploration — ajout « s'appuie sur les annonces ». Source : revue avec Sacha.
 
 Migration V1 → V2 : à planifier séparément (réécriture de `botBidding.js`, mise à jour de `verify.js` blocs B1-B9 et R1-R20, mise à jour de `smoke.test.js`, vocabulaire de tags `reasonTags.json` à enrichir si besoin).
 
@@ -258,6 +259,7 @@ de sa valeur numérique.
 - **Différence avec chiquer** : Le chiquer soutient l'annonce existante.
   L'exploration **change la couleur d'atout** ou tente une voie inédite.
 - **Risque élevé** : Si partenaire ne complète pas, on chute.
+- **S'appuie sur les annonces :** l'exploration se décide à partir des annonces déjà faites (partenaire et adversaires) — on en tire de l'information pour estimer si une autre voie/couleur est jouable.
 - **Statut formalisation** : **Non formalisée mécaniquement.**
   Réservée aux humains. Le bot V2.2 ne fera pas d'exploration.
 
