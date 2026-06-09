@@ -8,13 +8,13 @@ const crypto = require('crypto');
 const { validateScenario } = require('./validateScenarios');
 
 // ───────────────────────────────────────────────────────────────────────────
-// TEMP — RATIFICATION ROUND. When ON, the picker lists ONLY the zone-grise +
-// probe openings (ids starting with "opening-zg-") so Aaron / Jerem / Sacha
-// play exactly those 11 scenarios. Reverting is a ONE-LINE flip: set to false
-// to restore the full scenario list. Applied at the single source of the
-// picker list (listScenarios()).
+// TEMP — RATIFICATION ROUND. When ON, the picker lists ONLY the zone-grise
+// ratification scenarios (ids starting with "opening-zg-" or "response-zg-")
+// so Aaron / Jerem / Sacha play exactly that set. Reverting is a ONE-LINE flip:
+// set the flag to false to restore the full scenario list. Applied at the
+// single source of the picker list (listScenarios()).
 const TRAINING_ONLY_ZG = true; // TEMP: flip to false to restore all scenarios
-const TRAINING_ONLY_ZG_PREFIX = 'opening-zg-';
+const TRAINING_ONLY_ZG_PREFIXES = ['opening-zg-', 'response-zg-'];
 // ───────────────────────────────────────────────────────────────────────────
 
 // Deterministic shuffle key — first 8 hex chars of SHA-256(id). Stable
@@ -113,7 +113,7 @@ function listScenarios() {
   }
   // TEMP (TRAINING_ONLY_ZG): restrict the picker to the ratification set.
   const listed = TRAINING_ONLY_ZG
-    ? out.filter(s => String(s.id).startsWith(TRAINING_ONLY_ZG_PREFIX))
+    ? out.filter(s => TRAINING_ONLY_ZG_PREFIXES.some(p => String(s.id).startsWith(p)))
     : out;
   listed.sort((a, b) => scenarioOrderKey(a.id).localeCompare(scenarioOrderKey(b.id)));
   return listed;
