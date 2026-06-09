@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-zg-b1-akqj",
+  "title": {
+    "fr": "Ouverture",
+    "en": "Opening"
+  },
+  "description": {
+    "fr": "Tu ouvres les enchères. Quelle est ton annonce ?",
+    "en": "You open the bidding. What's your bid?"
+  },
+  "notes": {
+    "fr": "Pattern B — atout fort sans As exterieur. Main: coeur AKQJ (atout massif), l'As de coeur est l'As d'atout, 0 As exterieur. Feuille: PASS (90 exige au moins 1 As ext). Reel: 90 coeur. Trou clair de la Feuille. A trancher: un atout AKQJ ouvre-t-il 90 sans As exterieur? Interne.",
+    "en": "Pattern B — strong trump, no outside ace. Hand: heart AKQJ, the heart A is the trump ace, 0 outside aces. Sheet: PASS. Real: 90 hearts. Clear sheet gap. To ratify: does AKQJ trump open 90 with no outside ace? Internal."
+  },
+  "userSeat": 0,
+  "dealer": 3,
+  "hands": {
+    "0": [
+      {
+        "suit": "H",
+        "value": "Q"
+      },
+      {
+        "suit": "C",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "7"
+      },
+      {
+        "suit": "H",
+        "value": "A"
+      },
+      {
+        "suit": "H",
+        "value": "J"
+      },
+      {
+        "suit": "S",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "K"
+      },
+      {
+        "suit": "S",
+        "value": "J"
+      }
+    ],
+    "1": [
+      {
+        "suit": "S",
+        "value": "8"
+      },
+      {
+        "suit": "C",
+        "value": "9"
+      },
+      {
+        "suit": "D",
+        "value": "8"
+      },
+      {
+        "suit": "D",
+        "value": "10"
+      },
+      {
+        "suit": "S",
+        "value": "A"
+      },
+      {
+        "suit": "D",
+        "value": "J"
+      },
+      {
+        "suit": "D",
+        "value": "Q"
+      },
+      {
+        "suit": "S",
+        "value": "Q"
+      }
+    ],
+    "2": [
+      {
+        "suit": "S",
+        "value": "K"
+      },
+      {
+        "suit": "D",
+        "value": "A"
+      },
+      {
+        "suit": "C",
+        "value": "A"
+      },
+      {
+        "suit": "H",
+        "value": "7"
+      },
+      {
+        "suit": "C",
+        "value": "J"
+      },
+      {
+        "suit": "H",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "9"
+      },
+      {
+        "suit": "D",
+        "value": "9"
+      }
+    ],
+    "3": [
+      {
+        "suit": "C",
+        "value": "Q"
+      },
+      {
+        "suit": "H",
+        "value": "9"
+      },
+      {
+        "suit": "D",
+        "value": "7"
+      },
+      {
+        "suit": "D",
+        "value": "K"
+      },
+      {
+        "suit": "C",
+        "value": "7"
+      },
+      {
+        "suit": "C",
+        "value": "K"
+      },
+      {
+        "suit": "C",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "10"
+      }
+    ]
+  },
+  "initialState": {
+    "phase": "BIDDING"
+  },
+  "timeline": [
+    {
+      "event": "user-turn"
+    }
+  ],
+  "expectedAnswer": {
+    "action": {
+      "type": "pass"
+    },
+    "ruleReference": "opening:pass:90-needs-outside-ace"
+  },
+  "ambiguityFlags": []
+}

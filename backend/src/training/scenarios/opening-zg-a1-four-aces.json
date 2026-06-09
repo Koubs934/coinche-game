@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-zg-a1-four-aces",
+  "title": {
+    "fr": "Ouverture",
+    "en": "Opening"
+  },
+  "description": {
+    "fr": "Tu ouvres les enchères. Quelle est ton annonce ?",
+    "en": "You open the bidding. What's your bid?"
+  },
+  "notes": {
+    "fr": "Pattern A — critere d'ouverture 80. Main: 4 As, repartition 2-2-2-2, aucun petit jeu. Feuille: PASS. Reel (Jerem): a ouvert 80 carreau. A trancher: 4 As justifient-ils une ouverture sans petit jeu? Interne, ne pas montrer au joueur.",
+    "en": "Pattern A — 80-opening criterion. Hand: 4 aces, 2-2-2-2, no petit jeu. Sheet: PASS. Real (Jerem): opened 80 diamonds. To ratify: do 4 aces justify opening without petit jeu? Internal — do not show."
+  },
+  "userSeat": 0,
+  "dealer": 3,
+  "hands": {
+    "0": [
+      {
+        "suit": "D",
+        "value": "A"
+      },
+      {
+        "suit": "D",
+        "value": "K"
+      },
+      {
+        "suit": "C",
+        "value": "10"
+      },
+      {
+        "suit": "C",
+        "value": "A"
+      },
+      {
+        "suit": "H",
+        "value": "Q"
+      },
+      {
+        "suit": "H",
+        "value": "A"
+      },
+      {
+        "suit": "S",
+        "value": "K"
+      },
+      {
+        "suit": "S",
+        "value": "A"
+      }
+    ],
+    "1": [
+      {
+        "suit": "D",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "9"
+      },
+      {
+        "suit": "S",
+        "value": "7"
+      },
+      {
+        "suit": "C",
+        "value": "Q"
+      },
+      {
+        "suit": "D",
+        "value": "J"
+      },
+      {
+        "suit": "C",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "K"
+      },
+      {
+        "suit": "D",
+        "value": "7"
+      }
+    ],
+    "2": [
+      {
+        "suit": "C",
+        "value": "8"
+      },
+      {
+        "suit": "H",
+        "value": "7"
+      },
+      {
+        "suit": "H",
+        "value": "J"
+      },
+      {
+        "suit": "S",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "10"
+      },
+      {
+        "suit": "S",
+        "value": "Q"
+      },
+      {
+        "suit": "H",
+        "value": "10"
+      },
+      {
+        "suit": "C",
+        "value": "K"
+      }
+    ],
+    "3": [
+      {
+        "suit": "C",
+        "value": "J"
+      },
+      {
+        "suit": "D",
+        "value": "Q"
+      },
+      {
+        "suit": "H",
+        "value": "8"
+      },
+      {
+        "suit": "D",
+        "value": "10"
+      },
+      {
+        "suit": "S",
+        "value": "J"
+      },
+      {
+        "suit": "S",
+        "value": "9"
+      },
+      {
+        "suit": "C",
+        "value": "7"
+      },
+      {
+        "suit": "D",
+        "value": "8"
+      }
+    ]
+  },
+  "initialState": {
+    "phase": "BIDDING"
+  },
+  "timeline": [
+    {
+      "event": "user-turn"
+    }
+  ],
+  "expectedAnswer": {
+    "action": {
+      "type": "pass"
+    },
+    "ruleReference": "opening:pass:no-petit-jeu"
+  },
+  "ambiguityFlags": []
+}

@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-zg-a3-deux-as-faible",
+  "title": {
+    "fr": "Ouverture",
+    "en": "Opening"
+  },
+  "description": {
+    "fr": "Tu ouvres les enchères. Quelle est ton annonce ?",
+    "en": "You open the bidding. What's your bid?"
+  },
+  "notes": {
+    "fr": "Pattern A (borne basse) + chevauche D. Main: 2 As (pique A, coeur A) eparpilles, faible; ne qualifie 80 QUE via le 9 de trefle traite comme piece. Feuille: 80 trefle. Reel: PASS (trop faible / 9 pas une vraie piece). A trancher: seuil de force du 80, et un 9 isole est-il une piece? Interne.",
+    "en": "Pattern A (low boundary) + overlaps D. Hand: 2 scattered weak aces; only meets 80 via the club 9 as a piece. Sheet: 80 clubs. Real: PASS. To ratify: the 80 strength floor, and is a lone 9 a piece? Internal."
+  },
+  "userSeat": 0,
+  "dealer": 3,
+  "hands": {
+    "0": [
+      {
+        "suit": "H",
+        "value": "A"
+      },
+      {
+        "suit": "D",
+        "value": "K"
+      },
+      {
+        "suit": "D",
+        "value": "7"
+      },
+      {
+        "suit": "S",
+        "value": "A"
+      },
+      {
+        "suit": "S",
+        "value": "Q"
+      },
+      {
+        "suit": "C",
+        "value": "7"
+      },
+      {
+        "suit": "S",
+        "value": "8"
+      },
+      {
+        "suit": "C",
+        "value": "9"
+      }
+    ],
+    "1": [
+      {
+        "suit": "H",
+        "value": "7"
+      },
+      {
+        "suit": "C",
+        "value": "A"
+      },
+      {
+        "suit": "H",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "J"
+      },
+      {
+        "suit": "C",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "9"
+      },
+      {
+        "suit": "C",
+        "value": "8"
+      }
+    ],
+    "2": [
+      {
+        "suit": "D",
+        "value": "J"
+      },
+      {
+        "suit": "C",
+        "value": "K"
+      },
+      {
+        "suit": "S",
+        "value": "9"
+      },
+      {
+        "suit": "S",
+        "value": "10"
+      },
+      {
+        "suit": "D",
+        "value": "8"
+      },
+      {
+        "suit": "H",
+        "value": "Q"
+      },
+      {
+        "suit": "H",
+        "value": "K"
+      },
+      {
+        "suit": "S",
+        "value": "7"
+      }
+    ],
+    "3": [
+      {
+        "suit": "D",
+        "value": "9"
+      },
+      {
+        "suit": "D",
+        "value": "10"
+      },
+      {
+        "suit": "S",
+        "value": "K"
+      },
+      {
+        "suit": "D",
+        "value": "A"
+      },
+      {
+        "suit": "C",
+        "value": "J"
+      },
+      {
+        "suit": "H",
+        "value": "J"
+      },
+      {
+        "suit": "C",
+        "value": "Q"
+      },
+      {
+        "suit": "D",
+        "value": "Q"
+      }
+    ]
+  },
+  "initialState": {
+    "phase": "BIDDING"
+  },
+  "timeline": [
+    {
+      "event": "user-turn"
+    }
+  ],
+  "expectedAnswer": {
+    "action": {
+      "type": "bid",
+      "value": 80,
+      "suit": "C"
+    },
+    "ruleReference": "opening:80:2as+piece"
+  },
+  "ambiguityFlags": []
+}

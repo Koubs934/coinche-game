@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-zg-d1-neuf-sans-valet",
+  "title": {
+    "fr": "Ouverture",
+    "en": "Opening"
+  },
+  "description": {
+    "fr": "Tu ouvres les enchères. Quelle est ton annonce ?",
+    "en": "You open the bidding. What's your bid?"
+  },
+  "notes": {
+    "fr": "Pattern D — un 9 est-il une piece? Main: coeur KQ97 (pas de Valet; le 9 est la seule piece) + carreau A exterieur. Feuille: 90 coeur (piece-9 + 4 atouts + As ext). Reel: PASS (un 9 sans Valet n'est pas une piece d'ouverture). A trancher: restreindre piece au Valet, ou 9 + condition? Interne.",
+    "en": "Pattern D — is a 9 a piece? Hand: heart KQ97 (no Jack; the 9 is the only piece) + outside diamond A. Sheet: 90 hearts (9-as-piece + 4 trumps + outside ace). Real: PASS (a 9 without a Jack isn't an opening piece). To ratify: restrict piece to the Jack, or 9 + condition? Internal."
+  },
+  "userSeat": 0,
+  "dealer": 3,
+  "hands": {
+    "0": [
+      {
+        "suit": "C",
+        "value": "8"
+      },
+      {
+        "suit": "H",
+        "value": "K"
+      },
+      {
+        "suit": "C",
+        "value": "7"
+      },
+      {
+        "suit": "S",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "7"
+      },
+      {
+        "suit": "H",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "Q"
+      },
+      {
+        "suit": "D",
+        "value": "A"
+      }
+    ],
+    "1": [
+      {
+        "suit": "S",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "8"
+      },
+      {
+        "suit": "H",
+        "value": "A"
+      },
+      {
+        "suit": "S",
+        "value": "Q"
+      },
+      {
+        "suit": "D",
+        "value": "7"
+      },
+      {
+        "suit": "D",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "J"
+      },
+      {
+        "suit": "S",
+        "value": "7"
+      }
+    ],
+    "2": [
+      {
+        "suit": "C",
+        "value": "9"
+      },
+      {
+        "suit": "C",
+        "value": "K"
+      },
+      {
+        "suit": "D",
+        "value": "Q"
+      },
+      {
+        "suit": "C",
+        "value": "J"
+      },
+      {
+        "suit": "H",
+        "value": "10"
+      },
+      {
+        "suit": "C",
+        "value": "Q"
+      },
+      {
+        "suit": "S",
+        "value": "8"
+      },
+      {
+        "suit": "D",
+        "value": "J"
+      }
+    ],
+    "3": [
+      {
+        "suit": "C",
+        "value": "10"
+      },
+      {
+        "suit": "D",
+        "value": "K"
+      },
+      {
+        "suit": "S",
+        "value": "A"
+      },
+      {
+        "suit": "D",
+        "value": "9"
+      },
+      {
+        "suit": "S",
+        "value": "K"
+      },
+      {
+        "suit": "C",
+        "value": "A"
+      },
+      {
+        "suit": "D",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "J"
+      }
+    ]
+  },
+  "initialState": {
+    "phase": "BIDDING"
+  },
+  "timeline": [
+    {
+      "event": "user-turn"
+    }
+  ],
+  "expectedAnswer": {
+    "action": {
+      "type": "bid",
+      "value": 90,
+      "suit": "H"
+    },
+    "ruleReference": "opening:90:piece-9+4trumps+as-ext"
+  },
+  "ambiguityFlags": []
+}

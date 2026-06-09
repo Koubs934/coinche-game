@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-zg-c1-atout-long-capot",
+  "title": {
+    "fr": "Ouverture",
+    "en": "Opening"
+  },
+  "description": {
+    "fr": "Tu ouvres les enchères. Quelle est ton annonce ?",
+    "en": "You open the bidding. What's your bid?"
+  },
+  "notes": {
+    "fr": "Pattern C — priorite 80 sur 90. Main: trefle KQJ109 (atout long fort) + carreau A + pique A. 80 trefle ET 90 trefle qualifient -> la Feuille priorise 80. Reel: a ouvert 90 trefle PUIS est monte CAPOT trefle, reussi 500/0. La priorite 80 sur cette main est absurde, c'etait un capot. A trancher: exception a 80>90 sur atout long fort? Interne.",
+    "en": "Pattern C — 80-over-90 priority. Hand: club KQJ109 (strong long trump) + diamond A + spade A. Both 80 and 90 clubs qualify -> sheet prioritizes 80. Real: opened 90 clubs then jumped to CAPOT clubs, made 500/0. The 80 priority here is absurd — it was a capot. To ratify: exception to 80>90 on strong long trump? Internal."
+  },
+  "userSeat": 0,
+  "dealer": 3,
+  "hands": {
+    "0": [
+      {
+        "suit": "C",
+        "value": "K"
+      },
+      {
+        "suit": "C",
+        "value": "J"
+      },
+      {
+        "suit": "D",
+        "value": "A"
+      },
+      {
+        "suit": "C",
+        "value": "10"
+      },
+      {
+        "suit": "C",
+        "value": "9"
+      },
+      {
+        "suit": "C",
+        "value": "Q"
+      },
+      {
+        "suit": "H",
+        "value": "J"
+      },
+      {
+        "suit": "S",
+        "value": "A"
+      }
+    ],
+    "1": [
+      {
+        "suit": "D",
+        "value": "K"
+      },
+      {
+        "suit": "D",
+        "value": "9"
+      },
+      {
+        "suit": "D",
+        "value": "7"
+      },
+      {
+        "suit": "H",
+        "value": "9"
+      },
+      {
+        "suit": "S",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "7"
+      },
+      {
+        "suit": "S",
+        "value": "7"
+      },
+      {
+        "suit": "S",
+        "value": "8"
+      }
+    ],
+    "2": [
+      {
+        "suit": "D",
+        "value": "10"
+      },
+      {
+        "suit": "D",
+        "value": "Q"
+      },
+      {
+        "suit": "H",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "A"
+      },
+      {
+        "suit": "H",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "J"
+      },
+      {
+        "suit": "D",
+        "value": "J"
+      },
+      {
+        "suit": "C",
+        "value": "7"
+      }
+    ],
+    "3": [
+      {
+        "suit": "S",
+        "value": "K"
+      },
+      {
+        "suit": "C",
+        "value": "A"
+      },
+      {
+        "suit": "C",
+        "value": "8"
+      },
+      {
+        "suit": "H",
+        "value": "K"
+      },
+      {
+        "suit": "S",
+        "value": "Q"
+      },
+      {
+        "suit": "H",
+        "value": "Q"
+      },
+      {
+        "suit": "S",
+        "value": "9"
+      },
+      {
+        "suit": "D",
+        "value": "8"
+      }
+    ]
+  },
+  "initialState": {
+    "phase": "BIDDING"
+  },
+  "timeline": [
+    {
+      "event": "user-turn"
+    }
+  ],
+  "expectedAnswer": {
+    "action": {
+      "type": "bid",
+      "value": 80,
+      "suit": "C"
+    },
+    "ruleReference": "opening:80:priority-over-90"
+  },
+  "ambiguityFlags": []
+}

@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-zg-a2-deux-as-forts",
+  "title": {
+    "fr": "Ouverture",
+    "en": "Opening"
+  },
+  "description": {
+    "fr": "Tu ouvres les enchères. Quelle est ton annonce ?",
+    "en": "You open the bidding. What's your bid?"
+  },
+  "notes": {
+    "fr": "Pattern A. Main: 2 As (pique A, carreau A), pique AKQ groupes + carreau long (A,10,8,7), pas de petit jeu standard. Feuille: PASS. Reel: 80 carreau. A trancher: une main 2-As forte (sequence + couleur longue) ouvre-t-elle, alors que le compte d'As seul ne suffit pas? Interne.",
+    "en": "Pattern A. Hand: 2 aces, spade AKQ + long diamonds. Sheet: PASS. Real: 80 diamonds. To ratify: does a strong 2-ace hand (sequence + long suit) open? Internal."
+  },
+  "userSeat": 0,
+  "dealer": 3,
+  "hands": {
+    "0": [
+      {
+        "suit": "D",
+        "value": "A"
+      },
+      {
+        "suit": "S",
+        "value": "Q"
+      },
+      {
+        "suit": "D",
+        "value": "7"
+      },
+      {
+        "suit": "S",
+        "value": "K"
+      },
+      {
+        "suit": "D",
+        "value": "8"
+      },
+      {
+        "suit": "D",
+        "value": "10"
+      },
+      {
+        "suit": "C",
+        "value": "10"
+      },
+      {
+        "suit": "S",
+        "value": "A"
+      }
+    ],
+    "1": [
+      {
+        "suit": "S",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "7"
+      },
+      {
+        "suit": "H",
+        "value": "K"
+      },
+      {
+        "suit": "H",
+        "value": "Q"
+      },
+      {
+        "suit": "C",
+        "value": "8"
+      },
+      {
+        "suit": "D",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "J"
+      }
+    ],
+    "2": [
+      {
+        "suit": "C",
+        "value": "K"
+      },
+      {
+        "suit": "S",
+        "value": "7"
+      },
+      {
+        "suit": "C",
+        "value": "7"
+      },
+      {
+        "suit": "D",
+        "value": "Q"
+      },
+      {
+        "suit": "S",
+        "value": "8"
+      },
+      {
+        "suit": "C",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "J"
+      },
+      {
+        "suit": "H",
+        "value": "A"
+      }
+    ],
+    "3": [
+      {
+        "suit": "D",
+        "value": "J"
+      },
+      {
+        "suit": "H",
+        "value": "10"
+      },
+      {
+        "suit": "S",
+        "value": "10"
+      },
+      {
+        "suit": "C",
+        "value": "A"
+      },
+      {
+        "suit": "C",
+        "value": "Q"
+      },
+      {
+        "suit": "D",
+        "value": "K"
+      },
+      {
+        "suit": "H",
+        "value": "9"
+      },
+      {
+        "suit": "C",
+        "value": "J"
+      }
+    ]
+  },
+  "initialState": {
+    "phase": "BIDDING"
+  },
+  "timeline": [
+    {
+      "event": "user-turn"
+    }
+  ],
+  "expectedAnswer": {
+    "action": {
+      "type": "pass"
+    },
+    "ruleReference": "opening:pass:no-petit-jeu"
+  },
+  "ambiguityFlags": []
+}
