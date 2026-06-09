@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-zg-p4-kq987",
+  "title": {
+    "fr": "Ouverture",
+    "en": "Opening"
+  },
+  "description": {
+    "fr": "Tu ouvres les enchères. Quelle est ton annonce ?",
+    "en": "You open the bidding. What's your bid?"
+  },
+  "notes": {
+    "fr": "Sonde plancher du 9. pique K Q 9 8 7 (le 9 + longueur, PAS de Valet), aucun As. Feuille: pass. Teste si la longueur rachete une main a base de 9 (cf main 5 KQ97 = pass). Interne.",
+    "en": "9-floor probe. Spade KQ987 (the 9 + length, NO Jack), no ace. Sheet: pass. Tests whether length rescues a 9-based hand (cf hand 5 KQ97 = pass). Internal."
+  },
+  "userSeat": 0,
+  "dealer": 3,
+  "hands": {
+    "0": [
+      {
+        "suit": "S",
+        "value": "K"
+      },
+      {
+        "suit": "S",
+        "value": "Q"
+      },
+      {
+        "suit": "S",
+        "value": "9"
+      },
+      {
+        "suit": "S",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "7"
+      },
+      {
+        "suit": "H",
+        "value": "8"
+      },
+      {
+        "suit": "D",
+        "value": "9"
+      },
+      {
+        "suit": "C",
+        "value": "8"
+      }
+    ],
+    "1": [
+      {
+        "suit": "S",
+        "value": "10"
+      },
+      {
+        "suit": "S",
+        "value": "J"
+      },
+      {
+        "suit": "S",
+        "value": "A"
+      },
+      {
+        "suit": "H",
+        "value": "7"
+      },
+      {
+        "suit": "H",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "J"
+      },
+      {
+        "suit": "H",
+        "value": "Q"
+      }
+    ],
+    "2": [
+      {
+        "suit": "H",
+        "value": "K"
+      },
+      {
+        "suit": "H",
+        "value": "A"
+      },
+      {
+        "suit": "D",
+        "value": "7"
+      },
+      {
+        "suit": "D",
+        "value": "8"
+      },
+      {
+        "suit": "D",
+        "value": "10"
+      },
+      {
+        "suit": "D",
+        "value": "J"
+      },
+      {
+        "suit": "D",
+        "value": "Q"
+      },
+      {
+        "suit": "D",
+        "value": "K"
+      }
+    ],
+    "3": [
+      {
+        "suit": "D",
+        "value": "A"
+      },
+      {
+        "suit": "C",
+        "value": "7"
+      },
+      {
+        "suit": "C",
+        "value": "9"
+      },
+      {
+        "suit": "C",
+        "value": "10"
+      },
+      {
+        "suit": "C",
+        "value": "J"
+      },
+      {
+        "suit": "C",
+        "value": "Q"
+      },
+      {
+        "suit": "C",
+        "value": "K"
+      },
+      {
+        "suit": "C",
+        "value": "A"
+      }
+    ]
+  },
+  "initialState": {
+    "phase": "BIDDING"
+  },
+  "timeline": [
+    {
+      "event": "user-turn"
+    }
+  ],
+  "expectedAnswer": {
+    "action": {
+      "type": "pass"
+    },
+    "ruleReference": "opening:pass:9-floor-probe-no-jack"
+  },
+  "ambiguityFlags": []
+}

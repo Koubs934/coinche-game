@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-zg-p1-kqj10",
+  "title": {
+    "fr": "Ouverture",
+    "en": "Opening"
+  },
+  "description": {
+    "fr": "Tu ouvres les enchères. Quelle est ton annonce ?",
+    "en": "You open the bidding. What's your bid?"
+  },
+  "notes": {
+    "fr": "Sonde triangulation force d'atout. pique K Q J 10 (Valet + soutien, sans le 9, sans As), aucun As ailleurs. Feuille actuelle: pass. On teste si le Valet + soutien ouvre 90 sans le 9 ni As ext. Interne.",
+    "en": "Trump-strength triangulation probe. Spade KQJ10 (Jack + support, no 9, no ace), no ace anywhere. Current sheet: pass. Tests whether Jack + support opens 90 without the 9 or an outside ace. Internal."
+  },
+  "userSeat": 0,
+  "dealer": 3,
+  "hands": {
+    "0": [
+      {
+        "suit": "S",
+        "value": "K"
+      },
+      {
+        "suit": "S",
+        "value": "Q"
+      },
+      {
+        "suit": "S",
+        "value": "J"
+      },
+      {
+        "suit": "S",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "8"
+      },
+      {
+        "suit": "H",
+        "value": "7"
+      },
+      {
+        "suit": "D",
+        "value": "8"
+      },
+      {
+        "suit": "C",
+        "value": "7"
+      }
+    ],
+    "1": [
+      {
+        "suit": "S",
+        "value": "7"
+      },
+      {
+        "suit": "S",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "9"
+      },
+      {
+        "suit": "S",
+        "value": "A"
+      },
+      {
+        "suit": "H",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "J"
+      },
+      {
+        "suit": "H",
+        "value": "Q"
+      }
+    ],
+    "2": [
+      {
+        "suit": "H",
+        "value": "K"
+      },
+      {
+        "suit": "H",
+        "value": "A"
+      },
+      {
+        "suit": "D",
+        "value": "7"
+      },
+      {
+        "suit": "D",
+        "value": "9"
+      },
+      {
+        "suit": "D",
+        "value": "10"
+      },
+      {
+        "suit": "D",
+        "value": "J"
+      },
+      {
+        "suit": "D",
+        "value": "Q"
+      },
+      {
+        "suit": "D",
+        "value": "K"
+      }
+    ],
+    "3": [
+      {
+        "suit": "D",
+        "value": "A"
+      },
+      {
+        "suit": "C",
+        "value": "8"
+      },
+      {
+        "suit": "C",
+        "value": "9"
+      },
+      {
+        "suit": "C",
+        "value": "10"
+      },
+      {
+        "suit": "C",
+        "value": "J"
+      },
+      {
+        "suit": "C",
+        "value": "Q"
+      },
+      {
+        "suit": "C",
+        "value": "K"
+      },
+      {
+        "suit": "C",
+        "value": "A"
+      }
+    ]
+  },
+  "initialState": {
+    "phase": "BIDDING"
+  },
+  "timeline": [
+    {
+      "event": "user-turn"
+    }
+  ],
+  "expectedAnswer": {
+    "action": {
+      "type": "pass"
+    },
+    "ruleReference": "opening:pass:trump-strength-probe-jack+support-no-9-no-ace"
+  },
+  "ambiguityFlags": []
+}
