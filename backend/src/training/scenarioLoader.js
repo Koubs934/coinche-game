@@ -7,6 +7,16 @@ const path   = require('path');
 const crypto = require('crypto');
 const { validateScenario } = require('./validateScenarios');
 
+// ───────────────────────────────────────────────────────────────────────────
+// TEMP — RATIFICATION ROUND. When ON, the picker lists ONLY the zone-grise +
+// probe openings (ids starting with "opening-zg-") so Aaron / Jerem / Sacha
+// play exactly those 11 scenarios. Reverting is a ONE-LINE flip: set to false
+// to restore the full scenario list. Applied at the single source of the
+// picker list (listScenarios()).
+const TRAINING_ONLY_ZG = true; // TEMP: flip to false to restore all scenarios
+const TRAINING_ONLY_ZG_PREFIX = 'opening-zg-';
+// ───────────────────────────────────────────────────────────────────────────
+
 // Deterministic shuffle key — first 8 hex chars of SHA-256(id). Stable
 // across runs and across all users, so the picker shows the same order
 // to everyone, but categories are interleaved instead of grouped (since
@@ -101,8 +111,12 @@ function listScenarios() {
       dealer:      s.dealer,
     });
   }
-  out.sort((a, b) => scenarioOrderKey(a.id).localeCompare(scenarioOrderKey(b.id)));
-  return out;
+  // TEMP (TRAINING_ONLY_ZG): restrict the picker to the ratification set.
+  const listed = TRAINING_ONLY_ZG
+    ? out.filter(s => String(s.id).startsWith(TRAINING_ONLY_ZG_PREFIX))
+    : out;
+  listed.sort((a, b) => scenarioOrderKey(a.id).localeCompare(scenarioOrderKey(b.id)));
+  return listed;
 }
 
 /** Full scenario JSON for the runner + frontend renderer. */
