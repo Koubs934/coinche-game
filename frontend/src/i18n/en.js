@@ -297,6 +297,13 @@ export default {
       // Section grouping (Option A): label per scenario `section`; fallback to raw key.
       sectionLabels:        { '120': '120 conventions' },
       sectionDefault:       'Other scenarios',
+      // Family filter chips + search box + sort toggle.
+      familyAll:            'All',
+      familyLabels:         { '120': '120', 'Ouvertures': 'Openings', 'Réponses': 'Responses', 'Compétitif': 'Competitive', 'Validation': 'Validation', 'Autres': 'Others' },
+      sortByNumber:         'Number',
+      sortByFamily:         'Family',
+      searchPlaceholder:    'Search a scenario…',
+      emptyFiltered:        'No scenario matches.',
     },
     completion: {
       title:        'Scenario complete',

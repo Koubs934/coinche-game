@@ -1,7 +1,12 @@
-// TrainingPicker — the user-facing scenario picker. Replaces the piece-1
-// DevTrainingPicker harness. Renders a resumable callout (amber-tinted, so
-// it reads as "in-progress — finish it", not as one of the scenario cards)
-// above the main scenario list.
+// TrainingPicker — the user-facing scenario picker. Renders a resumable callout
+// (amber-tinted, so it reads as "in-progress — finish it", not as one of the
+// scenario cards) above the main scenario list.
+//
+// Browsing the active list: a toolbar of family filter chips + a search box +
+// a "Numéro / Famille" sort toggle (Numéro = flat by number, the default;
+// Famille = grouped by family with headings). Chips/search/sort apply ONLY to
+// the active scenarios — the resumable callout and the collapsible
+// completed/exhausted section are unaffected.
 //
 // Exhaustion rendering: scenarios the user has marked "no more alternatives"
 // are hidden from the main list by default. A toggle below the main list
@@ -13,6 +18,35 @@
 import { useMemo, useState } from 'react';
 import { useLang } from '../context/LanguageContext';
 import { formatActionText, actionIsRed } from './formatAction';
+
+// Scenario "family" derivation (id-prefix + section). A scenario can belong to
+// several families (a 120 opening is both "120" and "Ouvertures") — chip
+// filtering accepts that overlap. Famille-mode grouping needs a single bucket,
+// so it uses the first match in FAMILY_ORDER as the primary family.
+const FAMILY_ORDER = ['120', 'Ouvertures', 'Réponses', 'Compétitif', 'Validation', 'Autres'];
+
+function familiesOf(s) {
+  const fams = [];
+  const id = s.id || '';
+  if (s.section === '120') fams.push('120');
+  if (id.startsWith('opening-')) fams.push('Ouvertures');
+  if (id.startsWith('response-') || id.startsWith('raise-partner-')) fams.push('Réponses');
+  if (
+    id.startsWith('partner-opened-opp-overcalled-') ||
+    id.startsWith('second-opp-opened-') ||
+    id.startsWith('block-') ||
+    id.startsWith('chique-') ||
+    id.startsWith('facing-')
+  ) fams.push('Compétitif');
+  if (id.startsWith('validation-scenario-')) fams.push('Validation');
+  if (fams.length === 0) fams.push('Autres');
+  return fams;
+}
+function primaryFamily(s) {
+  const fams = familiesOf(s);
+  return FAMILY_ORDER.find(k => fams.includes(k)) || 'Autres';
+}
+const byNumber = (a, b) => (a.number ?? Infinity) - (b.number ?? Infinity);
 
 export default function TrainingPicker({
   scenarios,
@@ -46,6 +80,9 @@ export default function TrainingPicker({
   function formatScenarioTitle(number, title) {
     return number ? `#${number} — ${title}` : title;
   }
+  function titleText(s) {
+    return s.title?.[lang] || s.title?.en || s.id;
+  }
 
   // Partition scenarios into active vs exhausted while preserving server order.
   const exhaustedMap = useMemo(() => {
@@ -64,32 +101,45 @@ export default function TrainingPicker({
   );
   const completedCount = completedScenarios.length;
 
-  // Group active scenarios by `section` for labeled headings (Option A). "120"
-  // first, then any other named sections, then the un-sectioned default group
-  // last — every active scenario still appears.
-  const activeGroups = useMemo(() => {
-    const bySection = new Map();
-    for (const s of activeScenarios) {
-      const key = s.section || '__default__';
-      if (!bySection.has(key)) bySection.set(key, []);
-      bySection.get(key).push(s);
-    }
-    const ordered = [];
-    if (bySection.has('120')) ordered.push(['120', bySection.get('120')]);
-    for (const [key, list] of bySection) {
-      if (key === '120' || key === '__default__') continue;
-      ordered.push([key, list]);
-    }
-    if (bySection.has('__default__')) ordered.push(['__default__', bySection.get('__default__')]);
-    return ordered;
-  }, [activeScenarios]);
+  // ── Toolbar state — family chip, search query, sort mode ──────────────────
+  // Numéro (flat, by ascending number) is the default: the server's hash-
+  // shuffled order scattered the numbers, which bugged users.
+  const [activeFamily, setActiveFamily] = useState('all');
+  const [query, setQuery]               = useState('');
+  const [sortMode, setSortMode]         = useState('number'); // 'number' | 'family'
 
-  function sectionLabel(key) {
-    if (key === '__default__') return tp.sectionDefault;
-    return tp.sectionLabels?.[key] || key;
+  function familyLabel(key) {
+    return key === 'all' ? tp.familyAll : (tp.familyLabels?.[key] || key);
   }
 
+  // Active scenarios after the family chip (membership, overlap ok) + the
+  // case-insensitive title search (current language). The two combine (AND).
+  const filteredActive = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return activeScenarios.filter(s =>
+      (activeFamily === 'all' || familiesOf(s).includes(activeFamily)) &&
+      (!q || titleText(s).toLowerCase().includes(q)),
+    );
+  }, [activeScenarios, activeFamily, query, lang]);
+
+  // Numéro: one flat list by ascending number.
+  const numberSorted = useMemo(() => [...filteredActive].sort(byNumber), [filteredActive]);
+
+  // Famille: grouped by primary family (FAMILY_ORDER), number-sorted within.
+  const familyGroups = useMemo(() => {
+    const byFam = new Map();
+    for (const s of filteredActive) {
+      const k = primaryFamily(s);
+      if (!byFam.has(k)) byFam.set(k, []);
+      byFam.get(k).push(s);
+    }
+    for (const list of byFam.values()) list.sort(byNumber);
+    return FAMILY_ORDER.filter(k => byFam.has(k)).map(k => [k, byFam.get(k)]);
+  }, [filteredActive]);
+
   const [showCompleted, setShowCompleted] = useState(false);
+
+  const CHIP_KEYS = ['all', ...FAMILY_ORDER];
 
   function renderScenarioCard(s, { completed } = {}) {
     const meta = completed ? exhaustedMap[s.id] : null;
@@ -176,17 +226,70 @@ export default function TrainingPicker({
             <h2 className="training-section-heading">{tp.title}</h2>
             {scenarios?.length > 0 && (
               <span className="training-scenarios-count">
-                {tp.scenariosToAnnotate(activeScenarios.length)}
+                {tp.scenariosToAnnotate(filteredActive.length)}
               </span>
             )}
           </div>
 
+          {scenarios?.length > 0 && (
+            <div className="training-toolbar">
+              <div className="training-chip-row" role="tablist" aria-label={tp.title}>
+                {CHIP_KEYS.map(key => (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeFamily === key}
+                    className={'training-chip' + (activeFamily === key ? ' training-chip-active' : '')}
+                    onClick={() => setActiveFamily(key)}
+                  >
+                    {familyLabel(key)}
+                  </button>
+                ))}
+              </div>
+              <div className="training-toolbar-row">
+                <input
+                  type="search"
+                  className="training-search"
+                  placeholder={tp.searchPlaceholder}
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  aria-label={tp.searchPlaceholder}
+                />
+                <div className="training-sort" role="group" aria-label={`${tp.sortByNumber} / ${tp.sortByFamily}`}>
+                  <button
+                    type="button"
+                    className={sortMode === 'number' ? 'training-sort-active' : ''}
+                    aria-pressed={sortMode === 'number'}
+                    onClick={() => setSortMode('number')}
+                  >
+                    {tp.sortByNumber}
+                  </button>
+                  <button
+                    type="button"
+                    className={sortMode === 'family' ? 'training-sort-active' : ''}
+                    aria-pressed={sortMode === 'family'}
+                    onClick={() => setSortMode('family')}
+                  >
+                    {tp.sortByFamily}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {(!scenarios || scenarios.length === 0) ? (
             <p className="muted">{tp.empty}</p>
+          ) : filteredActive.length === 0 ? (
+            <p className="muted">{tp.emptyFiltered}</p>
+          ) : sortMode === 'number' ? (
+            <div className="training-scenario-list">
+              {numberSorted.map(s => renderScenarioCard(s))}
+            </div>
           ) : (
-            activeGroups.map(([key, list]) => (
+            familyGroups.map(([key, list]) => (
               <div key={key} className="training-scenario-group">
-                <h3 className="training-section-heading">{sectionLabel(key)}</h3>
+                <h3 className="training-section-heading">{familyLabel(key)}</h3>
                 <div className="training-scenario-list">
                   {list.map(s => renderScenarioCard(s))}
                 </div>

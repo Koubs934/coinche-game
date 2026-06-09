@@ -3445,6 +3445,104 @@ a      { color: var(--accent); }
   .training-scenario-actions .btn-primary { flex: 1; width: 100%; }
 }
 
+/* ─── Picker toolbar — family chips + search + sort. Reuses the dark
+   ui-card / amber-accent language; chips & sort mirror the completed-toggle. */
+.training-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.training-chip-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.training-chip-row::-webkit-scrollbar { display: none; }
+.training-chip {
+  flex: 0 0 auto;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 5px 13px;
+  font-size: 0.82em;
+  white-space: nowrap;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+.training-chip:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+.training-chip-active {
+  background: rgba(240, 165, 0, 0.16);
+  color: var(--accent);
+  border-color: rgba(240, 165, 0, 0.55);
+  font-weight: 600;
+}
+.training-toolbar-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.training-search {
+  flex: 1;
+  min-width: 0;
+  background: var(--ui-card);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+}
+.training-search:focus { outline: 2px solid var(--accent); border-color: transparent; }
+.training-search::placeholder { color: var(--muted); }
+.training-sort {
+  display: flex;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.training-sort button {
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  padding: 7px 12px;
+  font-size: 0.82em;
+  white-space: nowrap;
+  transition: background 120ms, color 120ms;
+}
+.training-sort button + button { border-left: 1px solid rgba(255, 255, 255, 0.14); }
+.training-sort button.training-sort-active {
+  background: rgba(240, 165, 0, 0.16);
+  color: var(--accent);
+  font-weight: 600;
+}
+.training-scenario-group + .training-scenario-group { margin-top: 16px; }
+
+/* Compact picker cards — one-line title (ellipsis) + 2-line description clamp.
+   The full title/description still render on the scenario screen itself. */
+.training-scenario-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.training-scenario-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* Exhausted titles keep their flex/badge wrap (override the one-line clamp). */
+.training-scenario-exhausted .training-scenario-title {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
 /* ─── Game Review — "Erreur de jeu" button + tag overlay ─────────────────
    Amber/outlined visual language for warning and review overlays. The
    internals (trick pill row, card grid, note textarea, selection feedback)
