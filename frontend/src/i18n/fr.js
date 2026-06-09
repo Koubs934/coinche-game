@@ -294,6 +294,9 @@ export default {
       completedSection:     'Scénarios terminés',
       completedBadge:       'Terminé',
       alternativesRecorded: (n) => n === 1 ? '1 stratégie enregistrée' : `${n} stratégies enregistrées`,
+      // Section grouping (Option A): label per scenario `section`; fallback to raw key.
+      sectionLabels:        { '120': 'Conventions 120' },
+      sectionDefault:       'Autres scènes',
     },
     completion: {
       title:        'Scénario terminé',

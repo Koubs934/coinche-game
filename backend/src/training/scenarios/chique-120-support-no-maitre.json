@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 2,
+  "id": "chique-120-support-no-maitre",
+  "title": {
+    "en": "Partner 100 ♠, opp 110 ♥ — support to 120?",
+    "fr": "Partenaire 100 ♠, adv 110 ♥ — soutien à 120 ?"
+  },
+  "description": {
+    "en": "Partner opened 100 ♠, the opponent raises 110 ♥. Belote ♠ but neither piece nor Ace. What do you do?",
+    "fr": "Partenaire a ouvert 100 ♠, l'adversaire relance 110 ♥. Belote ♠ mais ni pièce ni As. Tu fais quoi ?"
+  },
+  "notes": {
+    "en": "Sacha's real hand in conv 10 (he raised 120 ♠). We elicit the chique/support-to-120 logic. Rule-silent.",
+    "fr": "Main réelle de Sacha en conv 10 (il a monté 120 ♠). On élicite la logique du chique/soutien à 120. Rule-silent."
+  },
+
+  "userSeat": 0,
+  "dealer": 1,
+
+  "hands": {
+    "0": [ {"suit":"S","value":"K"}, {"suit":"S","value":"Q"}, {"suit":"S","value":"10"},
+           {"suit":"H","value":"7"},
+           {"suit":"D","value":"9"}, {"suit":"D","value":"8"},
+           {"suit":"C","value":"10"}, {"suit":"C","value":"7"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"8"}, {"suit":"S","value":"9"},
+           {"suit":"H","value":"8"}, {"suit":"H","value":"9"}, {"suit":"H","value":"10"}, {"suit":"H","value":"J"}, {"suit":"H","value":"Q"} ],
+    "2": [ {"suit":"S","value":"J"}, {"suit":"S","value":"A"},
+           {"suit":"H","value":"K"}, {"suit":"H","value":"A"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"} ],
+    "3": [ {"suit":"D","value":"K"}, {"suit":"D","value":"A"},
+           {"suit":"C","value":"8"}, {"suit":"C","value":"9"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+  "section": "120",
+
+  "timeline": [
+    { "event": "bid", "seat": 2, "value": 100, "suit": "S", "authorIntent": "Ouvre 100 ♠ (maître)." },
+    { "event": "bid", "seat": 3, "value": 110, "suit": "H", "authorIntent": "Relance adverse 110 ♥." },
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["chique-120-support-open"]
+}

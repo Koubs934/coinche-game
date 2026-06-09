@@ -33,6 +33,7 @@
  *     "title":          { "fr": "...", "en": "..." },
  *     "description":    { "fr": "...", "en": "..." },
  *     "notes":          { "fr": "...", "en": "..." },
+ *     "section":        "string | null",   // optional; groups scenarios in the picker (e.g. "120")
  *
  *     "userSeat":       0 | 1 | 2 | 3,
  *     "dealer":         0 | 1 | 2 | 3,
@@ -83,6 +84,10 @@
  *              covered exactly once across the four hands (validator enforces).
  * `initialState` — Optional. Future-proofs card-play scenarios. Omit for the
  *              common case (new auction, BIDDING phase, no current bid).
+ * `section`  — Optional string (absent/null = ungrouped). Groups scenarios into
+ *              a labeled section in the training picker (e.g. "120"). Purely a
+ *              picker-display affordance; the runner ignores it, and the
+ *              validator allows it (extra keys are not rejected).
  *
  * `timeline[].authorIntent` — Scenario author's note for why this scripted
  *              seat makes this move. STORED IN THE SCENARIO FILE. This is

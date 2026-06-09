@@ -96,6 +96,7 @@ function listScenarios() {
       number:      numberById.get(s.id) ?? null,
       title:       s.title,
       description: s.description,
+      section:     s.section ?? null,
       userSeat:    s.userSeat,
       dealer:      s.dealer,
     });
@@ -146,6 +147,7 @@ function pickClientScenarioFields(scenario) {
     number:        numberById.get(scenario.id) ?? null,
     title:         scenario.title,
     description:   scenario.description,
+    section:       scenario.section ?? null,
     schemaVersion: scenario.schemaVersion,
     userSeat:      scenario.userSeat,
     dealer:        scenario.dealer,

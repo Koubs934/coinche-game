@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 2,
+  "id": "opening-120-three-suits-not-bicolore",
+  "title": {
+    "en": "Opening — master, 3 suits (not bicolore)",
+    "fr": "Ouverture — maître, 3 couleurs (pas bicolore)"
+  },
+  "description": {
+    "en": "You open. Master ♥ + 1 outside Ace, but spread across 3 suits. What do you announce?",
+    "fr": "Tu ouvres. Maître ♥ + 1 As extérieur, mais réparti sur 3 couleurs. Tu annonces quoi ?"
+  },
+  "notes": {
+    "en": "Does 120 require the bicolore shape (strictly 2 suits) or just strength? (The old model would say 110 here.) Rule-silent.",
+    "fr": "Le 120 exige-t-il la forme bicolore (strictement 2 couleurs) ou juste de la force ? (Le vieux modèle dirait 110 ici.) Rule-silent."
+  },
+
+  "userSeat": 0,
+  "dealer": 3,
+
+  "hands": {
+    "0": [ {"suit":"H","value":"A"}, {"suit":"H","value":"J"}, {"suit":"H","value":"9"}, {"suit":"H","value":"K"},
+           {"suit":"S","value":"A"}, {"suit":"S","value":"8"},
+           {"suit":"D","value":"9"}, {"suit":"D","value":"8"} ],
+    "1": [ {"suit":"S","value":"7"}, {"suit":"S","value":"9"}, {"suit":"S","value":"10"}, {"suit":"S","value":"J"},
+           {"suit":"H","value":"7"}, {"suit":"H","value":"8"}, {"suit":"H","value":"10"}, {"suit":"H","value":"Q"} ],
+    "2": [ {"suit":"S","value":"Q"}, {"suit":"S","value":"K"},
+           {"suit":"D","value":"7"}, {"suit":"D","value":"10"}, {"suit":"D","value":"J"}, {"suit":"D","value":"Q"}, {"suit":"D","value":"K"}, {"suit":"D","value":"A"} ],
+    "3": [ {"suit":"C","value":"7"}, {"suit":"C","value":"8"}, {"suit":"C","value":"9"}, {"suit":"C","value":"10"}, {"suit":"C","value":"J"}, {"suit":"C","value":"Q"}, {"suit":"C","value":"K"}, {"suit":"C","value":"A"} ]
+  },
+
+  "initialState": { "phase": "BIDDING" },
+  "section": "120",
+
+  "timeline": [
+    { "event": "user-turn" }
+  ],
+
+  "expectedAnswer": null,
+  "ambiguityFlags": ["opening-120-bicolore-shape-open"]
+}

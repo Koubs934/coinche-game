@@ -64,6 +64,31 @@ export default function TrainingPicker({
   );
   const completedCount = completedScenarios.length;
 
+  // Group active scenarios by `section` for labeled headings (Option A). "120"
+  // first, then any other named sections, then the un-sectioned default group
+  // last — every active scenario still appears.
+  const activeGroups = useMemo(() => {
+    const bySection = new Map();
+    for (const s of activeScenarios) {
+      const key = s.section || '__default__';
+      if (!bySection.has(key)) bySection.set(key, []);
+      bySection.get(key).push(s);
+    }
+    const ordered = [];
+    if (bySection.has('120')) ordered.push(['120', bySection.get('120')]);
+    for (const [key, list] of bySection) {
+      if (key === '120' || key === '__default__') continue;
+      ordered.push([key, list]);
+    }
+    if (bySection.has('__default__')) ordered.push(['__default__', bySection.get('__default__')]);
+    return ordered;
+  }, [activeScenarios]);
+
+  function sectionLabel(key) {
+    if (key === '__default__') return tp.sectionDefault;
+    return tp.sectionLabels?.[key] || key;
+  }
+
   const [showCompleted, setShowCompleted] = useState(false);
 
   function renderScenarioCard(s, { completed } = {}) {
@@ -159,9 +184,14 @@ export default function TrainingPicker({
           {(!scenarios || scenarios.length === 0) ? (
             <p className="muted">{tp.empty}</p>
           ) : (
-            <div className="training-scenario-list">
-              {activeScenarios.map(s => renderScenarioCard(s))}
-            </div>
+            activeGroups.map(([key, list]) => (
+              <div key={key} className="training-scenario-group">
+                <h3 className="training-section-heading">{sectionLabel(key)}</h3>
+                <div className="training-scenario-list">
+                  {list.map(s => renderScenarioCard(s))}
+                </div>
+              </div>
+            ))
           )}
 
           {completedCount > 0 && (
