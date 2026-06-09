@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 2,
+  "id": "response-zg-rc2-neuf-sans-valet",
+  "title": {
+    "fr": "Réponse sur ouverture",
+    "en": "Response to opening"
+  },
+  "description": {
+    "fr": "Ton partenaire a ouvert, l'adversaire a passé. Quelle est ton annonce ?",
+    "en": "Your partner opened, the opponent passed. What's your bid?"
+  },
+  "notes": {
+    "fr": "Pattern R-C (miroir). Sur 80. Main: pique K97 (9 3ème, PAS de Valet), 0 As. Feuille: 120 pique (pièce 3ème). Réel: pass. À trancher: un 9 sans Valet porte-t-il une réponse ? Écho direct de la question D des ouvertures. Interne.",
+    "en": "Pattern R-C (mirror). Over 80. Hand: spade K97 (3rd 9, NO Jack), 0 aces. Sheet: 120 spades (3rd piece). Real: pass. To ratify: does a 9 without the Jack carry a response? Direct echo of openings question D. Internal."
+  },
+  "userSeat": 0,
+  "dealer": 1,
+  "hands": {
+    "0": [
+      {
+        "suit": "S",
+        "value": "7"
+      },
+      {
+        "suit": "C",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "K"
+      },
+      {
+        "suit": "S",
+        "value": "K"
+      },
+      {
+        "suit": "D",
+        "value": "K"
+      },
+      {
+        "suit": "S",
+        "value": "9"
+      },
+      {
+        "suit": "D",
+        "value": "Q"
+      },
+      {
+        "suit": "H",
+        "value": "7"
+      }
+    ],
+    "1": [
+      {
+        "suit": "H",
+        "value": "10"
+      },
+      {
+        "suit": "D",
+        "value": "10"
+      },
+      {
+        "suit": "C",
+        "value": "10"
+      },
+      {
+        "suit": "S",
+        "value": "10"
+      },
+      {
+        "suit": "S",
+        "value": "Q"
+      },
+      {
+        "suit": "S",
+        "value": "A"
+      },
+      {
+        "suit": "C",
+        "value": "8"
+      },
+      {
+        "suit": "D",
+        "value": "9"
+      }
+    ],
+    "2": [
+      {
+        "suit": "H",
+        "value": "A"
+      },
+      {
+        "suit": "C",
+        "value": "J"
+      },
+      {
+        "suit": "D",
+        "value": "8"
+      },
+      {
+        "suit": "H",
+        "value": "Q"
+      },
+      {
+        "suit": "D",
+        "value": "7"
+      },
+      {
+        "suit": "D",
+        "value": "A"
+      },
+      {
+        "suit": "C",
+        "value": "Q"
+      },
+      {
+        "suit": "H",
+        "value": "J"
+      }
+    ],
+    "3": [
+      {
+        "suit": "H",
+        "value": "9"
+      },
+      {
+        "suit": "C",
+        "value": "7"
+      },
+      {
+        "suit": "S",
+        "value": "J"
+      },
+      {
+        "suit": "C",
+        "value": "K"
+      },
+      {
+        "suit": "D",
+        "value": "J"
+      },
+      {
+        "suit": "H",
+        "value": "8"
+      },
+      {
+        "suit": "C",
+        "value": "A"
+      },
+      {
+        "suit": "S",
+        "value": "8"
+      }
+    ]
+  },
+  "initialState": {
+    "phase": "BIDDING"
+  },
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 80,
+      "suit": "H",
+      "authorIntent": "Ouverture scriptée du partenaire (situation de réponse normalisée)."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "Adversaire passe (pas d'annonce qualifiante)."
+    },
+    {
+      "event": "user-turn"
+    }
+  ],
+  "expectedAnswer": {
+    "action": {
+      "type": "bid",
+      "value": 120,
+      "suit": "S"
+    },
+    "ruleReference": "response-to-80:120:piece-3rd"
+  },
+  "ambiguityFlags": []
+}

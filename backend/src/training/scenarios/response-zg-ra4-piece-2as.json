@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 2,
+  "id": "response-zg-ra4-piece-2as",
+  "title": {
+    "fr": "Réponse sur ouverture",
+    "en": "Response to opening"
+  },
+  "description": {
+    "fr": "Ton partenaire a ouvert, l'adversaire a passé. Quelle est ton annonce ?",
+    "en": "Your partner opened, the opponent passed. What's your bid?"
+  },
+  "notes": {
+    "fr": "Pattern R-A (écart max). Sur 80. Main: coeur AKJ8 + trèfle AJ8, 2 As. Feuille: 140 coeur (pièce 3ème + 2 As). Réel: 90 coeur. À trancher: les hauts paliers 130/140 de la table sur-80 existent-ils en pratique ? Interne.",
+    "en": "Pattern R-A (max gap). Over 80. Hand: heart AKJ8 + club AJ8, 2 aces. Sheet: 140 hearts (3rd piece + 2 aces). Real: 90 hearts. To ratify: do the high 130/140 tiers of the over-80 table exist in practice? Internal."
+  },
+  "userSeat": 0,
+  "dealer": 1,
+  "hands": {
+    "0": [
+      {
+        "suit": "C",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "7"
+      },
+      {
+        "suit": "H",
+        "value": "8"
+      },
+      {
+        "suit": "C",
+        "value": "A"
+      },
+      {
+        "suit": "H",
+        "value": "A"
+      },
+      {
+        "suit": "C",
+        "value": "J"
+      },
+      {
+        "suit": "H",
+        "value": "K"
+      },
+      {
+        "suit": "H",
+        "value": "J"
+      }
+    ],
+    "1": [
+      {
+        "suit": "D",
+        "value": "K"
+      },
+      {
+        "suit": "D",
+        "value": "9"
+      },
+      {
+        "suit": "D",
+        "value": "Q"
+      },
+      {
+        "suit": "D",
+        "value": "10"
+      },
+      {
+        "suit": "S",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "10"
+      },
+      {
+        "suit": "S",
+        "value": "Q"
+      },
+      {
+        "suit": "S",
+        "value": "8"
+      }
+    ],
+    "2": [
+      {
+        "suit": "S",
+        "value": "A"
+      },
+      {
+        "suit": "D",
+        "value": "8"
+      },
+      {
+        "suit": "D",
+        "value": "A"
+      },
+      {
+        "suit": "D",
+        "value": "7"
+      },
+      {
+        "suit": "D",
+        "value": "J"
+      },
+      {
+        "suit": "H",
+        "value": "7"
+      },
+      {
+        "suit": "C",
+        "value": "Q"
+      },
+      {
+        "suit": "S",
+        "value": "9"
+      }
+    ],
+    "3": [
+      {
+        "suit": "S",
+        "value": "K"
+      },
+      {
+        "suit": "C",
+        "value": "7"
+      },
+      {
+        "suit": "C",
+        "value": "K"
+      },
+      {
+        "suit": "C",
+        "value": "9"
+      },
+      {
+        "suit": "S",
+        "value": "J"
+      },
+      {
+        "suit": "H",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "Q"
+      },
+      {
+        "suit": "C",
+        "value": "10"
+      }
+    ]
+  },
+  "initialState": {
+    "phase": "BIDDING"
+  },
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 80,
+      "suit": "D",
+      "authorIntent": "Ouverture scriptée du partenaire (situation de réponse normalisée)."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "Adversaire passe (pas d'annonce qualifiante)."
+    },
+    {
+      "event": "user-turn"
+    }
+  ],
+  "expectedAnswer": {
+    "action": {
+      "type": "bid",
+      "value": 140,
+      "suit": "H"
+    },
+    "ruleReference": "response-to-80:140:piece-3rd+2as"
+  },
+  "ambiguityFlags": []
+}

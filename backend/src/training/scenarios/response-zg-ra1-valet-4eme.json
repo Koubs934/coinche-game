@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 2,
+  "id": "response-zg-ra1-valet-4eme",
+  "title": {
+    "fr": "Réponse sur ouverture",
+    "en": "Response to opening"
+  },
+  "description": {
+    "fr": "Ton partenaire a ouvert, l'adversaire a passé. Quelle est ton annonce ?",
+    "en": "Your partner opened, the opponent passed. What's your bid?"
+  },
+  "notes": {
+    "fr": "Pattern R-A. Réponse sur 80. Main: carreau KJ87 (Valet 4ème), 0 As. Feuille: 120 carreau (pièce 3ème → 120). Réel (Jerem): 90 carreau. À trancher: le bonus pièce-3ème existe-t-il ? La longueur de la pièce change-t-elle la réponse ? Interne.",
+    "en": "Pattern R-A. Response over 80. Hand: diamond KJ87 (4th Jack), 0 aces. Sheet: 120 diamonds (3rd piece → 120). Real (Jerem): 90 diamonds. To ratify: does the 3rd-piece bonus exist? Does piece length change the response? Internal."
+  },
+  "userSeat": 0,
+  "dealer": 1,
+  "hands": {
+    "0": [
+      {
+        "suit": "H",
+        "value": "8"
+      },
+      {
+        "suit": "C",
+        "value": "Q"
+      },
+      {
+        "suit": "C",
+        "value": "8"
+      },
+      {
+        "suit": "H",
+        "value": "K"
+      },
+      {
+        "suit": "D",
+        "value": "7"
+      },
+      {
+        "suit": "D",
+        "value": "8"
+      },
+      {
+        "suit": "D",
+        "value": "K"
+      },
+      {
+        "suit": "D",
+        "value": "J"
+      }
+    ],
+    "1": [
+      {
+        "suit": "C",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "9"
+      },
+      {
+        "suit": "D",
+        "value": "9"
+      },
+      {
+        "suit": "S",
+        "value": "7"
+      },
+      {
+        "suit": "S",
+        "value": "K"
+      },
+      {
+        "suit": "H",
+        "value": "7"
+      },
+      {
+        "suit": "S",
+        "value": "10"
+      },
+      {
+        "suit": "C",
+        "value": "A"
+      }
+    ],
+    "2": [
+      {
+        "suit": "H",
+        "value": "A"
+      },
+      {
+        "suit": "C",
+        "value": "K"
+      },
+      {
+        "suit": "H",
+        "value": "J"
+      },
+      {
+        "suit": "S",
+        "value": "J"
+      },
+      {
+        "suit": "S",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "A"
+      },
+      {
+        "suit": "D",
+        "value": "Q"
+      },
+      {
+        "suit": "H",
+        "value": "10"
+      }
+    ],
+    "3": [
+      {
+        "suit": "S",
+        "value": "9"
+      },
+      {
+        "suit": "D",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "Q"
+      },
+      {
+        "suit": "S",
+        "value": "Q"
+      },
+      {
+        "suit": "C",
+        "value": "10"
+      },
+      {
+        "suit": "C",
+        "value": "J"
+      },
+      {
+        "suit": "C",
+        "value": "7"
+      },
+      {
+        "suit": "D",
+        "value": "A"
+      }
+    ]
+  },
+  "initialState": {
+    "phase": "BIDDING"
+  },
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 80,
+      "suit": "H",
+      "authorIntent": "Ouverture scriptée du partenaire (situation de réponse normalisée)."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "Adversaire passe (pas d'annonce qualifiante)."
+    },
+    {
+      "event": "user-turn"
+    }
+  ],
+  "expectedAnswer": {
+    "action": {
+      "type": "bid",
+      "value": 120,
+      "suit": "D"
+    },
+    "ruleReference": "response-to-80:120:piece-3rd"
+  },
+  "ambiguityFlags": []
+}

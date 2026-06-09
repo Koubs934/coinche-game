@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 2,
+  "id": "response-zg-rb1-as-atout-vs-ext",
+  "title": {
+    "fr": "Réponse sur ouverture",
+    "en": "Response to opening"
+  },
+  "description": {
+    "fr": "Ton partenaire a ouvert, l'adversaire a passé. Quelle est ton annonce ?",
+    "en": "Your partner opened, the opponent passed. What's your bid?"
+  },
+  "notes": {
+    "fr": "Pattern R-B — As d'atout vs As extérieur sur réponse à 90. Main: carreau AK7 (dont l'As d'ATOUT) + As trèfle extérieur, pas de pièce. Feuille (As totaux): 110 carreau. Réel: 100 carreau (= 1 seul As extérieur compté). À trancher: sur réponse à 90, compte-t-on les As totaux ou extérieurs ? Cas discriminant. Interne.",
+    "en": "Pattern R-B — trump ace vs outside ace on response to 90. Hand: diamond AK7 (incl. the TRUMP ace) + outside club ace, no piece. Sheet (total aces): 110 diamonds. Real: 100 diamonds (= only the outside ace counted). To ratify: on responses to 90, count total or outside aces? Discriminating case. Internal."
+  },
+  "userSeat": 0,
+  "dealer": 1,
+  "hands": {
+    "0": [
+      {
+        "suit": "D",
+        "value": "A"
+      },
+      {
+        "suit": "D",
+        "value": "K"
+      },
+      {
+        "suit": "C",
+        "value": "A"
+      },
+      {
+        "suit": "S",
+        "value": "9"
+      },
+      {
+        "suit": "S",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "J"
+      },
+      {
+        "suit": "D",
+        "value": "7"
+      },
+      {
+        "suit": "C",
+        "value": "Q"
+      }
+    ],
+    "1": [
+      {
+        "suit": "C",
+        "value": "7"
+      },
+      {
+        "suit": "H",
+        "value": "A"
+      },
+      {
+        "suit": "D",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "8"
+      },
+      {
+        "suit": "C",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "Q"
+      },
+      {
+        "suit": "H",
+        "value": "K"
+      }
+    ],
+    "2": [
+      {
+        "suit": "D",
+        "value": "Q"
+      },
+      {
+        "suit": "D",
+        "value": "J"
+      },
+      {
+        "suit": "S",
+        "value": "K"
+      },
+      {
+        "suit": "S",
+        "value": "A"
+      },
+      {
+        "suit": "S",
+        "value": "7"
+      },
+      {
+        "suit": "H",
+        "value": "8"
+      },
+      {
+        "suit": "H",
+        "value": "7"
+      },
+      {
+        "suit": "D",
+        "value": "10"
+      }
+    ],
+    "3": [
+      {
+        "suit": "D",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "9"
+      },
+      {
+        "suit": "C",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "Q"
+      },
+      {
+        "suit": "S",
+        "value": "J"
+      },
+      {
+        "suit": "C",
+        "value": "K"
+      },
+      {
+        "suit": "C",
+        "value": "10"
+      },
+      {
+        "suit": "C",
+        "value": "J"
+      }
+    ]
+  },
+  "initialState": {
+    "phase": "BIDDING"
+  },
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 90,
+      "suit": "D",
+      "authorIntent": "Ouverture scriptée du partenaire (situation de réponse normalisée)."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "Adversaire passe (pas d'annonce qualifiante)."
+    },
+    {
+      "event": "user-turn"
+    }
+  ],
+  "expectedAnswer": {
+    "action": {
+      "type": "bid",
+      "value": 110,
+      "suit": "D"
+    },
+    "ruleReference": "response-to-90:110:2-aces"
+  },
+  "ambiguityFlags": []
+}

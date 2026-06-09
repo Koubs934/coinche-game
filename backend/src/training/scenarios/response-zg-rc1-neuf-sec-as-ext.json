@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 2,
+  "id": "response-zg-rc1-neuf-sec-as-ext",
+  "title": {
+    "fr": "Réponse sur ouverture",
+    "en": "Response to opening"
+  },
+  "description": {
+    "fr": "Ton partenaire a ouvert, l'adversaire a passé. Quelle est ton annonce ?",
+    "en": "Your partner opened, the opponent passed. What's your bid?"
+  },
+  "notes": {
+    "fr": "Pattern R-C. Sur 90 coeur. Main: 9 de coeur SEC (pièce sèche) + As carreau extérieur. Feuille: pass (la ligne 100 exige sans pièce, et la pièce n'est pas 2nde). Réel: 100 coeur. À trancher: un 9 sec empêche-t-il la réponse 100 sur As ext ? Le sans-pièce est-il trop strict ? Interne.",
+    "en": "Pattern R-C. Over 90 hearts. Hand: BARE heart 9 (dry piece) + outside diamond ace. Sheet: pass (the 100 row requires no piece, and the piece isn't 2nd). Real: 100 hearts. To ratify: does a bare 9 block the 100-on-outside-ace response? Is no-piece too strict? Internal."
+  },
+  "userSeat": 0,
+  "dealer": 1,
+  "hands": {
+    "0": [
+      {
+        "suit": "C",
+        "value": "7"
+      },
+      {
+        "suit": "S",
+        "value": "9"
+      },
+      {
+        "suit": "D",
+        "value": "A"
+      },
+      {
+        "suit": "D",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "J"
+      },
+      {
+        "suit": "H",
+        "value": "9"
+      },
+      {
+        "suit": "C",
+        "value": "K"
+      },
+      {
+        "suit": "D",
+        "value": "10"
+      }
+    ],
+    "1": [
+      {
+        "suit": "H",
+        "value": "7"
+      },
+      {
+        "suit": "C",
+        "value": "10"
+      },
+      {
+        "suit": "D",
+        "value": "Q"
+      },
+      {
+        "suit": "S",
+        "value": "10"
+      },
+      {
+        "suit": "S",
+        "value": "K"
+      },
+      {
+        "suit": "H",
+        "value": "8"
+      },
+      {
+        "suit": "D",
+        "value": "J"
+      },
+      {
+        "suit": "C",
+        "value": "8"
+      }
+    ],
+    "2": [
+      {
+        "suit": "H",
+        "value": "10"
+      },
+      {
+        "suit": "C",
+        "value": "Q"
+      },
+      {
+        "suit": "H",
+        "value": "J"
+      },
+      {
+        "suit": "C",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "A"
+      },
+      {
+        "suit": "C",
+        "value": "J"
+      },
+      {
+        "suit": "H",
+        "value": "K"
+      },
+      {
+        "suit": "D",
+        "value": "9"
+      }
+    ],
+    "3": [
+      {
+        "suit": "D",
+        "value": "K"
+      },
+      {
+        "suit": "H",
+        "value": "Q"
+      },
+      {
+        "suit": "C",
+        "value": "A"
+      },
+      {
+        "suit": "S",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "Q"
+      },
+      {
+        "suit": "D",
+        "value": "7"
+      },
+      {
+        "suit": "S",
+        "value": "A"
+      },
+      {
+        "suit": "S",
+        "value": "7"
+      }
+    ]
+  },
+  "initialState": {
+    "phase": "BIDDING"
+  },
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 90,
+      "suit": "H",
+      "authorIntent": "Ouverture scriptée du partenaire (situation de réponse normalisée)."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "Adversaire passe (pas d'annonce qualifiante)."
+    },
+    {
+      "event": "user-turn"
+    }
+  ],
+  "expectedAnswer": {
+    "action": {
+      "type": "pass"
+    },
+    "ruleReference": "response-to-90:pass:piece-not-2nd"
+  },
+  "ambiguityFlags": []
+}
