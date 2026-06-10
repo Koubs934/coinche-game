@@ -2,9 +2,12 @@
 // mods derived from the Sacha audit (docs/sacha-v22-conversations-2026-05-07.md).
 // If a mod's guard text drifts or gets removed, one of these assertions fires.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { buildSystemPrompt } = require('../claudeService.js');
 const { computeFeatures } = require('../../game/cardFeatures.js');
 const { extractCaptureRules, toRuleCandidates } = require('../personalFeuille.js');
@@ -314,12 +317,13 @@ describe('claudeService — V2.2 calibration regression (Sacha audit)', () => {
   });
 
   describe('Mod 20 — Citations Feuille (M-D1)', () => {
-    it('exige une citation verbatim + mode élicitation, pas de fabrication', () => {
+    it('exige la recopie EXACTE de la ligne, vérifier avant d\'adopter le cadre du joueur', () => {
       const sp = buildVD();
-      expect(sp).toMatch(/cite-la VERBATIM/);
-      expect(sp).toMatch(/passe en mode élicitation/);
+      expect(sp).toMatch(/commence par recopier la ligne EXACTE de la table/);
+      expect(sp).toMatch(/L'explication vient APRÈS la citation, jamais à sa place/);
+      expect(sp).toMatch(/N'énonce JAMAIS une règle générale qui n'est pas écrite dans la Feuille/);
+      expect(sp).toMatch(/VÉRIFIE dans la Feuille avant d'adopter son cadre/);
       expect(sp).toMatch(/tie-break\) n'est PAS formalisé/);
-      expect(sp).toMatch(/Distingue toujours deux registres/);
       expect(sp).toMatch(/Ne présente jamais ton raisonnement comme étant la Feuille/);
     });
   });
@@ -335,12 +339,14 @@ describe('claudeService — V2.2 calibration regression (Sacha audit)', () => {
   });
 
   describe('Mod 22 — Clôture et capture (M-E)', () => {
-    it('capturer la divergence, 2 relances max, CAPTURE_RULE immédiat, clôture sans question', () => {
+    it('capture-always toute formulation, ne repose pas une question, une CAPTURE_RULE par règle', () => {
       const sp = buildVD();
       expect(sp).toMatch(/capturer la divergence, pas gagner le débat/);
+      expect(sp).toMatch(/TOUTE formulation du joueur du type "je fais X quand Y"/);
+      expect(sp).toMatch(/tu DOIS la capturer dans le même message/);
       expect(sp).toMatch(/Maximum 2 relances/);
-      expect(sp).toMatch(/émets IMMÉDIATEMENT une ligne CAPTURE_RULE/);
-      expect(sp).toMatch(/clôture en 1-2 lignes/);
+      expect(sp).toMatch(/Ne repose JAMAIS une question déjà posée/);
+      expect(sp).toMatch(/Une seule ligne CAPTURE_RULE par règle/);
       expect(sp).toMatch(/SANS question finale/);
     });
   });
@@ -377,6 +383,60 @@ describe('claudeService — V2.2 calibration regression (Sacha audit)', () => {
     });
     it('rappelle toujours de reprendre le vocabulaire du joueur', () => {
       expect(buildVD()).toMatch(/Reprends le vocabulaire du joueur/);
+    });
+  });
+
+  describe('Mod 25 — continuité règles personnelles (C3)', () => {
+    it('utilise les règles capturées sans re-demander; ne les met jamais au-dessus de la Feuille', () => {
+      const sp = buildVD();
+      expect(sp).toMatch(/Tu disposes des règles personnelles déjà capturées de ce joueur/);
+      expect(sp).toMatch(/Ta règle capturée/);
+      expect(sp).toMatch(/Ne re-capture pas une règle déjà présente, sauf si le joueur la modifie/);
+      expect(sp).toMatch(/Les règles personnelles ne remplacent jamais la Feuille/);
+    });
+  });
+
+  describe('C3 — personal feuille injection', () => {
+    const SCRATCH = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-perso-'));
+    const UID = 'test-user-perso';
+    let prevDir;
+    beforeAll(() => {
+      prevDir = process.env.TRAINING_DATA_DIR;
+      process.env.TRAINING_DATA_DIR = SCRATCH;
+      fs.mkdirSync(path.join(SCRATCH, UID), { recursive: true });
+      fs.writeFileSync(
+        path.join(SCRATCH, UID, 'feuille-personnelle.md'),
+        '# Feuille perso\n[PROPOSED] Règle test capturée X (origin: s1)\n'
+      );
+    });
+    afterAll(() => {
+      if (prevDir === undefined) delete process.env.TRAINING_DATA_DIR;
+      else process.env.TRAINING_DATA_DIR = prevDir;
+      fs.rmSync(SCRATCH, { recursive: true, force: true });
+    });
+    it('injecte le bloc RÈGLES PERSONNELLES (en-tête verbatim) quand la feuille a du contenu', () => {
+      const sp = buildSystemPrompt({ ...baseArgs, userId: UID });
+      expect(sp).toMatch(/RÈGLES PERSONNELLES DU JOUEUR — hypothèses capturées lors de conversations précédentes, statut \[PROPOSED\]/);
+      expect(sp).toMatch(/Règle test capturée X/);
+    });
+    it('omet le bloc quand la feuille est absente/vide', () => {
+      const sp = buildSystemPrompt({ ...baseArgs, userId: 'no-such-user-xyz' });
+      expect(sp).not.toMatch(/RÈGLES PERSONNELLES DU JOUEUR — hypothèses/);
+    });
+    it('ordre: RÈGLES DU JEU < LA FEUILLE < RÈGLES PERSONNELLES < FICHE DE MAIN', () => {
+      const userHand = [
+        { suit: 'S', value: 'A' }, { suit: 'S', value: 'K' }, { suit: 'S', value: 'Q' }, { suit: 'H', value: 'A' },
+        { suit: 'H', value: '10' }, { suit: 'D', value: '9' }, { suit: 'C', value: '8' }, { suit: 'C', value: '7' },
+      ];
+      const sp = buildSystemPrompt({ ...baseArgs, userId: UID, reglesContent: 'REGLES_FACTUELLES_MARKER', userHand });
+      const iR = sp.indexOf('RÈGLES DU JEU (référence factuelle');
+      const iF = sp.indexOf('LA FEUILLE (référence)');
+      const iP = sp.indexOf('RÈGLES PERSONNELLES DU JOUEUR — hypothèses');
+      const iH = sp.indexOf('FICHE DE MAIN (calculée');
+      expect(iR).toBeGreaterThanOrEqual(0);
+      expect(iF).toBeGreaterThan(iR);
+      expect(iP).toBeGreaterThan(iF);
+      expect(iH).toBeGreaterThan(iP);
     });
   });
 });
