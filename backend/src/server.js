@@ -15,7 +15,7 @@ const { registerTrainingHandlers, runStartupCleanup: trainingStartupCleanup } = 
 const claudeService = require('./services/claudeService');
 const personalFeuilleService = require('./services/personalFeuille');
 const { caseTypeFor } = require('./training/divergence');
-const { loadFeuille, buildConversationHistory, stripCaptureRules } = require('./training/conversationContext');
+const { loadFeuille, loadReglesDuJeu, buildConversationHistory, stripCaptureRules } = require('./training/conversationContext');
 const cardFeatures = require('./game/cardFeatures');
 // Event payload contract for every socket.on / socket.emit below:
 // see socketEvents.js. Update both sides (FE + BE) when changing a payload.
@@ -175,6 +175,7 @@ function buildContext(userId, annotation, currentFilename) {
   return {
     scenario,
     feuilleContent:  loadFeuille(),
+    reglesContent:   loadReglesDuJeu(),
     userName:        annotation.username || 'l\'utilisateur',
     pastAnnotations: loadPastAnnotations(userId, currentFilename),
   };
@@ -224,6 +225,7 @@ app.post('/api/conversation/start', async (req, res) => {
       userName: context.userName,
       pastAnnotations: context.pastAnnotations,
       feuilleContent: context.feuilleContent,
+      reglesContent: context.reglesContent,
       caseType,
     });
   } catch (err) {
@@ -335,6 +337,7 @@ app.post('/api/conversation/select-cards', async (req, res) => {
       userName:        context.userName,
       pastAnnotations: context.pastAnnotations,
       feuilleContent:  context.feuilleContent,
+      reglesContent:   context.reglesContent,
       caseType,
       cardSelection,
     });
@@ -423,6 +426,9 @@ app.post('/api/conversation/turn', async (req, res) => {
       userMessage,
       context: {
         feuilleContent:  context.feuilleContent,
+        reglesContent:   context.reglesContent,
+        // Fiche de main: the USER's seat only (never partner/opponents).
+        userHand:        context.scenario.hands?.[String(context.scenario.userSeat)] || [],
         userId,
         userName:        context.userName,
         pastAnnotations: context.pastAnnotations,

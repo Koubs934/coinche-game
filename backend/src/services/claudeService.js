@@ -10,6 +10,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { describePatterns, describeSelectedCards } = require('../game/cardFeatures');
 const { loadPersonalFeuille, loadCommonFeuille } = require('./personalFeuille');
+const { renderFiche } = require('../training/handFeatures');
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -23,7 +24,7 @@ function getClient() {
   return _client;
 }
 
-function buildSystemPrompt({ feuilleContent, userName, userPastAnnotations, caseType, cardSelection, userId }) {
+function buildSystemPrompt({ feuilleContent, reglesContent, userHand, userName, userPastAnnotations, caseType, cardSelection, userId }) {
   // V2.2 Phase 3 — best-effort feuille loading. Both reads are sync I/O
   // against the per-user training dir; missing files return ''. Read here
   // (not in the caller) so every entrypoint — startConversation,
@@ -48,6 +49,36 @@ Ces règles capturent les principes de ${userName} accumulés au fil des convers
 ${personalFeuilleContent}
 `
     : '';
+
+  // Reference layer 1 — RÈGLES DU JEU (factual: card order/points, trick
+  // obligations, group lexicon). NOT the convention; LA FEUILLE (layer 2)
+  // stays the annonce authority. Passed in, read fresh by the caller
+  // (graceful + loud if missing). Omitted entirely when absent.
+  const reglesBlock = reglesContent && reglesContent.trim()
+    ? `=== RÈGLES DU JEU (référence factuelle — NIVEAU 1) ===
+Faits du jeu (ordre et points des cartes, obligations de pli, lexique du groupe). Ce N'EST PAS la convention d'annonce — appuie-toi dessus pour les FAITS (que vaut telle carte, qui doit couper, sens d'un terme). L'autorité sur les ANNONCES reste LA FEUILLE ci-dessous.
+
+${reglesContent}
+
+`
+    : '';
+
+  // Reference layer 3 — FICHE DE MAIN, computed for the USER's seat ONLY
+  // (anti-spoiler: the partner's and opponents' hands are never in scope).
+  // Factual: states what the hand contains, never what to bid.
+  const ficheBlock = (() => {
+    if (!Array.isArray(userHand) || userHand.length === 0) return '';
+    let fiche = '';
+    try { fiche = renderFiche(userHand); }
+    catch (err) { console.error(`[claudeService] renderFiche a échoué: ${err.message}`); return ''; }
+    if (!fiche) return '';
+    return `=== FICHE DE MAIN (calculée, fiable — NIVEAU 3) ===
+Faits calculés sur TA main (le siège de l'utilisateur uniquement). Chiffres fiables. AUCUNE prescription : la fiche dit ce que la main CONTIENT, pas quoi annoncer. Croise-la avec LA FEUILLE pour raisonner.
+
+${fiche}
+
+`;
+  })();
 
   const captureBlock = `\n=== CAPTURE DE PRINCIPES (FEUILLE PERSONNELLE) ===
 
@@ -221,7 +252,9 @@ GLOSSAIRE DE LA CONVENTION (notre groupe utilise ces termes précisément)
     re-relance = relance_partenaire + (As_signalables × 10)
   Et elle ne s'applique QUE dans ce cas spécifique.
 - **Pisser** : jouer un petit atout faible parce qu'on ne peut pas
-  surcouper.
+  surcouper. À NE PAS confondre avec **se défausser** = jouer une
+  carte d'une AUTRE couleur (non-atout) quand on ne peut ni fournir
+  ni couper. Deux gestes distincts.
 - **Solide** : annonce qui suit exactement la table V2.1.
 - **Exploration** : annonce risquée qui change de couleur d'atout.
   Réservée aux humains.
@@ -437,10 +470,10 @@ LIMITES STRICTES
   - "On note ça ?" suivi d'une formulation de règle (le simple "on
     note ?" pour confirmer ce que l'utilisateur a dit reste OK)
 
-${formatCardSelectionSection(cardSelection)}LA FEUILLE V2.1 (référence)
+${formatCardSelectionSection(cardSelection)}${reglesBlock}LA FEUILLE (référence)
 ${feuilleContent}
 ${commonFeuilleBlock}${personalFeuilleBlock}
-ANNOTATIONS PASSÉES DE ${userName} (référence)
+${ficheBlock}ANNOTATIONS PASSÉES DE ${userName} (référence)
 ${userPastAnnotations}
 
 ${formatFirstMessageInstructions(cardSelection)}
@@ -643,9 +676,13 @@ function extractText(response) {
 // max_tokens = MAX_TOKENS). They are set only by the offline eval's opt-in
 // --thinking A/B path; the thinking budget then lives inside a larger maxTokens
 // so it never eats the visible reply.
-async function startConversation({ scenario, annotation, userName, pastAnnotations, feuilleContent, caseType, cardSelection, userId, thinking, maxTokens }) {
+async function startConversation({ scenario, annotation, userName, pastAnnotations, feuilleContent, reglesContent, caseType, cardSelection, userId, thinking, maxTokens }) {
+  // Fiche de main: the USER's seat only (never partner/opponents — no spoiler).
+  const userHand = scenario.hands?.[String(scenario.userSeat)] || [];
   const systemPrompt = buildSystemPrompt({
     feuilleContent,
+    reglesContent,
+    userHand,
     userName,
     userPastAnnotations: formatPastAnnotations(pastAnnotations),
     caseType,
@@ -673,6 +710,8 @@ async function startConversation({ scenario, annotation, userName, pastAnnotatio
 async function continueConversation({ conversationHistory, userMessage, context }) {
   const systemPrompt = buildSystemPrompt({
     feuilleContent: context.feuilleContent,
+    reglesContent: context.reglesContent,
+    userHand: context.userHand,
     userName: context.userName,
     userPastAnnotations: formatPastAnnotations(context.pastAnnotations),
     caseType: context.caseType,
