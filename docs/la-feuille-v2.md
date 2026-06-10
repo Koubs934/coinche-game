@@ -10,7 +10,7 @@ Document de référence destiné à servir de spec pour l'implémentation et de 
 ## Définitions clés
 
 - **Pièce** = Valet d'atout OU 9 d'atout (uniquement à l'atout, jamais ailleurs)
-- **Maître à l'atout** = Valet + 9 + As de la couleur d'atout
+- **Maître à l'atout** = Valet + 9 + As de la couleur d'atout, avec au moins 4 atouts (V9 As 4ème minimum)
 - **As extérieur** = As dans une couleur autre que l'atout
 - **Petit jeu** (pour qualifier 80) = au moins une de ces conditions :
   - ≥1 pièce + ≥2 atouts
