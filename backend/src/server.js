@@ -237,7 +237,7 @@ app.post('/api/conversation/start', async (req, res) => {
   // [PROPOSED] entry on the user's personal feuille, and strip them from
   // both the response sent to the FE and the message persisted on disk
   // (so re-loading the conversation later doesn't re-leak them).
-  const { cleanText } = captureAndStrip(result.text, {
+  const { cleanText, rules } = captureAndStrip(result.text, {
     userId,
     scenarioId: annotation.scenarioId,
     userName:   context.userName,
@@ -251,7 +251,11 @@ app.post('/api/conversation/start', async (req, res) => {
       { role: 'claude', content: cleanText, timestamp: startedAt },
     ],
     card_selections: [],
-    rule_candidates: [],
+    // Capture pipeline: record on the annotation the same rules we appended to
+    // the personal feuille — rule_candidates is no longer always [].
+    rule_candidates: personalFeuilleService.toRuleCandidates(rules, {
+      scenarioId: annotation.scenarioId, capturedAt: startedAt,
+    }),
     ended_at:        null,
     ended_reason:    null,
   };
@@ -347,7 +351,7 @@ app.post('/api/conversation/select-cards', async (req, res) => {
   }
 
   // V2.2 Phase 3 — extract + persist CAPTURE_RULE lines (see /start).
-  const { cleanText } = captureAndStrip(result.text, {
+  const { cleanText, rules } = captureAndStrip(result.text, {
     userId,
     scenarioId: annotation.scenarioId,
     userName:   context.userName,
@@ -371,7 +375,13 @@ app.post('/api/conversation/select-cards', async (req, res) => {
         patterns:      features.patterns,
       },
     ],
-    rule_candidates: conv?.rule_candidates || [],
+    // Capture pipeline: append captured rules to the annotation record.
+    rule_candidates: [
+      ...(conv?.rule_candidates || []),
+      ...personalFeuilleService.toRuleCandidates(rules, {
+        scenarioId: annotation.scenarioId, capturedAt: startedAt,
+      }),
+    ],
     ended_at:        null,
     ended_reason:    null,
   };
@@ -445,15 +455,23 @@ app.post('/api/conversation/turn', async (req, res) => {
   // Stripping before persistence is critical here: on the next /turn we
   // rebuild the conversation history from conv.messages and feed it back
   // to Claude, so any unstripped CAPTURE_RULE would loop forever.
-  const { cleanText } = captureAndStrip(result.text, {
+  const { cleanText, rules } = captureAndStrip(result.text, {
     userId,
     scenarioId: annotation.scenarioId,
     userName:   context.userName,
   });
 
   const userTs = nowIso();
+  const claudeTs = nowIso();
   conv.messages.push({ role: 'user', content: userMessage, timestamp: userTs });
-  conv.messages.push({ role: 'claude', content: cleanText, timestamp: nowIso() });
+  conv.messages.push({ role: 'claude', content: cleanText, timestamp: claudeTs });
+  // Capture pipeline: append any captured rules to the annotation record too.
+  conv.rule_candidates = [
+    ...(conv.rule_candidates || []),
+    ...personalFeuilleService.toRuleCandidates(rules, {
+      scenarioId: annotation.scenarioId, capturedAt: claudeTs,
+    }),
+  ];
   writeAnnotationAtomic(userId, annotationFilename, annotation);
   return res.json({ message: cleanText, usage: result.usage });
 });

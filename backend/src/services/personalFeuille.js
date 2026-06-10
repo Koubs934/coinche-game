@@ -148,6 +148,21 @@ function extractCaptureRules(rawText) {
   return { rules, cleanText };
 }
 
+// Build structured rule-candidate records from extracted CAPTURE_RULE strings,
+// for persistence on the annotation (claude_conversation.rule_candidates). This
+// is the missing half of the capture pipeline: extractCaptureRules feeds BOTH
+// appendProposedRule (-> feuille-personnelle.md) AND this (-> the annotation
+// record), so the two stay in sync instead of rule_candidates always being [].
+// Pure (no I/O). Sanitizes + drops empties exactly like appendProposedRule, so
+// each candidate mirrors a written feuille line.
+function toRuleCandidates(rules, { scenarioId = null, capturedAt = null } = {}) {
+  if (!Array.isArray(rules)) return [];
+  return rules
+    .map(r => sanitizeRuleText(r))
+    .filter(Boolean)
+    .map(rule => ({ rule, scenarioId, capturedAt }));
+}
+
 module.exports = {
   loadPersonalFeuille,
   loadCommonFeuille,
@@ -155,6 +170,7 @@ module.exports = {
   parseFeuilleEntries,
   sanitizeRuleText,
   extractCaptureRules,
+  toRuleCandidates,
   getPersonalFeuillePath,
   getCommonFeuillePath,
 };
