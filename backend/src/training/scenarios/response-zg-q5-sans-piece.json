@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 2,
+  "id": "response-zg-q5-sans-piece",
+  "title": {
+    "fr": "Réponse sur ouverture",
+    "en": "Response to opening"
+  },
+  "description": {
+    "fr": "Ton partenaire a ouvert, l'adversaire a passé. Quelle est ton annonce ?",
+    "en": "Your partner opened, the opponent passed. What's your bid?"
+  },
+  "notes": {
+    "fr": "Sonde changement-de-couleur (sans pièce). 7 pique sec; coeur A K 10 8 7 (longue SANS Valet ni 9) + As carreau. Feuille actuelle: pass (aucune ligne ne qualifie sans pièce). À trianguler: peut-on changer de couleur sans aucune pièce, sur la force A-K + longueur + 2 As? Interne.",
+    "en": "Color-change probe (no piece). Bare spade 7; heart A K 10 8 7 (long, NO Jack NO 9) + diamond ace. Current sheet: pass (no row qualifies without a piece). To triangulate: can you change suit with zero pieces, on A-K + length + 2 aces? Internal."
+  },
+  "userSeat": 0,
+  "dealer": 1,
+  "hands": {
+    "0": [
+      {
+        "suit": "S",
+        "value": "7"
+      },
+      {
+        "suit": "H",
+        "value": "A"
+      },
+      {
+        "suit": "H",
+        "value": "K"
+      },
+      {
+        "suit": "H",
+        "value": "10"
+      },
+      {
+        "suit": "H",
+        "value": "8"
+      },
+      {
+        "suit": "H",
+        "value": "7"
+      },
+      {
+        "suit": "D",
+        "value": "A"
+      },
+      {
+        "suit": "C",
+        "value": "8"
+      }
+    ],
+    "1": [
+      {
+        "suit": "S",
+        "value": "8"
+      },
+      {
+        "suit": "S",
+        "value": "9"
+      },
+      {
+        "suit": "S",
+        "value": "10"
+      },
+      {
+        "suit": "S",
+        "value": "Q"
+      },
+      {
+        "suit": "S",
+        "value": "K"
+      },
+      {
+        "suit": "D",
+        "value": "9"
+      },
+      {
+        "suit": "D",
+        "value": "10"
+      },
+      {
+        "suit": "D",
+        "value": "J"
+      }
+    ],
+    "2": [
+      {
+        "suit": "S",
+        "value": "J"
+      },
+      {
+        "suit": "S",
+        "value": "A"
+      },
+      {
+        "suit": "C",
+        "value": "A"
+      },
+      {
+        "suit": "H",
+        "value": "9"
+      },
+      {
+        "suit": "H",
+        "value": "J"
+      },
+      {
+        "suit": "H",
+        "value": "Q"
+      },
+      {
+        "suit": "D",
+        "value": "7"
+      },
+      {
+        "suit": "D",
+        "value": "8"
+      }
+    ],
+    "3": [
+      {
+        "suit": "D",
+        "value": "Q"
+      },
+      {
+        "suit": "D",
+        "value": "K"
+      },
+      {
+        "suit": "C",
+        "value": "7"
+      },
+      {
+        "suit": "C",
+        "value": "9"
+      },
+      {
+        "suit": "C",
+        "value": "10"
+      },
+      {
+        "suit": "C",
+        "value": "J"
+      },
+      {
+        "suit": "C",
+        "value": "Q"
+      },
+      {
+        "suit": "C",
+        "value": "K"
+      }
+    ]
+  },
+  "initialState": {
+    "phase": "BIDDING"
+  },
+  "timeline": [
+    {
+      "event": "bid",
+      "seat": 2,
+      "value": 80,
+      "suit": "S",
+      "authorIntent": "Ouverture scriptée du partenaire (situation de réponse normalisée)."
+    },
+    {
+      "event": "pass",
+      "seat": 3,
+      "authorIntent": "Adversaire passe (pas d'annonce qualifiante)."
+    },
+    {
+      "event": "user-turn"
+    }
+  ],
+  "expectedAnswer": {
+    "action": {
+      "type": "pass"
+    },
+    "ruleReference": "response-to-80:pass:no-piece"
+  },
+  "ambiguityFlags": []
+}
