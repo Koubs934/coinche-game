@@ -63,6 +63,20 @@ function loadAll() {
     byId.set(scenario.id, scenario);
     nums.set(scenario.id, seq);
   }
+
+  // TEMP (TRAINING_ONLY_ZG): the picker lists ONLY the zg ratification set, so
+  // make its "Scénario #N" badge contiguous — renumber the filtered ids 1..N
+  // in alphabetical (= filename) order. Non-listed scenarios KEEP their global
+  // number (the flow can still run one by id — e.g. on restart — so its badge
+  // must stay a number, just not part of the picker's 1..N sequence). Flipping
+  // TRAINING_ONLY_ZG to false skips this and restores pure global numbering.
+  if (TRAINING_ONLY_ZG) {
+    [...byId.keys()]
+      .filter(id => TRAINING_ONLY_ZG_PREFIXES.some(p => String(id).startsWith(p)))
+      .sort()
+      .forEach((id, i) => nums.set(id, i + 1));
+  }
+
   return { byId, nums };
 }
 
