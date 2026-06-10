@@ -10,8 +10,8 @@
     "en": "Your partner opened, the opponent passed. What's your bid?"
   },
   "notes": {
-    "fr": "Pattern R-C (miroir). Sur 80. Main: pique K97 (9 3ème, PAS de Valet), 0 As. Feuille: 120 pique (pièce 3ème). Réel: pass. À trancher: un 9 sans Valet porte-t-il une réponse ? Écho direct de la question D des ouvertures. Interne.",
-    "en": "Pattern R-C (mirror). Over 80. Hand: spade K97 (3rd 9, NO Jack), 0 aces. Sheet: 120 spades (3rd piece). Real: pass. To ratify: does a 9 without the Jack carry a response? Direct echo of openings question D. Internal."
+    "fr": "Pattern R-C (miroir). Sur 80. Main: pique K97 (9 3ème, PAS de Valet), 0 As. Feuille: 120 pique (pièce 3ème). Réel: pass. À trancher: un 9 sans Valet porte-t-il une réponse ? Écho direct de la question D des ouvertures. Interne. Lecture toutes-couleurs (baseline précédente) : 120 pique. Changement de couleur = aucune table (portée même-couleur écrite le 2026-06-10).",
+    "en": "Pattern R-C (mirror). Over 80. Hand: spade K97 (3rd 9, NO Jack), 0 aces. Sheet: 120 spades (3rd piece). Real: pass. To ratify: does a 9 without the Jack carry a response? Direct echo of openings question D. Internal. Any-suit reading (previous baseline): 120 spades. Suit change = no table (same-suit scope written 2026-06-10)."
   },
   "userSeat": 0,
   "dealer": 1,
@@ -175,11 +175,9 @@
   ],
   "expectedAnswer": {
     "action": {
-      "type": "bid",
-      "value": 120,
-      "suit": "S"
+      "type": "pass"
     },
-    "ruleReference": "response-to-80:120:piece-3rd"
+    "ruleReference": "response-to-80:pass:suit-change-unformalized"
   },
   "ambiguityFlags": []
 }

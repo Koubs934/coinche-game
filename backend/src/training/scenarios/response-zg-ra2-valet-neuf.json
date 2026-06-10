@@ -10,8 +10,8 @@
     "en": "Your partner opened, the opponent passed. What's your bid?"
   },
   "notes": {
-    "fr": "Pattern R-A. Sur 80. Main: trèfle J98 (Valet+9 3ème), 0 As. Feuille: 120 trèfle. Réel: 100 trèfle. À trancher: V+9 ensemble = 100 (un cran au-dessus du Valet seul) plutôt que pièce-3ème = 120 ? Interne.",
-    "en": "Pattern R-A. Over 80. Hand: club J98 (Jack+9, 3 trumps), 0 aces. Sheet: 120 clubs. Real: 100 clubs. To ratify: J+9 together = 100 (one step above lone Jack) rather than 3rd-piece = 120? Internal."
+    "fr": "Pattern R-A. Sur 80. Main: trèfle J98 (Valet+9 3ème), 0 As. Feuille: 120 trèfle. Réel: 100 trèfle. À trancher: V+9 ensemble = 100 (un cran au-dessus du Valet seul) plutôt que pièce-3ème = 120 ? Interne. Lecture toutes-couleurs (baseline précédente) : 120 trèfle. Changement de couleur = aucune table (portée même-couleur écrite le 2026-06-10).",
+    "en": "Pattern R-A. Over 80. Hand: club J98 (Jack+9, 3 trumps), 0 aces. Sheet: 120 clubs. Real: 100 clubs. To ratify: J+9 together = 100 (one step above lone Jack) rather than 3rd-piece = 120? Internal. Any-suit reading (previous baseline): 120 clubs. Suit change = no table (same-suit scope written 2026-06-10)."
   },
   "userSeat": 0,
   "dealer": 1,
@@ -175,11 +175,9 @@
   ],
   "expectedAnswer": {
     "action": {
-      "type": "bid",
-      "value": 120,
-      "suit": "C"
+      "type": "pass"
     },
-    "ruleReference": "response-to-80:120:piece-3rd"
+    "ruleReference": "response-to-80:pass:suit-change-unformalized"
   },
   "ambiguityFlags": []
 }

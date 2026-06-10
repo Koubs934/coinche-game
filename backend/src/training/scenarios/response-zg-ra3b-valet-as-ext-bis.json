@@ -10,8 +10,8 @@
     "en": "Your partner opened, the opponent passed. What's your bid?"
   },
   "notes": {
-    "fr": "Pattern R-A (frontière, jumeau de RA3a). Sur 80. Main: pique J8 (Valet 2nd, couleur du partenaire) + As trèfle extérieur. Feuille: 130 trèfle (via trèfle AJ8). Réel: 100 pique. Même question que RA3a, l'autre versant: ici il a dit 100. Interne.",
-    "en": "Pattern R-A (boundary, twin of RA3a). Over 80. Hand: spade J8 (2nd Jack, partner's suit) + outside club ace. Sheet: 130 clubs (via club AJ8). Real: 100 spades. Same question as RA3a, other side: here he said 100. Internal."
+    "fr": "Pattern R-A (frontière, jumeau de RA3a). Sur 80. Main: pique J8 (Valet 2nd, couleur du partenaire) + As trèfle extérieur. Feuille: 130 trèfle (via trèfle AJ8). Réel: 100 pique. Même question que RA3a, l'autre versant: ici il a dit 100. Interne. Lecture toutes-couleurs (baseline précédente) : 130 trèfle. Sous portée même-couleur (écrite le 2026-06-10) : 100 pique — pièce 2nde J♠8♠ + 1 As dans la couleur du partenaire (table sur 80, ligne « Valet + 1 As »), réponse en couleur, pas un changement.",
+    "en": "Pattern R-A (boundary, twin of RA3a). Over 80. Hand: spade J8 (2nd Jack, partner's suit) + outside club ace. Sheet: 130 clubs (via club AJ8). Real: 100 spades. Same question as RA3a, other side: here he said 100. Internal. Any-suit reading (previous baseline): 130 clubs. Under same-suit scope (written 2026-06-10): 100 spades — 2nd piece J♠8♠ + 1 ace in partner's suit (over-80 table, row \"Valet + 1 As\"), same-suit response, not a suit change."
   },
   "userSeat": 0,
   "dealer": 1,
@@ -176,10 +176,10 @@
   "expectedAnswer": {
     "action": {
       "type": "bid",
-      "value": 130,
-      "suit": "C"
+      "value": 100,
+      "suit": "S"
     },
-    "ruleReference": "response-to-80:130:piece-3rd+1as"
+    "ruleReference": "response-to-80:100:valet-plus-1as"
   },
   "ambiguityFlags": []
 }

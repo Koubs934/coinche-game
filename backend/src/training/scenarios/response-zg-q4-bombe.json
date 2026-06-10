@@ -10,8 +10,8 @@
     "en": "Your partner opened, the opponent passed. What's your bid?"
   },
   "notes": {
-    "fr": "Sonde changement-de-couleur (la 'bombe'). 7 pique sec; coeur J 9 10 8 (V+9 4ème) + 2 As exterieurs. Feuille actuelle: 140 coeur. À trianguler: avec une bombe, saute-t-on haut en comptant les 2 As promis par le 80 du partenaire? Jusqu'où? Interne.",
-    "en": "Color-change probe (the 'bomb'). Bare spade 7; heart J 9 10 8 (J+9 4th) + 2 outside aces. Current sheet: 140 hearts. To triangulate: with a bomb, do players jump high counting the partner's 2 promised aces? How high? Internal."
+    "fr": "Sonde changement-de-couleur (la 'bombe'). 7 pique sec; coeur J 9 10 8 (V+9 4ème) + 2 As exterieurs. Feuille actuelle: 140 coeur. À trianguler: avec une bombe, saute-t-on haut en comptant les 2 As promis par le 80 du partenaire? Jusqu'où? Interne. Lecture toutes-couleurs (baseline précédente) : 140 cœur. Changement de couleur = aucune table (portée même-couleur écrite le 2026-06-10).",
+    "en": "Color-change probe (the 'bomb'). Bare spade 7; heart J 9 10 8 (J+9 4th) + 2 outside aces. Current sheet: 140 hearts. To triangulate: with a bomb, do players jump high counting the partner's 2 promised aces? How high? Internal. Any-suit reading (previous baseline): 140 hearts. Suit change = no table (same-suit scope written 2026-06-10)."
   },
   "userSeat": 0,
   "dealer": 1,
@@ -175,11 +175,9 @@
   ],
   "expectedAnswer": {
     "action": {
-      "type": "bid",
-      "value": 140,
-      "suit": "H"
+      "type": "pass"
     },
-    "ruleReference": "response-to-80:140:bombe"
+    "ruleReference": "response-to-80:pass:suit-change-unformalized"
   },
   "ambiguityFlags": []
 }

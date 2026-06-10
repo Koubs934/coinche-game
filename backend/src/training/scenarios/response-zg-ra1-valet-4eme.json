@@ -10,8 +10,8 @@
     "en": "Your partner opened, the opponent passed. What's your bid?"
   },
   "notes": {
-    "fr": "Pattern R-A. Réponse sur 80. Main: carreau KJ87 (Valet 4ème), 0 As. Feuille: 120 carreau (pièce 3ème → 120). Réel (Jerem): 90 carreau. À trancher: le bonus pièce-3ème existe-t-il ? La longueur de la pièce change-t-elle la réponse ? Interne.",
-    "en": "Pattern R-A. Response over 80. Hand: diamond KJ87 (4th Jack), 0 aces. Sheet: 120 diamonds (3rd piece → 120). Real (Jerem): 90 diamonds. To ratify: does the 3rd-piece bonus exist? Does piece length change the response? Internal."
+    "fr": "Pattern R-A. Réponse sur 80. Main: carreau KJ87 (Valet 4ème), 0 As. Feuille: 120 carreau (pièce 3ème → 120). Réel (Jerem): 90 carreau. À trancher: le bonus pièce-3ème existe-t-il ? La longueur de la pièce change-t-elle la réponse ? Interne. Lecture toutes-couleurs (baseline précédente) : 120 carreau. Changement de couleur = aucune table (portée même-couleur écrite le 2026-06-10).",
+    "en": "Pattern R-A. Response over 80. Hand: diamond KJ87 (4th Jack), 0 aces. Sheet: 120 diamonds (3rd piece → 120). Real (Jerem): 90 diamonds. To ratify: does the 3rd-piece bonus exist? Does piece length change the response? Internal. Any-suit reading (previous baseline): 120 diamonds. Suit change = no table (same-suit scope written 2026-06-10)."
   },
   "userSeat": 0,
   "dealer": 1,
@@ -175,11 +175,9 @@
   ],
   "expectedAnswer": {
     "action": {
-      "type": "bid",
-      "value": 120,
-      "suit": "D"
+      "type": "pass"
     },
-    "ruleReference": "response-to-80:120:piece-3rd"
+    "ruleReference": "response-to-80:pass:suit-change-unformalized"
   },
   "ambiguityFlags": []
 }

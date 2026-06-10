@@ -10,8 +10,8 @@
     "en": "Your partner opened, the opponent passed. What's your bid?"
   },
   "notes": {
-    "fr": "Sonde table changement-de-couleur sur 80. Quasi rien dans la couleur du partenaire (7 pique sec); Valet de coeur SEC, 0 As. Feuille actuelle (lecture toutes-couleurs): 90 coeur (Valet sec). À trianguler: le Valet nu justifie-t-il 90 en changeant de couleur, ou passe? Interne.",
-    "en": "Color-change-on-80 probe. Nothing in partner's suit (bare 7 of spades); BARE heart Jack, 0 aces. Current sheet (any-suit reading): 90 hearts. To triangulate: does a lone Jack justify 90 in a new suit, or pass? Internal."
+    "fr": "Sonde table changement-de-couleur sur 80. Quasi rien dans la couleur du partenaire (7 pique sec); Valet de coeur SEC, 0 As. Feuille actuelle (lecture toutes-couleurs): 90 coeur (Valet sec). À trianguler: le Valet nu justifie-t-il 90 en changeant de couleur, ou passe? Interne. Lecture toutes-couleurs (baseline précédente) : 90 cœur. Changement de couleur = aucune table (portée même-couleur écrite le 2026-06-10).",
+    "en": "Color-change-on-80 probe. Nothing in partner's suit (bare 7 of spades); BARE heart Jack, 0 aces. Current sheet (any-suit reading): 90 hearts. To triangulate: does a lone Jack justify 90 in a new suit, or pass? Internal. Any-suit reading (previous baseline): 90 hearts. Suit change = no table (same-suit scope written 2026-06-10)."
   },
   "userSeat": 0,
   "dealer": 1,
@@ -175,11 +175,9 @@
   ],
   "expectedAnswer": {
     "action": {
-      "type": "bid",
-      "value": 90,
-      "suit": "H"
+      "type": "pass"
     },
-    "ruleReference": "response-to-80:90:valet-sec"
+    "ruleReference": "response-to-80:pass:suit-change-unformalized"
   },
   "ambiguityFlags": []
 }

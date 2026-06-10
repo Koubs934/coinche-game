@@ -10,8 +10,8 @@
     "en": "Your partner opened, the opponent passed. What's your bid?"
   },
   "notes": {
-    "fr": "Sonde changement-de-couleur. 7 pique sec; coeur J 9 8 (les deux pièces, 3ème), 0 As. Feuille actuelle: 120 coeur (pièce 3ème). À trianguler: quel palier pour V+9 3ème en nouvelle couleur? Interne.",
-    "en": "Color-change probe. Bare spade 7; heart J 9 8 (both pieces, 3 cards), 0 aces. Current sheet: 120 hearts. To triangulate: which tier for J+9 3rd in a new suit? Internal."
+    "fr": "Sonde changement-de-couleur. 7 pique sec; coeur J 9 8 (les deux pièces, 3ème), 0 As. Feuille actuelle: 120 coeur (pièce 3ème). À trianguler: quel palier pour V+9 3ème en nouvelle couleur? Interne. Lecture toutes-couleurs (baseline précédente) : 120 cœur. Changement de couleur = aucune table (portée même-couleur écrite le 2026-06-10).",
+    "en": "Color-change probe. Bare spade 7; heart J 9 8 (both pieces, 3 cards), 0 aces. Current sheet: 120 hearts. To triangulate: which tier for J+9 3rd in a new suit? Internal. Any-suit reading (previous baseline): 120 hearts. Suit change = no table (same-suit scope written 2026-06-10)."
   },
   "userSeat": 0,
   "dealer": 1,
@@ -175,11 +175,9 @@
   ],
   "expectedAnswer": {
     "action": {
-      "type": "bid",
-      "value": 120,
-      "suit": "H"
+      "type": "pass"
     },
-    "ruleReference": "response-to-80:120:piece-3rd"
+    "ruleReference": "response-to-80:pass:suit-change-unformalized"
   },
   "ambiguityFlags": []
 }

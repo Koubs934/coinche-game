@@ -10,8 +10,8 @@
     "en": "Your partner opened, the opponent passed. What's your bid?"
   },
   "notes": {
-    "fr": "Sonde changement-de-couleur (sans pièce). 7 pique sec; coeur A K 10 8 7 (longue SANS Valet ni 9) + As carreau. Feuille actuelle: pass (aucune ligne ne qualifie sans pièce). À trianguler: peut-on changer de couleur sans aucune pièce, sur la force A-K + longueur + 2 As? Interne.",
-    "en": "Color-change probe (no piece). Bare spade 7; heart A K 10 8 7 (long, NO Jack NO 9) + diamond ace. Current sheet: pass (no row qualifies without a piece). To triangulate: can you change suit with zero pieces, on A-K + length + 2 aces? Internal."
+    "fr": "Sonde changement-de-couleur (sans pièce). 7 pique sec; coeur A K 10 8 7 (longue SANS Valet ni 9) + As carreau. Feuille actuelle: pass (aucune ligne ne qualifie sans pièce). À trianguler: peut-on changer de couleur sans aucune pièce, sur la force A-K + longueur + 2 As? Interne. Lecture toutes-couleurs (baseline précédente) : pass. Changement de couleur = aucune table (portée même-couleur écrite le 2026-06-10).",
+    "en": "Color-change probe (no piece). Bare spade 7; heart A K 10 8 7 (long, NO Jack NO 9) + diamond ace. Current sheet: pass (no row qualifies without a piece). To triangulate: can you change suit with zero pieces, on A-K + length + 2 aces? Internal. Any-suit reading (previous baseline): pass. Suit change = no table (same-suit scope written 2026-06-10)."
   },
   "userSeat": 0,
   "dealer": 1,
@@ -177,7 +177,7 @@
     "action": {
       "type": "pass"
     },
-    "ruleReference": "response-to-80:pass:no-piece"
+    "ruleReference": "response-to-80:pass:suit-change-unformalized"
   },
   "ambiguityFlags": []
 }

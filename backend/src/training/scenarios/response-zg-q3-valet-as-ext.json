@@ -10,8 +10,8 @@
     "en": "Your partner opened, the opponent passed. What's your bid?"
   },
   "notes": {
-    "fr": "Sonde changement-de-couleur. 7 pique sec; coeur J 10 7 (Valet 3ème), 1 As exterieur (carreau). Feuille actuelle: 130 coeur (pièce 3ème + 1 As). À trianguler: l'As exterieur ajoute-t-il +10 dans la nouvelle table? Interne.",
-    "en": "Color-change probe. Bare spade 7; heart J 10 7 (3rd Jack), 1 outside ace (diamond). Current sheet: 130 hearts. To triangulate: does the outside ace add +10 in the new table? Internal."
+    "fr": "Sonde changement-de-couleur. 7 pique sec; coeur J 10 7 (Valet 3ème), 1 As exterieur (carreau). Feuille actuelle: 130 coeur (pièce 3ème + 1 As). À trianguler: l'As exterieur ajoute-t-il +10 dans la nouvelle table? Interne. Lecture toutes-couleurs (baseline précédente) : 130 cœur. Changement de couleur = aucune table (portée même-couleur écrite le 2026-06-10).",
+    "en": "Color-change probe. Bare spade 7; heart J 10 7 (3rd Jack), 1 outside ace (diamond). Current sheet: 130 hearts. To triangulate: does the outside ace add +10 in the new table? Internal. Any-suit reading (previous baseline): 130 hearts. Suit change = no table (same-suit scope written 2026-06-10)."
   },
   "userSeat": 0,
   "dealer": 1,
@@ -175,11 +175,9 @@
   ],
   "expectedAnswer": {
     "action": {
-      "type": "bid",
-      "value": 130,
-      "suit": "H"
+      "type": "pass"
     },
-    "ruleReference": "response-to-80:130:piece-3rd-plus-ace"
+    "ruleReference": "response-to-80:pass:suit-change-unformalized"
   },
   "ambiguityFlags": []
 }

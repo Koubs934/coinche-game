@@ -10,8 +10,8 @@
     "en": "Your partner opened, the opponent passed. What's your bid?"
   },
   "notes": {
-    "fr": "Pattern R-A (écart max). Sur 80. Main: coeur AKJ8 + trèfle AJ8, 2 As. Feuille: 140 coeur (pièce 3ème + 2 As). Réel: 90 coeur. À trancher: les hauts paliers 130/140 de la table sur-80 existent-ils en pratique ? Interne.",
-    "en": "Pattern R-A (max gap). Over 80. Hand: heart AKJ8 + club AJ8, 2 aces. Sheet: 140 hearts (3rd piece + 2 aces). Real: 90 hearts. To ratify: do the high 130/140 tiers of the over-80 table exist in practice? Internal."
+    "fr": "Pattern R-A (écart max). Sur 80. Main: coeur AKJ8 + trèfle AJ8, 2 As. Feuille: 140 coeur (pièce 3ème + 2 As). Réel: 90 coeur. À trancher: les hauts paliers 130/140 de la table sur-80 existent-ils en pratique ? Interne. Lecture toutes-couleurs (baseline précédente) : 140 cœur. Changement de couleur = aucune table (portée même-couleur écrite le 2026-06-10).",
+    "en": "Pattern R-A (max gap). Over 80. Hand: heart AKJ8 + club AJ8, 2 aces. Sheet: 140 hearts (3rd piece + 2 aces). Real: 90 hearts. To ratify: do the high 130/140 tiers of the over-80 table exist in practice? Internal. Any-suit reading (previous baseline): 140 hearts. Suit change = no table (same-suit scope written 2026-06-10)."
   },
   "userSeat": 0,
   "dealer": 1,
@@ -175,11 +175,9 @@
   ],
   "expectedAnswer": {
     "action": {
-      "type": "bid",
-      "value": 140,
-      "suit": "H"
+      "type": "pass"
     },
-    "ruleReference": "response-to-80:140:piece-3rd+2as"
+    "ruleReference": "response-to-80:pass:suit-change-unformalized"
   },
   "ambiguityFlags": []
 }
