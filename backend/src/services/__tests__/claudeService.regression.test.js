@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { buildSystemPrompt } = require('../claudeService.js');
+const { buildSystemPrompt, buildFeuilleIndex, resolveModel } = require('../claudeService.js');
 const { computeFeatures } = require('../../game/cardFeatures.js');
 const { extractCaptureRules, toRuleCandidates } = require('../personalFeuille.js');
 
@@ -325,16 +325,23 @@ describe('claudeService — V2.2 calibration regression (Sacha audit)', () => {
       expect(sp).toMatch(/VÉRIFIE dans la Feuille avant d'adopter son cadre/);
       expect(sp).toMatch(/tie-break\) n'est PAS formalisé/);
       expect(sp).toMatch(/Ne présente jamais ton raisonnement comme étant la Feuille/);
+      // P3 — relire la section avant de défendre une affirmation contestée
+      expect(sp).toMatch(/ta PREMIÈRE action est de relire la section concernée et d'en recopier la ligne/);
+      expect(sp).toMatch(/jamais de défendre ta phrase précédente sans relecture/);
     });
   });
 
   describe('Mod 21 — Arithmétique et répartitions (M-D2)', () => {
-    it('la FICHE DE MAIN est la source de vérité, énumérer les répartitions', () => {
+    it('la FICHE DE MAIN est la source de vérité, énumérer répartitions + comptage des promesses', () => {
       const sp = buildVD();
       expect(sp).toMatch(/la FICHE DE MAIN est ta source de vérité/);
       expect(sp).toMatch(/re-dérive depuis la fiche/);
       expect(sp).toMatch(/énumère explicitement les cas \(2-2, 3-1, 4-0\)/);
       expect(sp).toMatch(/un cas oublié = une validation fausse/);
+      // P4 — annonces = données de comptage, déduire les promesses contre la fiche
+      expect(sp).toMatch(/Les annonces sont des données de comptage : une ouverture 80 promet au moins 2 As/);
+      expect(sp).toMatch(/les As promis du partenaire se déduisent des/);
+      expect(sp).toMatch(/Énumère cette déduction avant toute question/);
     });
   });
 
@@ -438,6 +445,59 @@ describe('claudeService — V2.2 calibration regression (Sacha audit)', () => {
       expect(iP).toBeGreaterThan(iF);
       expect(iH).toBeGreaterThan(iP);
     });
+  });
+
+  describe('Mod 26 — portée des tables / humilité (P5)', () => {
+    it('réactif: reconnaît que la portée des tables n\'est pas écrite, capture la lecture du joueur', () => {
+      const sp = buildVD();
+      expect(sp).toMatch(/Si le joueur conteste la portée de couleur des tables de réponse/);
+      expect(sp).toMatch(/la Feuille classe le TYPE d'annonce \(section types-d'annonce\) mais ne précise pas la portée des TABLES/);
+      expect(sp).toMatch(/présente la prescription du scénario comme la lecture de référence/);
+      expect(sp).toMatch(/N'aborde JAMAIS ce sujet de toi-même/);
+    });
+  });
+});
+
+// P2 — structural index of the Feuille (anti-"ça n'existe pas").
+describe('P2 — index structurel de la Feuille', () => {
+  const realFeuille = fs.readFileSync(path.join(__dirname, '..', '..', '..', '..', 'docs', 'la-feuille-v2.md'), 'utf8');
+  it('en-tête verbatim + paliers ouvertures 80/90/100/110/120 + sections réponses', () => {
+    const idx = buildFeuilleIndex(realFeuille);
+    expect(idx).toMatch(/INDEX DE LA FEUILLE \(sections et paliers existants — toute affirmation d'inexistence doit être vérifiée contre cet index\) :/);
+    expect(idx).toMatch(/Ouvertures — paliers :/);
+    for (const lvl of ['80', '90', '100', '110', '120']) expect(idx).toContain(lvl);
+    expect(idx).toMatch(/Réponses partenaire/);
+    expect(idx).toMatch(/Sur ouverture 80/);
+    expect(idx).toMatch(/Sur ouverture 120 bicolore/);
+  });
+  it('régénéré depuis le contenu (reflète un doc custom — ne peut pas dériver)', () => {
+    const custom = '## Ma Section\n\n| Annonce | Cond |\n|---|---|\n| **90** | x |\n| 160 | y |\n';
+    expect(buildFeuilleIndex(custom)).toMatch(/Ma Section — paliers : 90, 160/);
+  });
+  it('omis gracieusement si la Feuille est vide/absente', () => {
+    expect(buildFeuilleIndex('')).toBe('');
+    expect(buildFeuilleIndex(null)).toBe('');
+  });
+  it('injecté en tête du bloc LA FEUILLE (index AVANT le corps de la Feuille)', () => {
+    const sp = buildSystemPrompt({ ...baseArgs, feuilleContent: realFeuille });
+    const iHeader = sp.indexOf('LA FEUILLE (référence)');
+    const iIndex = sp.indexOf('INDEX DE LA FEUILLE');
+    const iBody = sp.indexOf('## Définitions clés');
+    expect(iIndex).toBeGreaterThan(iHeader);
+    expect(iBody).toBeGreaterThan(iIndex);
+  });
+});
+
+// P1 — configurable model (env override).
+describe('P1 — model config', () => {
+  it('défaut claude-fable-5, override respecté via ANTHROPIC_MODEL', () => {
+    const prev = process.env.ANTHROPIC_MODEL;
+    delete process.env.ANTHROPIC_MODEL;
+    expect(resolveModel()).toBe('claude-fable-5');
+    process.env.ANTHROPIC_MODEL = 'claude-sonnet-4-6';
+    expect(resolveModel()).toBe('claude-sonnet-4-6');
+    if (prev === undefined) delete process.env.ANTHROPIC_MODEL;
+    else process.env.ANTHROPIC_MODEL = prev;
   });
 });
 
