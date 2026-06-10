@@ -7,6 +7,7 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { buildSystemPrompt } = require('../claudeService.js');
 const { computeFeatures } = require('../../game/cardFeatures.js');
+const { extractCaptureRules, toRuleCandidates } = require('../personalFeuille.js');
 
 const baseArgs = {
   feuilleContent: '## stub Feuille V2.1',
@@ -310,5 +311,100 @@ describe('claudeService — V2.2 calibration regression (Sacha audit)', () => {
       expect(sp).toMatch(/Si la belote est VALIDE/);
       expect(sp).toMatch(/n'écris jamais « ça tient »/);
     });
+  });
+
+  describe('Mod 20 — Citations Feuille (M-D1)', () => {
+    it('exige une citation verbatim + mode élicitation, pas de fabrication', () => {
+      const sp = buildVD();
+      expect(sp).toMatch(/cite-la VERBATIM/);
+      expect(sp).toMatch(/passe en mode élicitation/);
+      expect(sp).toMatch(/tie-break\) n'est PAS formalisé/);
+      expect(sp).toMatch(/Distingue toujours deux registres/);
+      expect(sp).toMatch(/Ne présente jamais ton raisonnement comme étant la Feuille/);
+    });
+  });
+
+  describe('Mod 21 — Arithmétique et répartitions (M-D2)', () => {
+    it('la FICHE DE MAIN est la source de vérité, énumérer les répartitions', () => {
+      const sp = buildVD();
+      expect(sp).toMatch(/la FICHE DE MAIN est ta source de vérité/);
+      expect(sp).toMatch(/re-dérive depuis la fiche/);
+      expect(sp).toMatch(/énumère explicitement les cas \(2-2, 3-1, 4-0\)/);
+      expect(sp).toMatch(/un cas oublié = une validation fausse/);
+    });
+  });
+
+  describe('Mod 22 — Clôture et capture (M-E)', () => {
+    it('capturer la divergence, 2 relances max, CAPTURE_RULE immédiat, clôture sans question', () => {
+      const sp = buildVD();
+      expect(sp).toMatch(/capturer la divergence, pas gagner le débat/);
+      expect(sp).toMatch(/Maximum 2 relances/);
+      expect(sp).toMatch(/émets IMMÉDIATEMENT une ligne CAPTURE_RULE/);
+      expect(sp).toMatch(/clôture en 1-2 lignes/);
+      expect(sp).toMatch(/SANS question finale/);
+    });
+  });
+
+  describe('Mod 23 — Premier message (M-F)', () => {
+    it('jamais ouvrir sur "La Feuille ne couvre pas", 3 phrases, ton de table', () => {
+      const sp = buildVD();
+      expect(sp).toMatch(/ne commence JAMAIS par "La Feuille ne couvre pas ce cas"/);
+      expect(sp).toMatch(/Structure en 3 phrases maximum/);
+      expect(sp).toMatch(/Ton de table entre joueurs, pas un examen/);
+      expect(sp).toMatch(/Tu pars capot avec le maître ♠ complet/);
+    });
+  });
+
+  describe('Mod 24 — Calibration joueur (M-G)', () => {
+    it('injecte le hint Pacha quand username=Pacha (et pas le défaut)', () => {
+      const sp = buildVD({ userName: 'Pacha' });
+      expect(sp).toMatch(/Style avec ce joueur : ultra-court/);
+      expect(sp).toMatch(/questions fermées, zéro paraphrase/);
+      expect(sp).not.toMatch(/Style : courtois et concis/);
+    });
+    it('injecte le hint Faispaschier (technique, lexique du groupe)', () => {
+      const sp = buildVD({ userName: 'Faispaschier' });
+      expect(sp).toMatch(/Style avec ce joueur : technique et direct/);
+      expect(sp).toMatch(/le 34, le 21, la partance/);
+    });
+    it('injecte le hint AK7 (pédagogue)', () => {
+      expect(buildVD({ userName: 'AK7' })).toMatch(/Style avec ce joueur : pédagogue/);
+    });
+    it('retombe sur le défaut pour un joueur inconnu', () => {
+      const sp = buildVD({ userName: 'JoueurInconnu' });
+      expect(sp).toMatch(/Style : courtois et concis/);
+      expect(sp).not.toMatch(/ultra-court/);
+    });
+    it('rappelle toujours de reprendre le vocabulaire du joueur', () => {
+      expect(buildVD()).toMatch(/Reprends le vocabulaire du joueur/);
+    });
+  });
+});
+
+// Capture pipeline fix — rule_candidates was empty EVERYWHERE despite
+// feuille-personnelle.md receiving lines: the handlers discarded the extracted
+// rules. toRuleCandidates is the missing transform the handlers now persist.
+describe('capture pipeline — rule_candidates population (fix)', () => {
+  it('extractCaptureRules + toRuleCandidates produce populated records, strip the visible reply', () => {
+    const raw = 'Réponse visible.\nCAPTURE_RULE: Pièce 2nde sur 90 → 110, pas 120.\nCAPTURE_RULE: 80 = au moins 2 As + petit jeu.';
+    const { rules, cleanText } = extractCaptureRules(raw);
+    expect(rules.length).toBe(2);
+    expect(cleanText).not.toMatch(/CAPTURE_RULE/);
+    const candidates = toRuleCandidates(rules, { scenarioId: 'exotic-01', capturedAt: '2026-06-09T00:00:00Z' });
+    expect(candidates).toHaveLength(2);
+    expect(candidates[0]).toEqual({
+      rule: 'Pièce 2nde sur 90 → 110, pas 120.',
+      scenarioId: 'exotic-01',
+      capturedAt: '2026-06-09T00:00:00Z',
+    });
+    expect(candidates.every(c => typeof c.rule === 'string' && c.rule.length > 0)).toBe(true);
+  });
+  it('no CAPTURE_RULE lines → empty candidates (no false positives)', () => {
+    const { rules } = extractCaptureRules('Juste une réponse, aucune règle énoncée.');
+    expect(toRuleCandidates(rules, { scenarioId: 'x' })).toEqual([]);
+  });
+  it('is defensive on non-array input', () => {
+    expect(toRuleCandidates(null)).toEqual([]);
+    expect(toRuleCandidates(undefined)).toEqual([]);
   });
 });
