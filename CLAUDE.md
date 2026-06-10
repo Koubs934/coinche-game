@@ -27,6 +27,27 @@ Two parallel subsystems share the Socket.io connection:
 
 Key files index lives in [CONTEXT.md §5](CONTEXT.md#5-key-files-and-responsibilities).
 
+## Bot coach context (V2.2 — system prompt layers)
+Injection order in `buildSystemPrompt`: **RÈGLES DU JEU < LA FEUILLE (authority) < FICHE DE
+MAIN**. Label is `LA FEUILLE (référence)` (no version). Both docs read fresh per request (no cache).
+- `docs/regles-du-jeu.md` — factual layer BELOW the Feuille: card order/points, 152+10der=162,
+  belote/antibelote, announce arithmetic off 162/182, capot=all tricks (500 at mark), coinche
+  ×2 / surcoinche ×4, trick obligations, group lexicon (le 34, le 21, la partance, capot servi,
+  antibelote). **Facts sourced from `game/scoring.js` + `game/rules.js` — the engine is the
+  house-rule authority; the Feuille stays the convention authority on top.**
+- `backend/src/training/handFeatures.js` — deterministic per-suit fiche (atouts, pièce, maître,
+  belote, antibelote, As ext/totaux, petit-jeu, points). **USER's hand only — seats 1–3 are
+  never exposed to the bot.**
+- **Coach mods M-D→M-G** (`claudeService.js`, test-locked as Mods 20–24): citation discipline
+  (quote Feuille verbatim or say "non couvert"; never invent rules/tie-breaks; "La Feuille dit"
+  vs "Mon raisonnement"); arithmetic from the fiche only (enumerate trump splits 2-2/3-1/4-0,
+  no "forcément"); clôture+capture (≤2 follow-ups then synthesize; `CAPTURE_RULE` + "Noté:" ack;
+  close without trailing question); first message (never open with "La Feuille ne couvre pas ce
+  cas"; ≤3 sentences, one question); `PLAYER_STYLE_HINTS` map (Pacha ultra-court / Faispaschier
+  technique / AK7 pédago / default — editable in `claudeService.js`).
+- **Terminology**: PISSER (small trump when you can't overtrump) ≠ SE DÉFAUSSER (discard another
+  suit) — two distinct terms, aligned in doc + glossary.
+
 ## Commands
 ```
 # Install
@@ -38,7 +59,7 @@ cd backend && npm run dev          # nodemon, port 3001
 cd frontend && npm run dev         # Vite, port 5173
 
 # Tests
-cd backend && npm run test:vitest  # 207 tests across 11 suites
+cd backend && npm run test:vitest  # 305 tests / 21 suites — RUN FROM backend/ (repo root = EXIT 127)
 node backend/src/game/verify.js    # CLI assertion suite (140): rules, scoring, bot bidding + card play
 
 # Smoke-test the Anthropic conversational flow
@@ -67,12 +88,27 @@ Belote/Rebelote = K+Q of trump declaration (+20 each, only scored if both played
 Coinche/Surcoinche = ×2/×4 challenges. Capot = win all 8 tricks (500 pts).
 Full rule + scoring tables in [CONTEXT.md §4](CONTEXT.md#4-game-rules-as-currently-implemented).
 
-## Current focus
-1. **Bot intelligence V1** — V2.1 opening + responses wired in `botBidding.js`; V2.2
-   anti-double-comptage and chiquer (+10 strict signal) are minimal but live.
-2. **Training tool V2.2** — Phase 1/2/2A/2B/2C/2D done (backend, frontend chat, shared
-   AuctionRecap, simplified flow, card selection, hand-in-felt). Calibration ongoing
-   (chiquer rename, pièce trump-only, no rule fabrication).
+## Current focus — RATIFICATION ROUND (2026-06)
+**19 zone-grise scenarios deployed.** Aaron + Sacha + Jerem each play them independently →
+tabulate-in-chat → ratify → update `la-feuille-v2.md` (Sacha+Jerem ratify) → align
+`botBidding.js` → flip the flag.
+- Set: 11 `opening-zg-*` (7 real-deal divergences + 4 trump-strength probes) + 8
+  `response-zg-*` (patterns R-A/R-B/R-C). All seeded from Jerem's real games;
+  `expectedAnswer` = current written Feuille (NOT rule-silent).
+- **TEMP picker filter** (`scenarioLoader.js`): flag `TRAINING_ONLY_ZG` (prefixes
+  `opening-zg-`/`response-zg-`) renumbers the filtered list #1–19. **Flip to `false` =
+  restore all scenarios** (one boolean).
+- Training data **fully reset 2026-06-09** → clean single-version baseline (bot M-A→M-G +
+  Feuille V2.3 + 19 zg). Backups in `coinche-backups/`:
+  `training-data-pre-reset-2026-06-09.tgz`, `bot-conversations.jsonl`,
+  `jerem-openings.jsonl`, `jerem-responses.jsonl`, `prod-data-2026-06-06.tgz`.
+- **Candidate rules pending ratification — do NOT hardcode yet.** Openings: trump dominance
+  opens 90 w/o outside ace; no 80-cap on strong long trump; lone 9 too weak to carry.
+  Responses: over-80 table not practiced (real scale ≈ pièce 90 / J+9 100 / +10 per outside
+  ace); over-90 counts OUTSIDE aces; 9-without-Jack doesn't carry.
+
+Background: bot intelligence V1 (`botBidding.js`, V2.1 opening+responses, V2.2 ADC/chiquer
+minimal-but-live) + training tool V2.2 (Phase 1–2D done; calibration ongoing).
 
 ## Roadmap
 1. Bot V2.2 broader strategy — defense / bloquage / exploration are still pass-only.
@@ -116,6 +152,14 @@ Full rule + scoring tables in [CONTEXT.md §4](CONTEXT.md#4-game-rules-as-curren
   system prompt fresh on every call (no caching), so manual edits take effect on the
   next turn without a server restart. Curation guide:
   `docs/feuille-personnelle-curation.md`.
+- **CAPTURE_RULE pipeline fix** — extracted rules are now persisted to the annotation's
+  `claude_conversation.rule_candidates` as `{rule, scenarioId, capturedAt}` (via
+  `personalFeuille.toRuleCandidates`) in `/start`, `/select-cards`, `/turn`. Previously never
+  wired (the field's "Phase 1 — always empty" comment): `feuille-personnelle.md` got the lines
+  but the annotation record stayed `[]`.
+- **Training data reset 2026-06-09** — all annotations/conversations/feuilles wiped for a clean
+  single-version ratification baseline; `/data/games` untouched. Pre-reset backup
+  `coinche-backups/training-data-pre-reset-2026-06-09.tgz` (320 files). Repo unchanged.
 
 ## Pending decisions
 - Whether to formalize the petit-jeu tie-break in `docs/la-feuille-v2.md` as a V2.2
@@ -140,6 +184,16 @@ Full rule + scoring tables in [CONTEXT.md §4](CONTEXT.md#4-game-rules-as-curren
 - **`ANTHROPIC_API_KEY` required at runtime** for `/api/conversation/*`. Server boots
   without it (lazy-init) but the endpoints 502 on first call. Set in Railway dashboard
   for prod, in `backend/.env.railway.local` for local.
+- **vitest runs from `backend/`**: `npm run test:vitest` at repo root = `EXIT 127` (a non-run,
+  not a pass). Push only on `VITEST_EXIT=0` over the FULL suite — targeted tests miss
+  cross-module breakage.
+- **Verbatim-locked prompt text**: Mods 7 and 20–24 in `claudeService.js` are string-locked by
+  `claudeService.regression.test.js`; editing their wording requires updating the locks.
+- **Data roots** (Railway persistent volume, shared, different subdirs):
+  `GAMES_DATA_DIR=/data/games` (1021+ records, keyed by room CREATOR),
+  `TRAINING_DATA_DIR=/data/training` (annotations with embedded `claude_conversation` +
+  per-user `feuille-personnelle.md`). Pull via `railway ssh … | base64` (see
+  `scripts/sync-games.js`).
 
 ## Known issues to fix
 - None currently. (The `bestSuitForHand` debug `console.log` from commit `a812602`
