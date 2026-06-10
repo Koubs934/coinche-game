@@ -43,7 +43,7 @@ Scènes RA1-RA4 + les trois passes trancheront.
 Ruling Aaron (2026-06-10) : faux. La pièce = Valet OU 9, la définition ne bouge pas.
 
 ## 4. Portée des tables + nouvelle table « changement de couleur sur 80 »
-### 4.1 Clarification de portée — *position ferme (Aaron)*
+### 4.1 Clarification de portée — *ÉCRIT en V2 le 2026-06-10 (à ratifier en session)*
 Les tables de réponse sur 80/90/100/110 s'appliquent **si on reste dans la couleur du partenaire**.
 Sur ouverture ≥ 90, changer de couleur = une **ouverture** (inchangé, cf. types d'annonce).
 Sur ouverture **80**, changer de couleur = la nouvelle table ci-dessous.
@@ -70,6 +70,7 @@ Points d'ancrage connus :
 Sources : conversations Sacha (mai 2026) + sa feuille personnelle.
 
 ## 6. Questions ouvertes de session
+- Question préalable de session (à poser à Sacha et Jerem À L'AVEUGLE, avant toute lecture) : pour toi, les tables de réponse s'appliquent-elles quand on change de couleur ?
 - Le **21** : le 10 derrière l'As vaut-il +10 dans les réponses ?
 - Niveau d'ouverture sur atout dominant : 90 ou 100 (cf. 2.2) ?
 - Le **chique** : relecture des 23 réponses compétitives de Jerem (chantier séparé, hors V3).

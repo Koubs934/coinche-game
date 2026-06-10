@@ -58,6 +58,8 @@ L'ouverture est l'annonce **la plus haute** que la main qualifie, dans cet ordre
 
 ### Sur ouverture 80 (= partenaire a 2 As + petit jeu)
 
+**Portée des tables de réponse :** les tables ci-dessous s'appliquent lorsque la réponse reste **dans la couleur d'atout du partenaire**. Changer de couleur sur une ouverture **80** reste une *réponse* (cf. types d'annonce) mais relève d'une **table distincte, non encore formalisée** — en cours de construction via le mode entraînement. En attendant, aucune prescription n'existe pour ce cas. (Clarification Aaron — à ratifier en session.)
+
 | Réponse | Condition |
 |---|---|
 | 90 | Valet sec **OU** pièce 2nde (V ou 9 + 1 autre atout). ❌ Jamais 9 sec |
