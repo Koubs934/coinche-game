@@ -12,7 +12,11 @@ const { describePatterns, describeSelectedCards } = require('../game/cardFeature
 const { loadPersonalFeuille, loadCommonFeuille } = require('./personalFeuille');
 const { renderFiche } = require('../training/handFeatures');
 
-const MODEL = 'claude-sonnet-4-6';
+// Configurable model. Default Fable 5; if latency or capacity disappoints, set
+// ANTHROPIC_MODEL=claude-sonnet-4-6 on Railway (env override, no code change).
+const DEFAULT_MODEL = 'claude-fable-5';
+function resolveModel() { return process.env.ANTHROPIC_MODEL || DEFAULT_MODEL; }
+const MODEL = resolveModel();
 const MAX_TOKENS = 1024;
 
 const SUIT_SYMBOL = { S: '♠', H: '♥', D: '♦', C: '♣' };
@@ -26,6 +30,43 @@ const PLAYER_STYLE_HINTS = {
   AK7:          'Style avec ce joueur : pédagogue. Explique le pourquoi, vérifie la compréhension, détailler est bienvenu.',
 };
 const DEFAULT_STYLE_HINT = 'Style : courtois et concis.';
+
+// P2 — structural index (anti-"ça n'existe pas"). Parse the Feuille's section
+// headings (## / ###) and the bid levels present in each table's first column,
+// so the bot can verify any claim of non-existence against a TOC regenerated
+// from the doc on every request (can never drift). Pure; '' on empty input.
+const INDEX_BID_SET = new Set(['80', '90', '100', '110', '120', '130', '140', '150', '160', '120 bicolore', 'Pass', 'pass', 'capot', 'Capot']);
+function buildFeuilleIndex(feuilleContent) {
+  if (typeof feuilleContent !== 'string' || !feuilleContent.trim()) return '';
+  const sections = [];
+  let cur = null;
+  for (const raw of feuilleContent.split('\n')) {
+    const h = raw.match(/^(#{2,3})\s+(.+?)\s*$/);
+    if (h) {
+      cur = { level: h[1].length, title: h[2].replace(/[*`]/g, '').trim(), bids: [] };
+      sections.push(cur);
+      continue;
+    }
+    // table data row (skip the |---|---| separator)
+    if (cur && /^\s*\|/.test(raw) && !/^\s*\|[\s:|-]+\|\s*$/.test(raw)) {
+      const cell = raw.split('|')[1];
+      if (cell != null) {
+        const tok = cell.replace(/\*\*/g, '').replace(/`/g, '').trim();
+        if ((INDEX_BID_SET.has(tok) || /^\d{2,3}\s+bicolore$/i.test(tok)) && !cur.bids.includes(tok)) {
+          cur.bids.push(tok);
+        }
+      }
+    }
+  }
+  if (!sections.length) return '';
+  const out = ["INDEX DE LA FEUILLE (sections et paliers existants — toute affirmation d'inexistence doit être vérifiée contre cet index) :"];
+  for (const s of sections) {
+    const indent = s.level === 3 ? '  ' : '';
+    const bids = s.bids.length ? ` — paliers : ${s.bids.join(', ')}` : '';
+    out.push(`${indent}- ${s.title}${bids}`);
+  }
+  return out.join('\n');
+}
 
 let _client = null;
 function getClient() {
@@ -91,6 +132,11 @@ ${fiche}
 
   // M-G — per-player style hint (one line; default for unknown users).
   const styleHint = PLAYER_STYLE_HINTS[userName] || DEFAULT_STYLE_HINT;
+
+  // P2 — structural index, generated from the loaded Feuille content (can't
+  // drift), injected at the top of the LA FEUILLE block below.
+  const feuilleIndex = buildFeuilleIndex(feuilleContent);
+  const feuilleIndexBlock = feuilleIndex ? `${feuilleIndex}\n\n` : '';
 
   const captureBlock = `\n=== CAPTURE DE PRINCIPES (FEUILLE PERSONNELLE) ===
 
@@ -484,11 +530,11 @@ LIMITES STRICTES
 
 DISCIPLINE DE CITATION DE LA FEUILLE
 
-Quand tu annonces la prescription de la Feuille, commence par recopier la ligne EXACTE de la table ou du texte, entre guillemets, avec sa section — exemple : La Feuille (réponses sur 90) : « 100 | ≥1 atout + 1 As (sans pièce) ». L'explication vient APRÈS la citation, jamais à sa place. N'énonce JAMAIS une règle générale qui n'est pas écrite dans la Feuille (pas de généralisation du type "sans pièce 2nde, pas d'annonce"). Si le joueur affirme quelque chose sur la convention (sa portée, son application), VÉRIFIE dans la Feuille avant d'adopter son cadre : si la Feuille en parle, cite-la et présente l'écart comme une divergence à capturer ; si elle n'en parle pas, dis "la Feuille ne couvre pas ce point" — mais seulement après avoir vérifié. Le choix de couleur (tie-break) n'est PAS formalisé : ne fabrique jamais une raison. Distingue toujours : « La Feuille dit : "…" » (verbatim) et « Mon raisonnement : … » (ton analyse, faillible). Ne présente jamais ton raisonnement comme étant la Feuille.
+Quand tu annonces la prescription de la Feuille, commence par recopier la ligne EXACTE de la table ou du texte, entre guillemets, avec sa section — exemple : La Feuille (réponses sur 90) : « 100 | ≥1 atout + 1 As (sans pièce) ». L'explication vient APRÈS la citation, jamais à sa place. N'énonce JAMAIS une règle générale qui n'est pas écrite dans la Feuille (pas de généralisation du type "sans pièce 2nde, pas d'annonce"). Si le joueur affirme quelque chose sur la convention (sa portée, son application), VÉRIFIE dans la Feuille avant d'adopter son cadre : si la Feuille en parle, cite-la et présente l'écart comme une divergence à capturer ; si elle n'en parle pas, dis "la Feuille ne couvre pas ce point" — mais seulement après avoir vérifié. Le choix de couleur (tie-break) n'est PAS formalisé : ne fabrique jamais une raison. Distingue toujours : « La Feuille dit : "…" » (verbatim) et « Mon raisonnement : … » (ton analyse, faillible). Ne présente jamais ton raisonnement comme étant la Feuille. Si le joueur conteste une de tes affirmations sur la Feuille, ta PREMIÈRE action est de relire la section concernée et d'en recopier la ligne — jamais de défendre ta phrase précédente sans relecture.
 
 ARITHMÉTIQUE ET RÉPARTITIONS
 
-N'affirme jamais un comptage (atouts, As, points) de mémoire : la FICHE DE MAIN est ta source de vérité. Si le joueur conteste un comptage, re-dérive depuis la fiche avant de répondre. Pour les raisonnements de répartition des atouts adverses, énumère explicitement les cas (2-2, 3-1, 4-0) au lieu de conclure "forcément" : un cas oublié = une validation fausse.
+N'affirme jamais un comptage (atouts, As, points) de mémoire : la FICHE DE MAIN est ta source de vérité. Si le joueur conteste un comptage, re-dérive depuis la fiche avant de répondre. Pour les raisonnements de répartition des atouts adverses, énumère explicitement les cas (2-2, 3-1, 4-0) au lieu de conclure "forcément" : un cas oublié = une validation fausse. Les annonces sont des données de comptage : une ouverture 80 promet au moins 2 As. Croise les promesses avec la fiche du joueur — s'il tient N As, les As promis du partenaire se déduisent des 4−N restants. Énumère cette déduction avant toute question du type "qui prend telle carte ?".
 
 CLÔTURE ET CAPTURE
 
@@ -506,8 +552,12 @@ CONTINUITÉ — RÈGLES PERSONNELLES DU JOUEUR
 
 Tu disposes des règles personnelles déjà capturées de ce joueur. S'il fait référence à une discussion ou une main précédente ("on en a parlé", "c'est pareil"), cherche dans ses règles personnelles : si une règle s'applique, cite-la ("Ta règle capturée : …"), applique-la à la situation et confirme en une ligne — ne lui redemande pas de réexpliquer. Ne re-capture pas une règle déjà présente, sauf si le joueur la modifie (capture alors la version mise à jour). Les règles personnelles ne remplacent jamais la Feuille : en cas d'écart, présente les deux.
 
+PORTÉE DES TABLES — HUMILITÉ (réactif uniquement)
+
+Si le joueur conteste la portée de couleur des tables de réponse : la Feuille classe le TYPE d'annonce (section types-d'annonce) mais ne précise pas la portée des TABLES. Reconnais-le, présente la prescription du scénario comme la lecture de référence (pas comme texte écrit), et capture la lecture du joueur en règle personnelle. N'aborde JAMAIS ce sujet de toi-même.
+
 ${formatCardSelectionSection(cardSelection)}${reglesBlock}LA FEUILLE (référence)
-${feuilleContent}
+${feuilleIndexBlock}${feuilleContent}
 ${commonFeuilleBlock}${personalFeuilleBlock}
 ${ficheBlock}ANNOTATIONS PASSÉES DE ${userName} (référence)
 ${userPastAnnotations}
@@ -729,7 +779,7 @@ async function startConversation({ scenario, annotation, userName, pastAnnotatio
   const userMessage = formatScenarioForClaude(scenario, annotation, cardSelection);
 
   const response = await getClient().messages.create({
-    model: MODEL,
+    model: resolveModel(),
     max_tokens: maxTokens || MAX_TOKENS,
     system: systemPrompt,
     messages: [{ role: 'user', content: userMessage }],
@@ -764,7 +814,7 @@ async function continueConversation({ conversationHistory, userMessage, context 
   ];
 
   const response = await getClient().messages.create({
-    model: MODEL,
+    model: resolveModel(),
     max_tokens: context.maxTokens || MAX_TOKENS,
     system: systemPrompt,
     messages,
@@ -784,6 +834,9 @@ module.exports = {
   formatScenarioForClaude,
   formatPastAnnotations,
   buildSystemPrompt,
+  buildFeuilleIndex,
+  resolveModel,
   MODEL,
+  DEFAULT_MODEL,
   MAX_TOKENS,
 };
