@@ -122,8 +122,10 @@ function pushHistorySnapshot(room) {
   const snap = {
     game:                 JSON.parse(JSON.stringify(room.game)),
     phase:                room.phase,
-    // Deep copies, never live references: scores is a 2-number array; deck is a
-    // 32-card array (null between an all-pass close and the next deal).
+    // Deep copies, never live references: scores is a 2-number array; deck is the
+    // 32-card array (the `: null` arm is just defensive — deck is always set during
+    // play). room.game itself can be null between an all-pass close and the next
+    // deal; JSON-cloning null restores cleanly.
     scores:               [...(room.scores || [0, 0])],
     deck:                 room.deck ? JSON.parse(JSON.stringify(room.deck)) : null,
     nextDealer:           room.nextDealer,

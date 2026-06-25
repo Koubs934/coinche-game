@@ -102,7 +102,12 @@ async function loadAllRooms() {
 function saveRoom(room) {
   if (!connected || !room) return;
   const key = KEY_PREFIX + room.code;
-  const payload = JSON.stringify(room);
+  // Keep the undo timeline OUT of the persisted blob. room.history holds a full
+  // deep-cloned game snapshot per action (unbounded within a partie), so saving it
+  // write-amplifies every move into Redis for no benefit — undo is in-memory only
+  // and is rebuilt from play, never restored from Redis (all readers treat a
+  // missing history as empty). JSON.stringify drops the undefined key.
+  const payload = JSON.stringify({ ...room, history: undefined });
   client.set(key, payload, { EX: TTL_SECONDS }).catch((err) => {
     if (!loggedError) {
       console.error('[persistence] saveRoom failed:', err.message);

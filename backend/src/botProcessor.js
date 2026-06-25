@@ -146,9 +146,15 @@ function scheduleBotConfirms(code, broadcastFn) {
  * Dealer bots always shuffle; cut bots pick a random value 1–31.
  */
 function scheduleBotShuffleCut(code, broadcastFn) {
+  const room0 = rm.getRoom(code);
+  const nonce = room0 ? (room0.actionNonce || 0) : 0;
   _schedule(code, () => {
     const room = rm.getRoom(code);
     if (!room || room.paused) return;
+    // Undo can now rewind into SHUFFLE/CUT (those actions snapshot), which bumps
+    // actionNonce. Abort a shuffle/cut callback scheduled before such an undo so it
+    // can't double-shuffle or early-deal — the same guard scheduleBotTurns uses.
+    if ((room.actionNonce || 0) !== nonce) return;
     if (room.phase === 'SHUFFLE') {
       const bot = room.players.find(p => p.position === room.shuffleDealer && p.isBot);
       if (!bot) return;
