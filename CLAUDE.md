@@ -59,7 +59,7 @@ cd backend && npm run dev          # nodemon, port 3001
 cd frontend && npm run dev         # Vite, port 5173
 
 # Tests
-cd backend && npm run test:vitest  # 305 tests / 21 suites — RUN FROM backend/ (repo root = EXIT 127)
+cd backend && npm run test:vitest  # 322 tests / 22 suites — RUN FROM backend/ (repo root = EXIT 127)
 node backend/src/game/verify.js    # CLI assertion suite (140): rules, scoring, bot bidding + card play
 
 # Smoke-test the Anthropic conversational flow
@@ -89,14 +89,14 @@ Coinche/Surcoinche = ×2/×4 challenges. Capot = win all 8 tricks (500 pts).
 Full rule + scoring tables in [CONTEXT.md §4](CONTEXT.md#4-game-rules-as-currently-implemented).
 
 ## Current focus — RATIFICATION ROUND (2026-06)
-**19 zone-grise scenarios deployed.** Aaron + Sacha + Jerem each play them independently →
+**24 zone-grise scenarios deployed** (19-scene seed set + 5 `response-zg-q*` color-change probes added since). Aaron + Sacha + Jerem each play them independently →
 tabulate-in-chat → ratify → update `la-feuille-v2.md` (Sacha+Jerem ratify) → align
 `botBidding.js` → flip the flag.
 - Set: 11 `opening-zg-*` (7 real-deal divergences + 4 trump-strength probes) + 8
   `response-zg-*` (patterns R-A/R-B/R-C). All seeded from Jerem's real games;
   `expectedAnswer` = current written Feuille (NOT rule-silent).
 - **TEMP picker filter** (`scenarioLoader.js`): flag `TRAINING_ONLY_ZG` (prefixes
-  `opening-zg-`/`response-zg-`) renumbers the filtered list #1–19. **Flip to `false` =
+  `opening-zg-`/`response-zg-`) renumbers the filtered list #1–24. **Flip to `false` =
   restore all scenarios** (one boolean).
 - Training data **fully reset 2026-06-09** → clean single-version baseline (bot M-A→M-G +
   Feuille V2.3 + 19 zg). Backups in `coinche-backups/`:
@@ -123,8 +123,26 @@ minimal-but-live) + training tool V2.2 (Phase 1–2D done; calibration ongoing).
   closure bugs when room state mutates between schedule and fire.
 - **Belote only scores if rebelote completed** (`beloteInfo.rebeloteDone`).
   K+Q held but only one played → no +20 / +40.
-- **Undo is creator-only**, guarded by a per-room bot-action nonce so a bot scheduled
-  before the undo doesn't fire after.
+- **Unlimited cross-partie undo (creator-only)** — `undoLastAction` (server gate
+  `room.creatorId === userId`, turn-independent) pops `room.history`. `pushHistorySnapshot`
+  deep-clones game + **scores + deck** (both were previously omitted) + phase/dealer/
+  shuffle-cut/nextRoundReady, pushed BEFORE every mutating action — bids/passes/plays AND
+  `shuffleDeck`/`skipShuffle`/`doCutDeck`/`skipCut` + the ROUND_OVER→SHUFFLE advance in
+  `confirmNextRound` — so undo traverses round boundaries with no gaps. `HISTORY_LIMIT`
+  10→5000 (runaway guard only; unbounded in practice), `room.history` cleared on
+  `startGame`. A per-room `actionNonce` bump aborts bot callbacks scheduled before the
+  undo (`scheduleBotTurns` AND `scheduleBotShuffleCut` both re-check it). `undoLastAction`
+  resets `room._lastSavedGameId = null` so a replayed round re-saves a fresh GameRecord.
+  `room.history` is NOT persisted to Redis (excluded from `saveRoom`) → undo does not
+  survive a server restart. FE: one creator-only undo control in the bottom hand-toolbar
+  (left of "Erreur de jeu" in PLAYING; alone above the bid sheet in BIDDING) + on the
+  round summary — the old turn-coupled copies were removed.
+- **All-pass is an atomic close** (`passBid`) — 4 passes with no bid rebuilds the 32-card
+  deck from the four hands (`[].concat(...room.game.hands)`), sets `room.game = null`, then
+  `_beginShuffle(dealer+1)`. The null game renders via the FE `EMPTY_GAME` first-deal path
+  (interactive mélanger/couper prompt), and a stray 5th `passBid` hits the existing
+  `!room.game` guard → rejected. Replaces the old stale-`BIDDING`-game behavior (extra-pass
+  window / silent re-deal with no shuffle prompt). Don't "fix" it back to keeping the game.
 - **Socket-only transport** for game state; `/health` is the only REST endpoint
   (training V2.2's `/api/conversation/*` is the deliberate exception).
 - **Scoring rounding by case**: uncoinched made contracts are rounded to nearest 10
@@ -194,6 +212,15 @@ minimal-but-live) + training tool V2.2 (Phase 1–2D done; calibration ongoing).
   `TRAINING_DATA_DIR=/data/training` (annotations with embedded `claude_conversation` +
   per-user `feuille-personnelle.md`). Pull via `railway ssh … | base64` (see
   `scripts/sync-games.js`).
+- **Undo snapshot completeness**: `pushHistorySnapshot` MUST capture `room.scores` +
+  `room.deck` (deep-cloned) and EVERY mutating gameplay action must snapshot before it
+  mutates — miss one and cross-donne undo silently breaks (no un-scoring / no deck revert
+  / a gap at the round boundary). It is deliberately NOT persisted to Redis, so undo dies
+  on a server restart (acceptable — same class as the in-memory-state decision).
+- **All-pass nulls `room.game` by design**: the 4-passes-no-bid path sets `room.game = null`
+  to close bidding atomically and render the shuffle prompt via `EMPTY_GAME`. A future
+  reader might mistake this for a bug and restore a stale `BIDDING` game — don't; that
+  reintroduces the extra-pass loop.
 
 ## Known issues to fix
 - None currently. (The `bestSuitForHand` debug `console.log` from commit `a812602`

@@ -125,7 +125,8 @@ LOBBY
 ```
 BIDDING
   └─ 3 consecutive passes after a bid, OR surcoinche + 3 passes → PLAYING
-  └─ 4 passes with no bid → _beginShuffle() (re-deals with new dealer)
+  └─ 4 passes with no bid → atomic close (deck rebuilt from the 4 hands, room.game
+       nulled), _beginShuffle(dealer+1) → SHUFFLE; a stray 5th pass is rejected
 
 PLAYING
   └─ 8 tricks completed → ROUND_OVER (via _finishRound)
@@ -138,7 +139,7 @@ PLAYING
 | SHUFFLE → CUT | dealer shuffles or skips | `shuffleDeck()` / `skipShuffle()` → `_beginCut()` |
 | CUT → PLAYING | cut player cuts or skips | `doCutDeck()` / `skipCut()` → `_startRound()` |
 | BIDDING → PLAYING | 3 consecutive passes after a bid | `passBid()` → `_startPlaying()` |
-| BIDDING → SHUFFLE | 4 passes with no bid | `passBid()` → `_beginShuffle()` (new dealer) |
+| BIDDING → SHUFFLE | 4 passes with no bid → atomic close (deck rebuilt from hands, `room.game` nulled) | `passBid()` → `_beginShuffle()` (dealer+1) |
 | trick complete → next trick | 4th card played | `_completeTrick()` sets `g.currentPlayer = winner` |
 | PLAYING → ROUND_OVER | 8th trick completed | `_completeTrick()` → `_finishRound()` |
 | ROUND_OVER → SHUFFLE | all humans confirm next round | `confirmNextRound()` → `_beginShuffle()` |
@@ -156,6 +157,24 @@ PLAYING
 ### Where This Is Implemented
 - Phase transitions: `backend/src/roomManager.js` — `_beginShuffle()` (line 194), `_beginCut()` (line 202), `_startRound()` (line 207), `_startPlaying()` (line 359), `_completeTrick()` (line 423), `_finishRound()` (line 436)
 - Bot phase handling: `backend/src/botProcessor.js` — `scheduleBotTurns()`, `scheduleBotConfirms()`, `scheduleBotShuffleCut()`
+
+### Undo / History (creator-only, unbounded within a partie)
+- `pushHistorySnapshot(room)` runs BEFORE every mutating gameplay action — `placeBid`,
+  `passBid`, `coinche`, `surcoinche`, `playCard`, `shuffleDeck`, `skipShuffle`,
+  `doCutDeck`, `skipCut`, and the ROUND_OVER→SHUFFLE advance in `confirmNextRound` —
+  so the undo timeline is continuous across donnes. The snapshot deep-clones `game`,
+  `phase`, **`scores`**, **`deck`**, dealer / shuffle / cut state and `nextRoundReady`
+  (deliberately NOT connection/meta state: paused / players / pendingJoins /
+  actionNonce / history).
+- `undoLastAction(code, userId)` is gated to `room.creatorId === userId` (turn-
+  independent — the creator can step back a bot's move). It pops one snapshot,
+  restores those fields, bumps `room.actionNonce` (aborting bot callbacks scheduled
+  before the undo — both `scheduleBotTurns` and `scheduleBotShuffleCut` re-check it),
+  and resets `room._lastSavedGameId = null` so a replayed round re-saves a fresh
+  GameRecord.
+- `HISTORY_LIMIT` is 5000 (a runaway guard only — undo is effectively unbounded
+  within a partie); `room.history` is cleared on `startGame` and is **not persisted
+  to Redis** (excluded from `saveRoom`), so undo does not survive a server restart.
 
 ---
 
@@ -186,7 +205,7 @@ NON_TRUMP_RANK:   A=8,  10=7,  K=6, Q=5, J=4, 9=3, 8=2, 7=1
 - **Coinche:** opposing team; doubles contract value in scoring (×2); available when it is your turn; resets `consecutivePasses` to 0
 - **Surcoinche:** contracting team only; after coinche; quadruples contract value (×4); resets `consecutivePasses` to 0
 - **Pass closure:** 3 consecutive passes after a bid (or after coinche/surcoinche) closes bidding → `_startPlaying()`
-- **All-pass:** 4 passes with no bid → new SHUFFLE phase with dealer+1 (no scoring)
+- **All-pass:** 4 passes with no bid → atomic close: deck rebuilt from the four hands (`[].concat(...hands)`), `room.game` nulled, `_beginShuffle(dealer+1)` → interactive SHUFFLE/CUT (FE renders the `EMPTY_GAME` first-deal path); a 5th `passBid` hits the `!room.game` guard and is rejected (no scoring, no re-deal loop)
 
 ### Card-Play Legality (`backend/src/game/rules.js:38`, `getValidCards()`)
 1. **Leading** (empty trick): any card
@@ -675,7 +694,7 @@ Supabase project must have email auth enabled. No database tables are needed —
 | **Cut player** | Player to the left of the dealer (`(dealer + 3) % 4`) who cuts the deck. |
 | **Positions 0–3** | Seat positions at the table. Teams: positions 0,2 = team 0; positions 1,3 = team 1. Players sit across from their partner. |
 | **Target score** | Configurable game-winning score (default 2000). First team to reach it wins. |
-| **All-pass** | When all 4 players pass without any bid being made. Results in a re-deal with a new dealer. |
+| **All-pass** | When all 4 players pass without any bid being made. Atomic close: the deck is rebuilt from the four hands, `room.game` is nulled, and `_beginShuffle(dealer+1)` starts an interactive shuffle/cut with the next dealer; a stray 5th pass is rejected. |
 
 ---
 
