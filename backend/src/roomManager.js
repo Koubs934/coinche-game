@@ -566,8 +566,18 @@ function passBid(code, userId) {
   if (room.game.consecutivePasses >= 3 && room.game.currentBid) {
     _startPlaying(room);
   } else if (room.game.consecutivePasses >= 4 && !room.game.currentBid) {
-    // All passed — go through shuffle/cut with new dealer
-    _beginShuffle(room, (room.game.dealer + 1) % 4);
+    // All four players passed with no bid. Close the auction ATOMICALLY and move
+    // to shuffle/cut with the NEXT dealer. Clearing room.game means any further
+    // passBid (a stale 5th tap) is rejected by the `!room.game` guard at the top —
+    // no extra-pass window, no silent re-deal — and the client renders the
+    // interactive mélanger/couper prompt (game === null → EMPTY_GAME, exactly like
+    // the partie's first deal) instead of a leftover bidding panel. The 32-card
+    // deck is rebuilt from the four still-full hands (no tricks were played, so it
+    // never comes from tricks and no card is lost).
+    const nextDealer = (room.game.dealer + 1) % 4;
+    room.deck = [].concat(...room.game.hands);
+    room.game = null;
+    _beginShuffle(room, nextDealer);
   }
 
   return { room };
