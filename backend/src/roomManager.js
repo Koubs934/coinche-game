@@ -160,6 +160,13 @@ function undoLastAction(code, userId) {
   // Increment nonce so any pending bot callbacks (scheduled before undo) abort
   room.actionNonce = (room.actionNonce || 0) + 1;
 
+  // A round we rewound into can be replayed to a DIFFERENT result. Clear the
+  // GameRecord save-dedup marker (server.js maybeSaveGameRecord skips when
+  // room._lastSavedGameId === gameId) so the next _finishRound persists a fresh
+  // record for this gameId instead of leaving the discarded line on disk. Cleared
+  // on every undo, never snapshotted/restored — we want it gone, not rewound.
+  room._lastSavedGameId = null;
+
   return { room };
 }
 

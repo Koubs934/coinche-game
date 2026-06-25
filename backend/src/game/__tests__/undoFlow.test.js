@@ -150,6 +150,26 @@ describe('unlimited undo', () => {
     expect(rm.publicRoom(room).canUndo).toBe(false);
   });
 
+  it('undo clears the GameRecord save-dedup marker so a replayed round re-saves (not dedup-skipped)', () => {
+    const room = newRoomInBidding('creator-record');
+    bidAndStartPlaying(room);
+    playWholeRound(room);
+    expect(room.phase).toBe('ROUND_OVER');
+
+    // Mirror what server.js maybeSaveGameRecord does after persisting this round.
+    room._lastSavedGameId = room.game.gameId;
+    expect(room._lastSavedGameId).toBe(room.game.gameId);
+
+    // Undo the round-ending card → back into the live round.
+    const undo = rm.undoLastAction(room.code, 'creator-record');
+    expect(undo.error).toBeUndefined();
+    expect(room.phase).toBe('PLAYING');
+
+    // The dedup marker is cleared, so re-finishing (with a possibly different play)
+    // writes a fresh record for this gameId instead of skipping on a stale match.
+    expect(room._lastSavedGameId).toBeNull();
+  });
+
   it('creator can undo on another player\'s turn; non-creator cannot undo (turn-independent, creator-only)', () => {
     const room = newRoomInBidding('creator-turn');
     const p = room.players;
