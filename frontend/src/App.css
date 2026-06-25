@@ -1457,7 +1457,6 @@ a      { color: var(--accent); }
   align-items: center;
   gap: 6px;
 }
-.suit-row .suit-row-undo { grid-column: 1; justify-self: start; white-space: nowrap; }
 .suit-row .suit-chips    { grid-column: 2; }
 
 /* Suit strip — its own centered row between the value grid and the action row.
@@ -2564,6 +2563,11 @@ a      { color: var(--accent); }
 }
 .btn-undo:hover:not(:disabled) { background: rgba(80,60,20,0.6); color: #f0c96a; }
 .btn-undo:disabled { opacity: 0.35; cursor: default; }
+
+/* Creator-only undo row — top-anchored (in .score-bars during play and above the
+   round/game-over summary) so it stays reachable in every phase, turn-independent,
+   and is never occluded by the bottom bid sheet on tall viewports. */
+.creator-undo-row { display: flex; justify-content: center; padding: 2px 0; }
 
 /* ─── Remove player button (on disconnected opponent seat) ──────────────── */
 .btn-remove-player {

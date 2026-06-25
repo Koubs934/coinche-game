@@ -103,17 +103,29 @@ function requireCreator(code, userId) {
 
 // ─── History / Undo ───────────────────────────────────────────────────────
 
-const HISTORY_LIMIT = 10;
+// Undo is unbounded within a partie — the creator can step back one action per
+// click all the way to the start of the current game. This cap is only a runaway
+// guard against a pathological action loop; a full partie is a few hundred
+// actions, far below it. room.history is cleared on startGame so it never carries
+// across games.
+const HISTORY_LIMIT = 5000;
 
 /**
- * Deep-clone the reversible fields of a room and push them onto room.history.
- * Must be called BEFORE any mutation so the snapshot reflects pre-action state.
+ * Deep-clone the reversible game-progress fields of a room and push them onto
+ * room.history. Must be called BEFORE any mutation so the snapshot reflects
+ * pre-action state. Connection/meta state (paused, pendingJoins, players,
+ * actionNonce, history itself) is deliberately NOT captured — undo rewinds game
+ * progress, not who is connected.
  */
 function pushHistorySnapshot(room) {
   if (!room.history) room.history = [];
   const snap = {
     game:                 JSON.parse(JSON.stringify(room.game)),
     phase:                room.phase,
+    // Deep copies, never live references: scores is a 2-number array; deck is a
+    // 32-card array (null between an all-pass close and the next deal).
+    scores:               [...(room.scores || [0, 0])],
+    deck:                 room.deck ? JSON.parse(JSON.stringify(room.deck)) : null,
     nextDealer:           room.nextDealer,
     shuffleDealer:        room.shuffleDealer,
     cutPlayer:            room.cutPlayer,
@@ -134,6 +146,8 @@ function undoLastAction(code, userId) {
   const snap = room.history.pop();
   room.game                  = snap.game;
   room.phase                 = snap.phase;
+  room.scores                = snap.scores;
+  room.deck                  = snap.deck;
   room.nextDealer            = snap.nextDealer;
   room.shuffleDealer         = snap.shuffleDealer;
   room.cutPlayer             = snap.cutPlayer;
@@ -404,6 +418,7 @@ function startGame(code, creatorId) {
 
   room.scores = [0, 0];
   room.deck = createDeck();
+  room.history = []; // fresh undo timeline — a new partie never rewinds into the old one
   _beginShuffle(room, 0);
   return { room };
 }
@@ -474,6 +489,9 @@ function confirmNextRound(code, userId) {
 
   if (allConfirmed) {
     const nextDealer = (room.game.dealer + 1) % 4;
+    // Snapshot the ROUND_OVER state BEFORE leaving it, so undo can rewind across
+    // the round boundary back into the finished round (hands/tricks/scores intact).
+    pushHistorySnapshot(room);
     _beginShuffle(room, nextDealer);
     return { room, started: true };
   }
@@ -921,6 +939,7 @@ function shuffleDeck(code, userId) {
   if (room.phase !== 'SHUFFLE') return { error: 'Not in shuffle phase' };
   const position = getPosition(room, userId);
   if (position !== room.shuffleDealer) return { error: 'Not your turn to shuffle' };
+  pushHistorySnapshot(room);
   room.deck = shuffleArr(room.deck);
   room.lastShuffleCutAction   = 'shuffled';
   room.lastShuffleCutActorPos = position;
@@ -934,6 +953,7 @@ function skipShuffle(code, userId) {
   if (room.phase !== 'SHUFFLE') return { error: 'Not in shuffle phase' };
   const position = getPosition(room, userId);
   if (position !== room.shuffleDealer) return { error: 'Not your turn to shuffle' };
+  pushHistorySnapshot(room);
   room.lastShuffleCutAction   = 'notShuffled';
   room.lastShuffleCutActorPos = position;
   _beginCut(room);
@@ -947,6 +967,7 @@ function doCutDeck(code, userId, n) {
   const position = getPosition(room, userId);
   if (position !== room.cutPlayer) return { error: 'Not your turn to cut' };
   if (typeof n !== 'number' || n < 1 || n > 31) return { error: 'Invalid cut value' };
+  pushHistorySnapshot(room);
   room.deck = cutDeckArr(room.deck, n);
   room.lastShuffleCutAction   = 'cut';
   room.lastShuffleCutActorPos = position;
@@ -960,6 +981,7 @@ function skipCut(code, userId) {
   if (room.phase !== 'CUT') return { error: 'Not in cut phase' };
   const position = getPosition(room, userId);
   if (position !== room.cutPlayer) return { error: 'Not your turn to cut' };
+  pushHistorySnapshot(room);
   room.lastShuffleCutAction   = 'notCut';
   room.lastShuffleCutActorPos = position;
   _startRound(room, room.nextDealer);

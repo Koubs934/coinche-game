@@ -237,6 +237,26 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
 
   const isCreator = room.creatorId === myPlayer?.userId;
 
+  // Creator-only undo — ONE top-anchored control reused across every in-game phase
+  // (bidding, playing, shuffle/cut, and the round/game-over summary). Top placement
+  // keeps it reachable on a tall iPhone during a bid turn (never occluded by the
+  // bottom bid sheet), and it no longer depends on whose turn it is: the server
+  // gate is creator-only (room.creatorId === userId), not turn-based, so the
+  // creator can step back a bot's or anyone's move. Disabled when nothing remains
+  // to undo (room.canUndo). Not a hook — safe to declare before the early return.
+  const creatorUndoButton = (!trainingMode && isCreator) ? (
+    <div className="creator-undo-row">
+      <button
+        className="btn-undo"
+        onClick={() => socket.emit('undoLastAction', { code: roomCode })}
+        disabled={!room.canUndo}
+        title={t.undoAction}
+      >
+        ↩ {t.undoAction}
+      </button>
+    </div>
+  ) : null;
+
   // Throw button — lives in the bottom band (right of the avatar/name), opening
   // the App-level tray upward. In-game only (hidden in training). The same
   // element is reused on the round-summary screen. Only one return path renders
@@ -606,6 +626,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
     return (
       <>
         {paused && <PauseBanner players={players} t={t} />}
+        {/* Undo stays reachable on the summary so the creator can step back the
+            round-ending card (un-scores it; undoes a GAME_OVER) and keep rewinding. */}
+        {creatorUndoButton}
         {!trainingMode && room.pendingJoins?.length > 0 && (
           <div className="pending-joins-panel">
             {isCreator ? (
@@ -698,8 +721,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   // icon over a tiny caption (bidding-phase presentation, inside the sheet); the
   // full variant keeps the inline "icon label" used in normal flow. The sort
   // (Trier) button was removed — auto-sort + Mode Sacha cover arrangement, and a
-  // long-press-drag on the hand enters manual mode. During bidding, Annuler is
-  // relocated into BiddingPanel's suit row, so undo here is PLAYING-only.
+  // long-press-drag on the hand enters manual mode. Undo is no longer in this
+  // toolbar: it's a single creator-only control anchored at the top
+  // (creatorUndoButton), shown in every phase regardless of whose turn it is.
   const buildToolbar = (compact) => {
     const lbl = (icon, caption) => compact
       ? (<><span className="ti-icon">{icon}</span><span className="ti-cap">{caption}</span></>)
@@ -708,16 +732,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
       <div className={`hand-toolbar${compact ? ' hand-toolbar-icons' : ''}`}>
         {/* Manual mode has no dedicated "back to auto" button: a new deal or a
             Mode Sacha toggle both re-apply AUTO. */}
-        {!trainingMode && isCreator && phase === 'PLAYING' && (
-          <button
-            className="btn-undo"
-            onClick={() => socket.emit('undoLastAction', { code: roomCode })}
-            disabled={!room.canUndo}
-            title={t.undoAction}
-          >
-            {lbl('↩', t.undoAction)}
-          </button>
-        )}
         {/* Game Review: only rendered for the room creator in live games. */}
         {!trainingMode && isCreator && phase === 'PLAYING' && (
           <button
@@ -801,6 +815,9 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
           <span className="tsb-item team0-col">{myTeam === 0 ? t.us : t.them}: <strong>{scores[0]}</strong></span>
           <span className="tsb-item team1-col">{myTeam === 1 ? t.us : t.them}: <strong>{scores[1]}</strong></span>
         </div>
+        {/* Creator undo — present throughout BIDDING / PLAYING / SHUFFLE / CUT,
+            independent of whose turn it is. */}
+        {creatorUndoButton}
       </div>
 
       {/* ── Middle row (felt) ─────────────────────────────────────────────── */}
@@ -1061,8 +1078,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
                 selectedSuit={effectiveBidSuit}
                 onSelectSuit={setSelectedBidSuit}
                 trainingMode={trainingMode}
-                isCreator={isCreator}
-                canUndo={room.canUndo}
               />
               {/* In normal play the bid toolbar is now empty (Trier removed, Annuler
                   moved into the suit row) — don't render an empty bar. Training has no
