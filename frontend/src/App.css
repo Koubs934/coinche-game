@@ -1554,6 +1554,9 @@ a      { color: var(--accent); }
   border-top: 1px solid rgba(255,255,255,0.08);
   padding-bottom: calc(var(--safe-bottom) + 4px);
 }
+/* During a bid turn the bid sheet owns the bottom safe-area, so the footer (now
+   sitting ABOVE it) drops the extra bottom padding. */
+.board-hand.has-bid-sheet > .hand-toolbar { padding-bottom: 4px; }
 
 /* ─── Collapsible bid sheet + highest-bid bar ────────────────────────────────
    Base (tall viewports): the sheet is a plain in-flow flex container — the bid
@@ -1652,6 +1655,13 @@ a      { color: var(--accent); }
     z-index: 90;
     transition: transform 0.32s ease;
   }
+  /* The undo footer floats up with the hand (inline transform); lift it above the
+     bar (70) / scrim (72) / sheet (80) so it stays visible + tappable over the felt. */
+  .board-hand.has-bid-sheet > .hand-toolbar {
+    position: relative;
+    z-index: 85;
+    transition: transform 0.32s ease;
+  }
 }
 
 /* Tall / normal viewports: the collapsible sheet + hand-lift are gated to
@@ -1665,9 +1675,11 @@ a      { color: var(--accent); }
     display: flex;
     flex-direction: column;
   }
-  .board-hand.has-bid-sheet .self-player-bar { order: 1; }
-  .board-hand.has-bid-sheet .my-hand         { order: 2; }
-  .board-hand.has-bid-sheet .bid-sheet       { order: 3; }
+  .board-hand.has-bid-sheet .self-player-bar  { order: 1; }
+  .board-hand.has-bid-sheet .my-hand          { order: 2; }
+  /* Undo footer sits between the hand and the bid sheet — above the sheet, in flow. */
+  .board-hand.has-bid-sheet > .hand-toolbar   { order: 3; }
+  .board-hand.has-bid-sheet .bid-sheet        { order: 4; }
 }
 
 .bidding-turn-info, .play-turn-info {

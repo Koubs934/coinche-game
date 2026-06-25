@@ -237,13 +237,12 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
 
   const isCreator = room.creatorId === myPlayer?.userId;
 
-  // Creator-only undo — ONE top-anchored control reused across every in-game phase
-  // (bidding, playing, shuffle/cut, and the round/game-over summary). Top placement
-  // keeps it reachable on a tall iPhone during a bid turn (never occluded by the
-  // bottom bid sheet), and it no longer depends on whose turn it is: the server
-  // gate is creator-only (room.creatorId === userId), not turn-based, so the
-  // creator can step back a bot's or anyone's move. Disabled when nothing remains
-  // to undo (room.canUndo). Not a hook — safe to declare before the early return.
+  // Creator-only undo for the ROUND/GAME-OVER summary screen (no bid sheet there to
+  // fight). On the live board the same undo lives in the bottom hand-footer instead
+  // (see buildToolbar), to the left of "Erreur de jeu". Server gate is creator-only
+  // (room.creatorId === userId), not turn-based, so the creator can step back a
+  // bot's/anyone's move. Disabled when nothing remains to undo (room.canUndo). Not a
+  // hook — safe to declare before the early return.
   const creatorUndoButton = (!trainingMode && isCreator) ? (
     <div className="creator-undo-row">
       <button
@@ -721,17 +720,28 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   // icon over a tiny caption (bidding-phase presentation, inside the sheet); the
   // full variant keeps the inline "icon label" used in normal flow. The sort
   // (Trier) button was removed — auto-sort + Mode Sacha cover arrangement, and a
-  // long-press-drag on the hand enters manual mode. Undo is no longer in this
-  // toolbar: it's a single creator-only control anchored at the top
-  // (creatorUndoButton), shown in every phase regardless of whose turn it is.
-  const buildToolbar = (compact) => {
+  // long-press-drag on the hand enters manual mode. The creator's undo is the FIRST
+  // item here (left of "Erreur de jeu"): this toolbar is the persistent bottom row,
+  // so undo shows in bidding AND playing, turn-independent. `style` carries the
+  // hand-lift that floats this row above the bid sheet on short viewports.
+  const buildToolbar = (compact, style) => {
     const lbl = (icon, caption) => compact
       ? (<><span className="ti-icon">{icon}</span><span className="ti-cap">{caption}</span></>)
       : (<>{icon} {caption}</>);
     return (
-      <div className={`hand-toolbar${compact ? ' hand-toolbar-icons' : ''}`}>
-        {/* Manual mode has no dedicated "back to auto" button: a new deal or a
-            Mode Sacha toggle both re-apply AUTO. */}
+      <div className={`hand-toolbar${compact ? ' hand-toolbar-icons' : ''}`} style={style}>
+        {/* Creator undo — left of Erreur de jeu; present in bidding & playing,
+            independent of whose turn it is. Disabled when nothing remains to undo. */}
+        {!trainingMode && isCreator && (
+          <button
+            className="btn-undo"
+            onClick={() => socket.emit('undoLastAction', { code: roomCode })}
+            disabled={!room.canUndo}
+            title={t.undoAction}
+          >
+            {lbl('↩', t.undoAction)}
+          </button>
+        )}
         {/* Game Review: only rendered for the room creator in live games. */}
         {!trainingMode && isCreator && phase === 'PLAYING' && (
           <button
@@ -756,7 +766,11 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
   // share the in-felt presentation); the full-label variant stays for SHUFFLE/CUT
   // and other-players'-turn bidding. buildToolbar already includes the 5th
   // (PLAYING-only, creator-only) "Erreur de jeu" button when phase === 'PLAYING'.
-  const handToolbar = buildToolbar(phase === 'PLAYING');
+  // The bottom hand-footer floats above the bid sheet on short viewports (the same
+  // lift the arc hand uses); on tall viewports CSS `order` puts it above the in-flow
+  // sheet. handLift is 0 outside a short-viewport bid turn, so this is a no-op then.
+  const footerLiftStyle = handLift ? { transform: `translateY(${-handLift}px)` } : undefined;
+  const handToolbar = buildToolbar(phase === 'PLAYING', footerLiftStyle);
   const bidToolbar  = buildToolbar(true);
 
   return (
@@ -815,9 +829,6 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
           <span className="tsb-item team0-col">{myTeam === 0 ? t.us : t.them}: <strong>{scores[0]}</strong></span>
           <span className="tsb-item team1-col">{myTeam === 1 ? t.us : t.them}: <strong>{scores[1]}</strong></span>
         </div>
-        {/* Creator undo — present throughout BIDDING / PLAYING / SHUFFLE / CUT,
-            independent of whose turn it is. */}
-        {creatorUndoButton}
       </div>
 
       {/* ── Middle row (felt) ─────────────────────────────────────────────── */}
@@ -1153,10 +1164,13 @@ export default function GameBoard({ socket, roomCode, room, game, myPosition, tr
           )}
         </div>
 
-        {/* Toolbar — single bottom row below the hand (not bidding; bidding's
-            toolbar lives inside the sheet). Frees the band that used to sit
-            between the header and the cards. */}
-        {!bidSheetActive && handToolbar}
+        {/* Persistent bottom footer: the creator's undo (left) + "Erreur de jeu"
+            (right, PLAYING only), side by side. Always rendered in normal play so
+            undo stays put across bidding and playing; floated above the bid sheet on
+            short viewports and CSS-ordered above it on tall, so it's never occluded.
+            In training the abandon button stays inside the sheet during a bid turn,
+            so only render this row there when the sheet isn't up. */}
+        {(!trainingMode || !bidSheetActive) && handToolbar}
       </div>
 
       {/* ── Belote decision prompt ───────────────────────────────────────────── */}
