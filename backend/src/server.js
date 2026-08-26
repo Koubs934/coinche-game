@@ -9,6 +9,7 @@ const rm = require('./roomManager');
 const presence = require('./presence');
 const { scheduleBotTurns, scheduleBotConfirms, scheduleBotShuffleCut, cancelBotSchedules } = require('./botProcessor');
 const rateLimit = require('./rateLimit');
+const { createAuthRouter } = require('./authRoutes');
 const persistence = require('./persistence');
 const gameRecordStorage = require('./game/gameRecordStorage');
 const { registerTrainingHandlers, runStartupCleanup: trainingStartupCleanup } = require('./training/trainingSocket');
@@ -22,6 +23,12 @@ const cardFeatures = require('./game/cardFeatures');
 require('./socketEvents');
 
 const app = express();
+// Railway terminates HTTP at its edge proxy (one hop): without this, req.ip is
+// the proxy's address for EVERY client and the per-IP rate limit in
+// authRoutes.js collapses into a single shared bucket (trivial login DoS).
+// Trusting exactly one hop resolves req.ip to the client IP Railway appends to
+// X-Forwarded-For; client-spoofed XFF prefixes stay ignored.
+app.set('trust proxy', 1);
 const httpServer = createServer(app);
 
 // ─── CORS origins ──────────────────────────────────────────────────────────
@@ -77,6 +84,9 @@ app.use(cors({ origin: originAllowed }));
 app.use(express.json());
 
 app.get('/health', (_, res) => res.json({ ok: true }));
+
+// Username → email resolution for the "Nom de joueur" login (see authRoutes.js).
+app.use(createAuthRouter());
 
 // ─── V2.2 Claude conversational annotation (Phase 1) ──────────────────────
 // Three endpoints attach a Socratic-detective conversation to an existing
@@ -520,8 +530,8 @@ io.use((socket, next) => {
   socket.userId = userId;
   socket.username = username;
   // Avatar config is an opaque cosmetic blob relayed to other clients. The
-  // backend never inspects its fields (it stays Supabase-free); it only caps
-  // size + shape so a client can't push something huge or non-object.
+  // backend never inspects its fields; it only caps size + shape so a client
+  // can't push something huge or non-object.
   socket.avatarConfig = sanitizeAvatarConfig(avatarConfig);
   next();
 });
@@ -688,8 +698,10 @@ io.on('connection', socket => {
   // Returns a presence map { userId: 'online' | 'in-game' } for every currently
   // online user EXCEPT the requester (any userId not in the map is offline).
   // The full registered-user roster is fetched by the client from Supabase
-  // (public.profiles) and merged with this map — the backend has no Supabase
-  // access, so it owns presence only, not the roster. Read-only.
+  // (public.profiles) and merged with this map — the backend doesn't read
+  // Supabase for game/presence data (its sole Supabase use is the service-role
+  // username lookup in services/supabaseAdmin.js), so it owns presence only,
+  // not the roster. Read-only.
   socket.on('lobby:getFriends', () => {
     const map = presence.buildPresenceMap(rm.isUserSeated);
     delete map[userId]; // exclude self

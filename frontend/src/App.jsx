@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import { useAuth } from './context/AuthContext';
 import { useLang } from './context/LanguageContext';
 import Auth from './components/Auth';
+import ResetPassword from './components/ResetPassword';
 import Header from './components/Header';
 import SettingsModal from './components/SettingsModal';
 import ChatPanel from './components/ChatPanel';
@@ -48,6 +49,11 @@ const URL_PARAMS = typeof window !== 'undefined'
   : new URLSearchParams();
 const MOCK_MODE = URL_PARAMS.get('mock');
 
+// Supabase recovery links land on /reset-password (see Auth.jsx forgot flow).
+// Static per page load, like MOCK_MODE — safe to branch on before the hooks.
+const IS_RESET_PASSWORD = typeof window !== 'undefined'
+  && window.location.pathname === '/reset-password';
+
 export default function App() {
   const { user, username, loading } = useAuth();
   const { lang, toggleLang, t } = useLang();
@@ -91,6 +97,18 @@ export default function App() {
           <button className="btn-lang" onClick={toggleLang}>{lang.toUpperCase()}</button>
         </div>
         <GameErrorTaggerMock />
+        <EnvBadge />
+      </>
+    );
+  }
+  if (IS_RESET_PASSWORD) {
+    // Recovery-link landing page — no socket, no room state, works signed-out.
+    return (
+      <>
+        <div className="lang-toggle-fixed">
+          <button className="btn-lang" onClick={toggleLang}>{lang.toUpperCase()}</button>
+        </div>
+        <ResetPassword />
         <EnvBadge />
       </>
     );

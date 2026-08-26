@@ -74,7 +74,9 @@ node scripts/scan-broken-scenarios.js --delete # prompt to delete
 ## Conventions
 - **Server pushes all state.** Clients emit actions, never compute authoritative state.
   No REST endpoints for gameplay; `/health` is the only REST. Training V2.2 adds
-  `/api/conversation/*` HTTP endpoints because they're file-bound, not room-bound.
+  `/api/conversation/*` HTTP endpoints because they're file-bound, not room-bound, and
+  auth adds `/api/auth/resolve-email` (username→email for login; account-bound, not
+  room-bound).
 - **Positions 0–3 / Teams 0–1**: seats clockwise; team = position % 2; partner = +2 mod 4.
 - **i18n keys** under `frontend/src/i18n/{en,fr}.js`; never hardcode user-facing strings.
 - **localStorage keys** are namespaced `coinche_*` (sort mode, manual hand order, draft notes).
@@ -144,7 +146,27 @@ minimal-but-live) + training tool V2.2 (Phase 1–2D done; calibration ongoing).
   `!room.game` guard → rejected. Replaces the old stale-`BIDDING`-game behavior (extra-pass
   window / silent re-deal with no shuffle prompt). Don't "fix" it back to keeping the game.
 - **Socket-only transport** for game state; `/health` is the only REST endpoint
-  (training V2.2's `/api/conversation/*` is the deliberate exception).
+  (training V2.2's `/api/conversation/*` and auth's `/api/auth/resolve-email` are the
+  deliberate exceptions).
+- **Username login via `/api/auth/resolve-email`** (`authRoutes.js` +
+  `services/supabaseAdmin.js`): the FE login form takes "Nom de joueur"; input with `@`
+  is used as an email directly, otherwise the backend maps username→email with the
+  service-role key (case-insensitive on `user_metadata.username`) and the FE runs
+  `signInWithPassword`. Duplicate usernames return an explicit 409 (never "pick one");
+  signup checks the same endpoint (200/409 = taken) and forbids `@` in usernames.
+  Known trade-off: the endpoint leaks the username→email mapping — accepted for this
+  private app, guarded by a per-IP rate limit (20/min, shared `rateLimit.js`).
+  `server.js` sets `trust proxy = 1` so `req.ip` is the real client behind Railway's
+  edge proxy — without it every client shares ONE rate-limit bucket (login DoS).
+  Signup uniqueness is client-side only (the FE gate is advisory; a direct Supabase
+  signup bypasses it) — the DB-level constraint is a tracked pending decision.
+- **Password reset**: Auth.jsx "Mot de passe oublié ?" → `resetPasswordForEmail` with
+  `redirectTo: <origin>/reset-password`, always answering with a neutral "email sent"
+  message (no account enumeration). `/reset-password` renders `ResetPassword.jsx` via a
+  module-level pathname check in App.jsx (same static-early-return pattern as
+  `?mock=`); it waits for the Supabase recovery session (PASSWORD_RECOVERY /
+  SIGNED_IN / getSession, 5 s timeout, URL `error=` params → invalid-link state), then
+  `updateUser({password})` → signOut → redirect to `/`.
 - **Scoring rounding by case**: uncoinched made contracts are rounded to nearest 10
   (trick points + announced value); coinche/surcoinche made contracts use a FLAT score
   (`value × multiplier + 160 + belote_if_contract_team`, defenders 0) that is already a
@@ -180,6 +202,12 @@ minimal-but-live) + training tool V2.2 (Phase 1–2D done; calibration ongoing).
   `coinche-backups/training-data-pre-reset-2026-06-09.tgz` (320 files). Repo unchanged.
 
 ## Pending decisions
+- **DB-level username uniqueness** — the FE signup gate (resolve-email 404 check) is
+  advisory: a direct Supabase signup with the anon key can duplicate any username
+  (breaking that name's login with a 409). Real fix: unique index on
+  `lower(raw_user_meta_data->>'username')` via a `SECURITY DEFINER` trigger on
+  `auth.users`. **Blocked until the existing "AK test 2" duplicate (two @me.com test
+  accounts) is deleted/renamed** — the index can't be created over the duplicate.
 - Whether to formalize the petit-jeu tie-break in `docs/la-feuille-v2.md` as a V2.2
   rule (see Decisions log entry).
 - `creatorId` transfer when the creator leaves mid-game — pending-join approvals and
@@ -202,6 +230,11 @@ minimal-but-live) + training tool V2.2 (Phase 1–2D done; calibration ongoing).
 - **`ANTHROPIC_API_KEY` required at runtime** for `/api/conversation/*`. Server boots
   without it (lazy-init) but the endpoints 502 on first call. Set in Railway dashboard
   for prod, in `backend/.env.railway.local` for local.
+- **`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` required at runtime** for
+  `/api/auth/resolve-email` (same lazy-init pattern: boots without them, 500s on first
+  call). Set in Railway dashboard for prod. The service-role key must NEVER reach the
+  frontend. Also operational: the Supabase Auth "Redirect URLs" allowlist must contain
+  `<frontend-origin>/reset-password` or recovery links fall back to the Site URL.
 - **vitest runs from `backend/`**: `npm run test:vitest` at repo root = `EXIT 127` (a non-run,
   not a pass). Push only on `VITEST_EXIT=0` over the FULL suite — targeted tests miss
   cross-module breakage.
